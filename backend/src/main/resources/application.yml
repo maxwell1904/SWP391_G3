@@ -1,13 +1,23 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/swp391
-    username: postgres
-    password: 123456
+    url: ${SPRING_DATASOURCE_URL:jdbc:h2:mem:swp391;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH}
+    username: ${SPRING_DATASOURCE_USERNAME:sa}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+    driver-class-name: ${SPRING_DATASOURCE_DRIVER:org.h2.Driver}
 
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: true
+      ddl-auto: ${SPRING_JPA_DDL_AUTO:create-drop}
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
 
 server:
   port: 8080
