@@ -9,6 +9,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.sql.DataSource;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
+import jakarta.mail.internet.MimeMessage;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
@@ -58,6 +61,7 @@ public class MvpDemoService {
     private final NotificationRepository notificationRepository;
     private final SystemSettingRepository systemSettingRepository;
     private final DataSource dataSource;
+    private final JavaMailSender mailSender;
 
     public MvpDemoService(
             RoleRepository roleRepository,
@@ -79,7 +83,8 @@ public class MvpDemoService {
             RefundRepository refundRepository,
             NotificationRepository notificationRepository,
             SystemSettingRepository systemSettingRepository,
-            DataSource dataSource
+            DataSource dataSource,
+            JavaMailSender mailSender
     ) {
         this.roleRepository = roleRepository;
         this.userRepository = userRepository;
@@ -101,6 +106,7 @@ public class MvpDemoService {
         this.notificationRepository = notificationRepository;
         this.systemSettingRepository = systemSettingRepository;
         this.dataSource = dataSource;
+        this.mailSender = mailSender;
     }
 
     @Transactional(readOnly = true)
@@ -858,15 +864,41 @@ public class MvpDemoService {
     }
 
     private void notifyEmailVerificationLink(AppUser user) {
+        String link = verificationLink(user);
+        
         System.out.println("=================================================");
-        System.out.println("SIMULATING EMAIL DELIVERY TO: " + user.getEmail());
+        System.out.println("SENDING EMAIL TO: " + user.getEmail());
         System.out.println("Subject: Verify your GoalZone account");
-        System.out.println("Body: Click here to verify your account: " + verificationLink(user));
+        System.out.println("Body: Click here to verify your account: " + link);
         System.out.println("=================================================");
+
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setTo(user.getEmail());
+            helper.setSubject("Verify your GoalZone account");
+            
+            String htmlContent = "<h3>Welcome to GoalZone, " + user.getFullName() + "!</h3>"
+                    + "<p>Thank you for registering. Please click the link below to verify your email and activate online booking:</p>"
+                    + "<p><a href=\"" + link + "\" style=\"display: inline-block; padding: 10px 20px; color: white; background-color: #4CAF50; text-decoration: none; border-radius: 5px;\">Verify Account</a></p>"
+                    + "<p>If the button doesn't work, copy and paste this URL into your browser:</p>"
+                    + "<p><a href=\"" + link + "\">" + link + "</a></p>"
+                    + "<br/><p>Best regards,<br/>GoalZone Team</p>";
+            
+            helper.setText(htmlContent, true);
+            mailSender.send(message);
+            System.out.println("SUCCESS: Real email sent successfully to " + user.getEmail());
+        } catch (Exception e) {
+            System.out.println("WARNING: Failed to send real email via SMTP, fallback to console log. Error: " + e.getMessage());
+        }
     }
 
     private String verificationLink(AppUser user) {
-        return "/verify-email?userId=" + user.getUserId() + "&token=" + user.getEmailVerificationToken();
+        String baseUrl = System.getenv().getOrDefault("FRONTEND_URL", "http://localhost:5173");
+        if (baseUrl.endsWith("/")) {
+            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+        }
+        return baseUrl + "/verify-email?userId=" + user.getUserId() + "&token=" + user.getEmailVerificationToken();
     }
 
     private Map<String, Object> userSummary(AppUser user) {
