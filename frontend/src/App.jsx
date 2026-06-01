@@ -766,8 +766,7 @@ function App() {
                   <p>{currentUser.role} account · {currentUser.emailVerified ? 'verified email' : 'unverified email'}</p>
                   {!currentUser.emailVerified && (
                     <EmailVerificationPanel
-                      link={verificationLink}
-                      onVerify={verifyEmailFromLink}
+                      email={currentUser.email}
                       onResend={resendVerification}
                     />
                   )}
@@ -872,8 +871,7 @@ function App() {
             {!currentUser.emailVerified && (
               <div className="accountVerification">
                 <EmailVerificationPanel
-                  link={verificationLink}
-                  onVerify={verifyEmailFromLink}
+                  email={currentUser.email}
                   onResend={resendVerification}
                 />
               </div>
@@ -1159,18 +1157,29 @@ function PasswordField({ label, value, visible, error, hint, autoComplete = 'cur
   )
 }
 
-function EmailVerificationPanel({ link, onVerify, onResend }) {
+function EmailVerificationPanel({ email, onResend }) {
+  const [sentNotice, setSentNotice] = useState(false)
+
+  const handleResend = async () => {
+    await onResend()
+    setSentNotice(true)
+    setTimeout(() => setSentNotice(false), 5000)
+  }
+
   return (
     <div className="verificationPanel">
       <div>
         <MailCheck size={20} />
-        <span>Email verification</span>
+        <span>Email Verification Required</span>
       </div>
-      <p>For this local demo, the email provider is simulated. Open the verification link below to activate online booking.</p>
-      {link && <a className="verifyLink" href={link}>Open verification link</a>}
+      <p>
+        We have sent a verification link to your email address: <strong>{email}</strong>. 
+        Please check your inbox (and spam folder) to activate your account and enable online booking.
+      </p>
       <div className="buttonRow noMargin">
-        {link && <button className="secondaryButton" onClick={() => onVerify(link)}>Verify now</button>}
-        <button className="ghostDarkButton" onClick={onResend}>Resend link</button>
+        <button className="secondaryButton" onClick={handleResend}>
+          {sentNotice ? 'Verification link resent!' : 'Resend verification link'}
+        </button>
       </div>
     </div>
   )
