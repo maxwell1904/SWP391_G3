@@ -260,6 +260,12 @@ function App() {
         api.get('/settings')
       ])
       setUsers(userRes.data)
+      if (currentUser) {
+        const freshUser = userRes.data.find(u => u.userId === currentUser.userId)
+        if (freshUser) {
+          setCurrentUser(freshUser)
+        }
+      }
       setFields(fieldRes.data)
       setFieldTypes(typeRes.data)
       setServices(serviceRes.data)
