@@ -12,7 +12,8 @@ public final class ApiRequests {
             String fullName,
             String email,
             String phone,
-            String password
+            String password,
+            String confirmPassword
     ) {
     }
 

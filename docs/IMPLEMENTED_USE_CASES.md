@@ -9,16 +9,16 @@ This file tracks the demo-level use cases implemented in the codebase and keeps 
 - Frontend: React + Vite single-page app with routes for public browsing, booking, account, staff operation, and admin reporting.
 - Backend: Spring Boot REST API with JPA entities, repositories, services, validation, seed data, and Supabase PostgreSQL support.
 - Database: code-first JPA schema aligned with the slim ERD under `database/football_field_booking_slim.dbml`.
-- Demo auth: local account login/register and local email verification code. No real SMTP yet.
+- Demo auth: local account login/register and local email verification-link flow. No real SMTP yet.
 - Demo payment: deterministic `online_sandbox` payment records. No real PayPal redirect/callback yet.
 
 ## BonVT - Account And Customer Access
 
 | UC | Status | Implemented value |
 | --- | --- | --- |
-| UC-01 Register Account | Done | Customer registration with unique email/phone validation, password input, generated email verification token, and default membership creation. |
+| UC-01 Register Account | Done | Customer registration with unique email/phone validation, enforced password policy, generated email verification token, and default membership creation. |
 | UC-02 Login | Done | Login by email or phone, role-aware frontend session, logout, and local session persistence for demo refresh/direct-route testing. |
-| UC-04 Verify Email | Done as local demo | Verification code UI and backend verify/resend endpoints. The code is shown in the local demo instead of being sent by SMTP. |
+| UC-04 Verify Email | Done as local demo | Verification link UI and backend verify/resend endpoints. The link is shown in the local demo instead of being delivered by SMTP. |
 | UC-07 View Account Area | Done | Customer account page shows bookings, payments, membership progress, and notifications. |
 | UC-10 Customer Booking Restriction | Done in backend | Restricted customers are blocked from creating bookings. Restriction admin UI can be added later if needed. |
 
@@ -107,7 +107,7 @@ Main files:
 
 ## Current Demo Login Accounts
 
-All seeded accounts use password `123456`.
+All seeded accounts use password `GoalZone@123`.
 
 | Role | Email |
 | --- | --- |

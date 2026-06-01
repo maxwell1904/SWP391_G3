@@ -31,12 +31,17 @@ const formatMoney = value => new Intl.NumberFormat('vi-VN', {
   maximumFractionDigits: 0
 }).format(Number(value || 0))
 
+const demoPassword = 'GoalZone@123'
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const phonePattern = /^0\d{9}$/
+
 const pageRoutes = {
   home: '/',
   fields: '/fields',
   booking: '/booking',
   login: '/login',
   account: '/account',
+  verifyEmail: '/verify-email',
   promotions: '/promotions',
   staff: '/staff',
   admin: '/admin'
@@ -53,6 +58,18 @@ const loadStoredUser = () => {
   } catch {
     return null
   }
+}
+
+const passwordIssues = password => {
+  const issues = []
+  if (!password) return ['Password is required.']
+  if (password.length < 8) issues.push('Use at least 8 characters.')
+  if (/\s/.test(password)) issues.push('Remove spaces.')
+  if (!/[A-Z]/.test(password)) issues.push('Add one uppercase letter.')
+  if (!/[a-z]/.test(password)) issues.push('Add one lowercase letter.')
+  if (!/\d/.test(password)) issues.push('Add one number.')
+  if (!/[^A-Za-z0-9]/.test(password)) issues.push('Add one special character.')
+  return issues
 }
 
 function App() {
@@ -92,15 +109,18 @@ function App() {
   const [checkout, setCheckout] = useState(null)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [checkoutError, setCheckoutError] = useState('')
-  const [verificationCode, setVerificationCode] = useState('')
-  const [demoVerificationCode, setDemoVerificationCode] = useState('')
+  const [verificationLink, setVerificationLink] = useState('')
+  const [verifyResult, setVerifyResult] = useState({ status: 'idle', message: '' })
+  const [loginErrors, setLoginErrors] = useState({})
+  const [registerErrors, setRegisterErrors] = useState({})
 
-  const [loginForm, setLoginForm] = useState({ emailOrPhone: 'customer@goalzone.local', password: '123456' })
+  const [loginForm, setLoginForm] = useState({ emailOrPhone: 'customer@goalzone.local', password: demoPassword })
   const [registerForm, setRegisterForm] = useState({
     fullName: 'New Customer',
     email: `customer${Date.now()}@goalzone.local`,
     phone: `09${String(Date.now()).slice(-8)}`,
-    password: '123456'
+    password: demoPassword,
+    confirmPassword: demoPassword
   })
   const [issueDraft, setIssueDraft] = useState({
     title: 'Loose goal net',
@@ -136,6 +156,38 @@ function App() {
   useEffect(() => {
     loadSlots()
   }, [searchDate, fieldTypeFilter])
+
+  useEffect(() => {
+    if (currentPage !== 'verifyEmail') return undefined
+    let cancelled = false
+    const params = new URLSearchParams(window.location.search)
+    const userId = params.get('userId')
+    const token = params.get('token')
+
+    if (!userId || !token) {
+      setVerifyResult({ status: 'error', message: 'Verification link is missing required information.' })
+      return undefined
+    }
+
+    setVerifyResult({ status: 'loading', message: 'Verifying your email...' })
+    api.post('/account/email/verify', { userId: Number(userId), token })
+      .then(response => {
+        if (cancelled) return
+        setVerifyResult({ status: 'success', message: response.data.message || 'Email verified.' })
+        if (response.data.user) {
+          setCurrentUser(response.data.user)
+          setVerificationLink('')
+        }
+      })
+      .catch(error => {
+        if (cancelled) return
+        setVerifyResult({ status: 'error', message: error.response?.data?.error || 'Verification link is invalid or expired.' })
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [currentPage])
 
   useEffect(() => {
     let cancelled = false
@@ -282,6 +334,7 @@ function App() {
   function actionMessage(successMessage) {
     if (successMessage.includes('Checkout')) return 'The cost breakdown is ready in the checkout panel.'
     if (successMessage.includes('Booking created')) return 'The booking has been saved and the slot will now be treated as unavailable.'
+    if (successMessage.includes('Account created')) return 'Open the verification link on your account page before online booking.'
     if (successMessage.includes('Signed in')) return 'Your role-specific workspace is ready.'
     if (successMessage.includes('Email verified')) return 'You can continue with online booking now.'
     if (successMessage.includes('Refund')) return 'Refund information was recorded for the selected booking.'
@@ -329,45 +382,102 @@ function App() {
       .map(([serviceId, quantity]) => ({ serviceId: Number(serviceId), quantity: Number(quantity) }))
   }
 
+  function validateLoginForm() {
+    const errors = {}
+    if (!loginForm.emailOrPhone.trim()) errors.emailOrPhone = 'Email or phone is required.'
+    if (!loginForm.password) errors.password = 'Password is required.'
+    return errors
+  }
+
+  function validateRegisterForm() {
+    const errors = {}
+    const name = registerForm.fullName.trim()
+    const email = registerForm.email.trim()
+    const phone = registerForm.phone.trim()
+    if (name.length < 2) errors.fullName = 'Enter at least 2 characters.'
+    if (!emailPattern.test(email)) errors.email = 'Enter a valid email address.'
+    if (!phonePattern.test(phone)) errors.phone = 'Use a 10-digit phone number that starts with 0.'
+    const issues = passwordIssues(registerForm.password)
+    if (issues.length) errors.password = issues[0]
+    if (registerForm.password !== registerForm.confirmPassword) errors.confirmPassword = 'Passwords do not match.'
+    return errors
+  }
+
+  function updateLoginForm(field, value) {
+    setLoginForm({ ...loginForm, [field]: value })
+    setLoginErrors(({ [field]: _ignored, ...rest }) => rest)
+  }
+
+  function updateRegisterForm(field, value) {
+    setRegisterForm({ ...registerForm, [field]: value })
+    setRegisterErrors(({ [field]: _ignored, ...rest }) => rest)
+  }
+
   async function login(emailOrPhone = loginForm.emailOrPhone) {
+    const errors = validateLoginForm()
+    if (Object.keys(errors).length) {
+      setLoginErrors(errors)
+      setActionPanel({
+        kind: 'error',
+        title: 'Check login details',
+        message: Object.values(errors)[0]
+      })
+      return
+    }
     const response = await runAction(async () => api.post('/account/login', {
-      emailOrPhone,
-      password: loginForm.password || '123456'
+      emailOrPhone: emailOrPhone.trim(),
+      password: loginForm.password
     }), 'Signed in')
     if (response?.data?.user) {
       setCurrentUser(response.data.user)
       setAuthMode('login')
-      setVerificationCode('')
-      setDemoVerificationCode('')
+      setVerificationLink('')
       navigatePage('account')
     }
   }
 
   async function register() {
-    const response = await runAction(async () => api.post('/account/register', registerForm), 'Account created')
+    const errors = validateRegisterForm()
+    if (Object.keys(errors).length) {
+      setRegisterErrors(errors)
+      setActionPanel({
+        kind: 'error',
+        title: 'Check registration details',
+        message: Object.values(errors)[0]
+      })
+      return
+    }
+    const payload = {
+      ...registerForm,
+      fullName: registerForm.fullName.trim(),
+      email: registerForm.email.trim(),
+      phone: registerForm.phone.trim()
+    }
+    const response = await runAction(async () => api.post('/account/register', payload), 'Account created')
     if (response?.data) {
       const user = response.data.user || response.data
       setCurrentUser(user)
       setAuthMode('login')
-      setVerificationCode(response.data.verificationCode || '')
-      setDemoVerificationCode(response.data.verificationCode || '')
+      setVerificationLink(response.data.verificationLink || '')
       if (response.data.verificationRequired) {
-        setNotice('Account created. Verify email before online booking')
+        setNotice('Account created. Open the verification link before online booking')
       }
       navigatePage('account')
     }
   }
 
-  async function verifyEmail() {
+  async function verifyEmailFromLink(link = verificationLink) {
     if (!currentUser) return
+    const params = new URLSearchParams(link.split('?')[1] || '')
+    const token = params.get('token')
+    const userId = Number(params.get('userId') || currentUser.userId)
     const response = await runAction(async () => api.post('/account/email/verify', {
-      userId: currentUser.userId,
-      token: verificationCode
+      userId,
+      token
     }), 'Email verified')
     if (response?.data?.user) {
       setCurrentUser(response.data.user)
-      setVerificationCode('')
-      setDemoVerificationCode('')
+      setVerificationLink('')
     }
   }
 
@@ -375,10 +485,9 @@ function App() {
     if (!currentUser) return
     const response = await runAction(async () => api.post('/account/email/resend', {
       userId: currentUser.userId
-    }), 'Verification code sent')
-    if (response?.data?.verificationCode) {
-      setVerificationCode(response.data.verificationCode)
-      setDemoVerificationCode(response.data.verificationCode)
+    }), 'Verification link sent')
+    if (response?.data?.verificationLink) {
+      setVerificationLink(response.data.verificationLink)
     }
   }
 
@@ -657,10 +766,8 @@ function App() {
                   <p>{currentUser.role} account · {currentUser.emailVerified ? 'verified email' : 'unverified email'}</p>
                   {!currentUser.emailVerified && (
                     <EmailVerificationPanel
-                      code={verificationCode}
-                      setCode={setVerificationCode}
-                      demoCode={demoVerificationCode}
-                      onVerify={verifyEmail}
+                      link={verificationLink}
+                      onVerify={verifyEmailFromLink}
                       onResend={resendVerification}
                     />
                   )}
@@ -680,15 +787,21 @@ function App() {
                   </div>
                   {authMode === 'login' ? (
                 <div className="formStack">
-                  <FieldControl label="Email or phone">
-                    <input value={loginForm.emailOrPhone} onChange={event => setLoginForm({ ...loginForm, emailOrPhone: event.target.value })} />
+                  <FieldControl label="Email or phone" error={loginErrors.emailOrPhone}>
+                    <input
+                      autoComplete="username"
+                      value={loginForm.emailOrPhone}
+                      onChange={event => updateLoginForm('emailOrPhone', event.target.value)}
+                    />
                   </FieldControl>
                   <PasswordField
                     label="Password"
                     value={loginForm.password}
                     visible={showLoginPassword}
+                    error={loginErrors.password}
+                    autoComplete="current-password"
                     onToggle={() => setShowLoginPassword(!showLoginPassword)}
-                    onChange={value => setLoginForm({ ...loginForm, password: value })}
+                    onChange={value => updateLoginForm('password', value)}
                   />
                   <button className="primaryButton wide" onClick={() => login()}>
                     <LogIn size={18} />
@@ -697,21 +810,47 @@ function App() {
                 </div>
               ) : (
                 <div className="formStack">
-                  <FieldControl label="Full name">
-                    <input value={registerForm.fullName} onChange={event => setRegisterForm({ ...registerForm, fullName: event.target.value })} />
+                  <FieldControl label="Full name" error={registerErrors.fullName}>
+                    <input
+                      autoComplete="name"
+                      value={registerForm.fullName}
+                      onChange={event => updateRegisterForm('fullName', event.target.value)}
+                    />
                   </FieldControl>
-                  <FieldControl label="Email">
-                    <input value={registerForm.email} onChange={event => setRegisterForm({ ...registerForm, email: event.target.value })} />
+                  <FieldControl label="Email" error={registerErrors.email}>
+                    <input
+                      autoComplete="email"
+                      inputMode="email"
+                      value={registerForm.email}
+                      onChange={event => updateRegisterForm('email', event.target.value)}
+                    />
                   </FieldControl>
-                  <FieldControl label="Phone">
-                    <input value={registerForm.phone} onChange={event => setRegisterForm({ ...registerForm, phone: event.target.value })} />
+                  <FieldControl label="Phone" error={registerErrors.phone}>
+                    <input
+                      autoComplete="tel"
+                      inputMode="tel"
+                      value={registerForm.phone}
+                      onChange={event => updateRegisterForm('phone', event.target.value)}
+                    />
                   </FieldControl>
                   <PasswordField
                     label="Password"
                     value={registerForm.password}
                     visible={showRegisterPassword}
+                    error={registerErrors.password}
+                    hint="At least 8 characters with uppercase, lowercase, number, and special character."
+                    autoComplete="new-password"
                     onToggle={() => setShowRegisterPassword(!showRegisterPassword)}
-                    onChange={value => setRegisterForm({ ...registerForm, password: value })}
+                    onChange={value => updateRegisterForm('password', value)}
+                  />
+                  <PasswordField
+                    label="Confirm password"
+                    value={registerForm.confirmPassword}
+                    visible={showRegisterPassword}
+                    error={registerErrors.confirmPassword}
+                    autoComplete="new-password"
+                    onToggle={() => setShowRegisterPassword(!showRegisterPassword)}
+                    onChange={value => updateRegisterForm('confirmPassword', value)}
                   />
                   <button className="primaryButton wide" onClick={register}>Create account</button>
                 </div>
@@ -730,6 +869,15 @@ function App() {
               title={`Welcome, ${currentUser.fullName}`}
               text="Track bookings, payment history, membership progress, and support messages."
             />
+            {!currentUser.emailVerified && (
+              <div className="accountVerification">
+                <EmailVerificationPanel
+                  link={verificationLink}
+                  onVerify={verifyEmailFromLink}
+                  onResend={resendVerification}
+                />
+              </div>
+            )}
             <div className="accountGrid">
               <InfoPanel title="My bookings">
                 <BookingList bookings={userBookings} selectedBookingId={selectedBookingId} onSelect={setSelectedBookingId} />
@@ -761,6 +909,33 @@ function App() {
                   value: item.type
                 }))} />
               </InfoPanel>
+            </div>
+          </section>
+        )}
+
+        {currentPage === 'verifyEmail' && (
+          <section id="verify-email" className="section authSection">
+            <SectionIntro
+              kicker="Email verification"
+              title={verifyResult.status === 'success' ? 'Email verified' : 'Verify your email'}
+              text={verifyResult.message || 'Checking the verification link.'}
+            />
+            <div className="authGrid">
+              <article className="authPanel">
+                <div className="signedInCard">
+                  <span>{verifyResult.status === 'error' ? 'Needs attention' : verifyResult.status === 'success' ? 'Verified' : 'Checking'}</span>
+                  <h3>{verifyResult.message || 'Verifying email link'}</h3>
+                  <p>{verifyResult.status === 'success' ? 'You can continue booking online.' : 'If the link has expired, resend it from your account page.'}</p>
+                  <div className="buttonRow noMargin">
+                    <button className="primaryButton wide" onClick={() => navigatePage(currentUser ? 'booking' : 'login')}>
+                      {currentUser ? 'Continue booking' : 'Back to login'}
+                    </button>
+                    {currentUser && !currentUser.emailVerified && (
+                      <button className="ghostDarkButton wide" onClick={resendVerification}>Resend link</button>
+                    )}
+                  </div>
+                </div>
+              </article>
             </div>
           </section>
         )}
@@ -955,21 +1130,24 @@ function SectionIntro({ kicker, title, text }) {
   )
 }
 
-function FieldControl({ label, children }) {
+function FieldControl({ label, children, error, hint }) {
   return (
-    <label className="fieldControl">
+    <label className={error ? 'fieldControl invalid' : 'fieldControl'}>
       <span>{label}</span>
       {children}
+      {error && <small className="fieldError">{error}</small>}
+      {!error && hint && <small className="fieldHint">{hint}</small>}
     </label>
   )
 }
 
-function PasswordField({ label, value, visible, onToggle, onChange }) {
+function PasswordField({ label, value, visible, error, hint, autoComplete = 'current-password', onToggle, onChange }) {
   return (
-    <FieldControl label={label}>
+    <FieldControl label={label} error={error} hint={hint}>
       <span className="passwordInput">
         <input
           type={visible ? 'text' : 'password'}
+          autoComplete={autoComplete}
           value={value}
           onChange={event => onChange(event.target.value)}
         />
@@ -981,21 +1159,18 @@ function PasswordField({ label, value, visible, onToggle, onChange }) {
   )
 }
 
-function EmailVerificationPanel({ code, setCode, demoCode, onVerify, onResend }) {
+function EmailVerificationPanel({ link, onVerify, onResend }) {
   return (
     <div className="verificationPanel">
       <div>
         <MailCheck size={20} />
         <span>Email verification</span>
       </div>
-      <p>For this local demo, the verification code is shown here instead of being sent by SMTP.</p>
-      {demoCode && <strong>Demo code: {demoCode}</strong>}
-      <FieldControl label="Verification code">
-        <input value={code} onChange={event => setCode(event.target.value)} />
-      </FieldControl>
+      <p>For this local demo, the email provider is simulated. Open the verification link below to activate online booking.</p>
+      {link && <a className="verifyLink" href={link}>Open verification link</a>}
       <div className="buttonRow noMargin">
-        <button className="secondaryButton" onClick={onVerify}>Verify email</button>
-        <button className="ghostDarkButton" onClick={onResend}>Resend code</button>
+        {link && <button className="secondaryButton" onClick={() => onVerify(link)}>Verify now</button>}
+        <button className="ghostDarkButton" onClick={onResend}>Resend link</button>
       </div>
     </div>
   )

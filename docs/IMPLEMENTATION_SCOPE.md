@@ -10,7 +10,7 @@ The implemented demo scope covers account access, local email verification, fiel
 
 - No review table or review UI. The backlog mention in field detail should be removed unless the team adds review use cases.
 - No real payment gateway integration. The payment sandbox is deterministic and stores transaction codes.
-- No real SMTP integration. Email verification is a local demo code flow until mail provider credentials are available.
+- No real SMTP integration. Email verification is a local demo verification-link flow until mail provider credentials are available.
 - No AI assistant or suggested slot engine. UC-63 and UC-64 stay optional.
 - No inventory transaction ledger. Extra service availability is kept at service-level stock/max quantity for MVP.
 

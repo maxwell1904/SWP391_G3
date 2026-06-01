@@ -608,6 +608,28 @@ main.pageMain .section {
   border-color: rgba(23, 111, 70, 0.42);
 }
 
+.fieldControl.invalid input,
+.fieldControl.invalid select,
+.fieldControl.invalid textarea,
+.fieldControl.invalid .passwordInput button {
+  border-color: rgba(212, 92, 45, 0.6);
+}
+
+.fieldError,
+.fieldHint {
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.fieldError {
+  color: var(--orange);
+}
+
+.fieldHint {
+  color: var(--muted);
+  font-weight: 650;
+}
+
 .slotList {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(166px, 1fr));
@@ -872,6 +894,11 @@ main.pageMain .section {
   color: var(--muted);
 }
 
+.accountVerification {
+  width: min(720px, 100%);
+  margin-bottom: 16px;
+}
+
 .verificationPanel {
   display: grid;
   gap: 10px;
@@ -901,6 +928,19 @@ main.pageMain .section {
 
 .verificationPanel strong {
   color: var(--orange);
+}
+
+.verifyLink {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(23, 111, 70, 0.22);
+  border-radius: 10px;
+  background: var(--white);
+  color: var(--green-dark);
+  font-weight: 850;
+  text-decoration: none;
 }
 
 .demoPanel {

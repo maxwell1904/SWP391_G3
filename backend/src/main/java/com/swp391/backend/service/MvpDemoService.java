@@ -19,6 +19,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
+import java.util.regex.Pattern;
 
 @Service
 @Transactional
@@ -29,6 +30,13 @@ public class MvpDemoService {
             BookingStatus.confirmed,
             BookingStatus.checked_in
     );
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
+    private static final Pattern PHONE_PATTERN = Pattern.compile("^0\\d{9}$");
+    private static final Pattern UPPERCASE_PATTERN = Pattern.compile(".*[A-Z].*");
+    private static final Pattern LOWERCASE_PATTERN = Pattern.compile(".*[a-z].*");
+    private static final Pattern NUMBER_PATTERN = Pattern.compile(".*\\d.*");
+    private static final Pattern SPECIAL_PATTERN = Pattern.compile(".*[^A-Za-z0-9].*");
+    private static final String PASSWORD_POLICY_MESSAGE = "Password must be at least 8 characters and include uppercase, lowercase, number, and special character.";
 
     private final RoleRepository roleRepository;
     private final AppUserRepository userRepository;
@@ -112,15 +120,21 @@ public class MvpDemoService {
 
     public Map<String, Object> register(ApiRequests.Register request) {
         requireText(request.fullName(), "Full name is required");
-        requireText(request.password(), "Password is required");
-        if (isBlank(request.email()) && isBlank(request.phone())) {
-            throw badRequest("Email or phone is required");
+        String email = clean(request.email());
+        String phone = clean(request.phone());
+        requireText(email, "Email is required");
+        requireText(phone, "Phone is required");
+        if (!EMAIL_PATTERN.matcher(email).matches()) {
+            throw badRequest("Email format is invalid");
         }
-        request.email();
-        if (!isBlank(request.email()) && userRepository.findByEmail(request.email()).isPresent()) {
+        if (!PHONE_PATTERN.matcher(phone).matches()) {
+            throw badRequest("Phone must be 10 digits and start with 0");
+        }
+        validatePassword(request.password(), request.confirmPassword());
+        if (userRepository.findByEmail(email).isPresent()) {
             throw badRequest("Email already exists");
         }
-        if (!isBlank(request.phone()) && userRepository.findByPhone(request.phone()).isPresent()) {
+        if (userRepository.findByPhone(phone).isPresent()) {
             throw badRequest("Phone already exists");
         }
 
@@ -128,34 +142,29 @@ public class MvpDemoService {
                 .orElseThrow(() -> serverError("Customer role has not been seeded"));
         AppUser user = new AppUser();
         user.setRole(customerRole);
-        user.setFullName(request.fullName());
-        user.setEmail(request.email());
-        user.setPhone(request.phone());
+        user.setFullName(clean(request.fullName()));
+        user.setEmail(email);
+        user.setPhone(phone);
         user.setPasswordHash(request.password());
-        user.setEmailVerified(isBlank(request.email()));
-        if (!user.isEmailVerified()) {
-            issueEmailVerification(user);
-        }
+        user.setEmailVerified(false);
+        issueEmailVerification(user);
         user = userRepository.save(user);
-        if (!user.isEmailVerified()) {
-            notifyUser(user, null, NotificationType.system, "Verify email", "Use code " + user.getEmailVerificationToken() + " to verify your email.");
-        }
+        notifyEmailVerificationLink(user);
         attachDefaultMembership(user);
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("user", userSummary(user));
         response.put("verificationRequired", !user.isEmailVerified());
-        response.put("verificationCode", user.getEmailVerificationToken());
-        response.put("message", user.isEmailVerified()
-                ? "Account created"
-                : "Account created. Verify email before online booking.");
+        response.put("verificationLink", verificationLink(user));
+        response.put("message", "Account created. Open the verification link before online booking.");
         return response;
     }
 
     public Map<String, Object> login(ApiRequests.Login request) {
         requireText(request.emailOrPhone(), "Email or phone is required");
         requireText(request.password(), "Password is required");
-        AppUser user = userRepository.findByEmail(request.emailOrPhone())
-                .or(() -> userRepository.findByPhone(request.emailOrPhone()))
+        String identity = clean(request.emailOrPhone());
+        AppUser user = userRepository.findByEmail(identity)
+                .or(() -> userRepository.findByPhone(identity))
                 .orElseThrow(() -> notFound("Account not found"));
         if (!Objects.equals(user.getPasswordHash(), request.password())) {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
@@ -176,9 +185,9 @@ public class MvpDemoService {
         if (user.isEmailVerified()) {
             return Map.of("user", userSummary(user), "message", "Email is already verified");
         }
-        requireText(request.token(), "Verification code is required");
+        requireText(request.token(), "Verification token is required");
         if (!Objects.equals(user.getEmailVerificationToken(), request.token().trim())) {
-            throw badRequest("Invalid verification code");
+            throw badRequest("Invalid or expired verification link");
         }
         user.setEmailVerified(true);
         user.setEmailVerificationToken(null);
@@ -195,10 +204,11 @@ public class MvpDemoService {
             return Map.of("user", userSummary(user), "message", "Email is already verified");
         }
         String token = issueEmailVerification(user);
+        notifyEmailVerificationLink(user);
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("user", userSummary(user));
-        response.put("verificationCode", token);
-        response.put("message", "Verification email queued for demo");
+        response.put("verificationLink", verificationLink(user));
+        response.put("message", "Verification link queued for demo");
         return response;
     }
 
@@ -841,13 +851,22 @@ public class MvpDemoService {
     }
 
     private String issueEmailVerification(AppUser user) {
-        String token = String.valueOf(100000 + Math.abs(UUID.randomUUID().hashCode() % 900000));
+        String token = UUID.randomUUID().toString().replace("-", "").substring(0, 16);
         user.setEmailVerificationToken(token);
         user.setEmailVerificationSentAt(LocalDateTime.now());
-        if (user.getUserId() != null) {
-            notifyUser(user, null, NotificationType.system, "Verify email", "Use code " + token + " to verify your email.");
-        }
         return token;
+    }
+
+    private void notifyEmailVerificationLink(AppUser user) {
+        System.out.println("=================================================");
+        System.out.println("SIMULATING EMAIL DELIVERY TO: " + user.getEmail());
+        System.out.println("Subject: Verify your GoalZone account");
+        System.out.println("Body: Click here to verify your account: " + verificationLink(user));
+        System.out.println("=================================================");
+    }
+
+    private String verificationLink(AppUser user) {
+        return "/verify-email?userId=" + user.getUserId() + "&token=" + user.getEmailVerificationToken();
     }
 
     private Map<String, Object> userSummary(AppUser user) {
@@ -1097,6 +1116,21 @@ public class MvpDemoService {
         }
     }
 
+    private void validatePassword(String password, String confirmPassword) {
+        requireText(password, "Password is required");
+        if (password.length() < 8 || password.length() > 72
+                || password.chars().anyMatch(Character::isWhitespace)
+                || !UPPERCASE_PATTERN.matcher(password).matches()
+                || !LOWERCASE_PATTERN.matcher(password).matches()
+                || !NUMBER_PATTERN.matcher(password).matches()
+                || !SPECIAL_PATTERN.matcher(password).matches()) {
+            throw badRequest(PASSWORD_POLICY_MESSAGE);
+        }
+        if (!Objects.equals(password, confirmPassword)) {
+            throw badRequest("Password confirmation does not match");
+        }
+    }
+
     private ApiException badRequest(String message) {
         return new ApiException(HttpStatus.BAD_REQUEST, message);
     }
@@ -1111,6 +1145,10 @@ public class MvpDemoService {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private String clean(String value) {
+        return value == null ? null : value.trim();
     }
 
     private String nvl(String value, String fallback) {

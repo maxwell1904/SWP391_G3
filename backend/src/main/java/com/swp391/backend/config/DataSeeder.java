@@ -120,7 +120,7 @@ public class DataSeeder {
         user.setFullName(fullName);
         user.setEmail(email);
         user.setPhone(phone);
-        user.setPasswordHash("123456");
+        user.setPasswordHash("GoalZone@123");
         user.setRole(role);
         user.setEmailVerified(true);
         return user;

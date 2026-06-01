@@ -18,7 +18,7 @@ This file tracks the demo implementation against the RDS business rules so the r
 - BR-19: services are selected at booking creation; update-before-check-in should be added as a dedicated UC-21 endpoint.
 - BR-23: account deletion is not implemented yet, so deletion protection is not needed until that UC exists.
 - Payment sandbox: current code stores deterministic demo payment records only. Real PayPal sandbox should wait until API credentials and redirect/callback flow are ready.
-- Email verification: implemented as a local demo code flow. Real email delivery needs SMTP/Supabase Auth or another provider later.
+- Email verification: implemented as a local demo verification-link flow. Real email delivery needs SMTP/Supabase Auth or another provider later.
 
 ## Extension Points
 

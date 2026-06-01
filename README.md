@@ -59,12 +59,14 @@ scripts/run-frontend.sh
 
 Open `http://localhost:5173`.
 
-Default demo accounts all use password `123456`:
+Default demo accounts all use password `GoalZone@123`:
 
 - `customer@goalzone.local`
 - `member@goalzone.local`
 - `staff@goalzone.local`
 - `admin@goalzone.local`
+
+Registration passwords must be 8-72 characters with uppercase, lowercase, number, special character, and no spaces.
 
 Local dev runs with an in-memory H2 database and seed data. To use Supabase PostgreSQL, copy `.env.example` to a local `.env.local`, fill the password locally, then run `scripts/check-supabase.sh` and `scripts/run-backend.sh`. The backend script automatically loads `.env` and `.env.local`. Do not commit real database passwords.
 
