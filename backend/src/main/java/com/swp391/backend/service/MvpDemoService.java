@@ -876,6 +876,10 @@ public class MvpDemoService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             helper.setTo(user.getEmail());
+            
+            String fromAddress = System.getenv().getOrDefault("FROM_EMAIL", "InterDev <bao20048888@gmail.com>");
+            helper.setFrom(fromAddress);
+            
             helper.setSubject("Verify your GoalZone account");
             
             String htmlContent = "<h3>Welcome to GoalZone, " + user.getFullName() + "!</h3>"

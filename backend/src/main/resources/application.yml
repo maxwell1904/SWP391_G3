@@ -20,10 +20,10 @@ spring:
       path: /h2-console
 
   mail:
-    host: ${SPRING_MAIL_HOST:smtp.gmail.com}
-    port: ${SPRING_MAIL_PORT:587}
-    username: ${SPRING_MAIL_USERNAME:}
-    password: ${SPRING_MAIL_PASSWORD:}
+    host: ${SMTP_HOST:${SPRING_MAIL_HOST:smtp.gmail.com}}
+    port: ${SMTP_PORT:${SPRING_MAIL_PORT:587}}
+    username: ${SMTP_USER:${SPRING_MAIL_USERNAME:}}
+    password: ${SMTP_PASS:${SPRING_MAIL_PASSWORD:}}
     properties:
       mail:
         smtp:
