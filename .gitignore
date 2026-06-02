@@ -3,7 +3,8 @@ node_modules/
 dist/
 
 # Java
-.target/
+target/
+.tools/
 *.class
 *.jar
 *.log
@@ -11,9 +12,13 @@ dist/
 # IDE
 .idea/
 .vscode/
+.playwright-cli/
 
 # Env
 .env
+.env.local
 
 # OS
 .DS_Store
+
+.agent/

@@ -1,0 +1,506 @@
+ // Football Field Booking System - MVP database schema
+// Paste this file into https://dbdiagram.io/ to generate the database diagram.
+// Stack notes:
+// - Frontend: React.
+// - Backend: Spring Boot REST API.
+// - Database: Supabase PostgreSQL.
+// - Recommended MVP auth: Spring Security with this app_user table.
+//
+// Scope notes:
+// - booking.status is stored directly in booking.
+// - A small system_setting table stores runtime deposit/refund rule values.
+// - No separate promotion_condition table is used; practical conditions stay in promotion.
+// - UC-63/UC-64 smart assistant/suggested slots are optional and not modeled as core tables.
+
+Project football_field_booking_system {
+  database_type: "PostgreSQL"
+  Note: "Slim MVP schema for SWP391 Group 03 RDS. Deposit/refund policy values can be stored in system_setting for Admin configuration use cases."
+}
+
+Enum account_status {
+  active
+  inactive
+  locked
+}
+
+Enum common_status {
+  active
+  inactive
+}
+
+Enum slot_status {
+  available
+  blocked
+}
+
+Enum booking_status {
+  pending
+  confirmed
+  checked_in
+  completed
+  cancelled
+  no_show
+  expired
+  rejected
+}
+
+Enum payment_status {
+  pending
+  paid
+  failed
+  expired
+  refunded
+  partially_refunded
+}
+
+Enum payment_method {
+  cash
+  online_sandbox
+  bank_transfer
+}
+
+Enum payment_option {
+  deposit
+  full
+  remaining
+}
+
+Enum refund_status {
+  requested
+  approved
+  rejected
+  processing
+  completed
+  failed
+}
+
+Enum issue_status {
+  open
+  in_progress
+  resolved
+  rejected
+}
+
+Enum service_type {
+  rental
+  sale
+  staff_service
+}
+
+Enum discount_type {
+  percent
+  fixed_amount
+}
+
+Enum notification_type {
+  booking_confirmation
+  booking_reminder
+  cancellation
+  refund
+  payment
+  issue
+  system
+}
+
+Table role {
+  role_id int [pk, increment]
+  role_name varchar(30) [not null, unique]
+  description varchar(255)
+  status common_status [not null, default: 'active']
+  created_at timestamp
+  updated_at timestamp
+
+  Note: "System roles: Customer, Staff, Admin. Guest is not stored because it is unauthenticated."
+}
+
+Table app_user {
+  user_id int [pk, increment]
+  role_id int [not null]
+  full_name varchar(100) [not null]
+  email varchar(120) [unique]
+  phone varchar(20) [unique]
+  password_hash varchar(255) [not null]
+  avatar_url varchar(255)
+  date_of_birth date
+  address varchar(255)
+  status account_status [not null, default: 'active']
+  booking_restricted boolean [not null, default: false]
+  restriction_reason varchar(255)
+  last_login_at timestamp
+  created_at timestamp
+  updated_at timestamp
+
+  Note: "Stores Customer, Staff, and Admin accounts. Guest is unauthenticated. Email or phone should be unique."
+}
+
+Table membership_level {
+  membership_level_id int [pk, increment]
+  level_name varchar(50) [not null, unique]
+  required_completed_bookings int [not null, default: 0]
+  discount_percent decimal(5,2) [not null, default: 0]
+  benefit_description text
+  display_order int [not null, default: 0]
+  status common_status [not null, default: 'active']
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table customer_membership {
+  customer_membership_id int [pk, increment]
+  customer_id int [not null]
+  membership_level_id int [not null]
+  completed_booking_count int [not null, default: 0]
+  progress_note varchar(255)
+  effective_from date
+  effective_to date
+  created_at timestamp
+  updated_at timestamp
+
+  indexes {
+    (customer_id, membership_level_id)
+  }
+
+  Note: "Only completed bookings count toward membership progress."
+}
+
+Table field_type {
+  field_type_id int [pk, increment]
+  type_name varchar(50) [not null, unique]
+  player_capacity int
+  description varchar(255)
+  status common_status [not null, default: 'active']
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table field {
+  field_id int [pk, increment]
+  field_type_id int [not null]
+  field_name varchar(100) [not null]
+  description text
+  image_url varchar(255)
+  location varchar(255)
+  surface_type varchar(50)
+  status common_status [not null, default: 'active']
+  created_at timestamp
+  updated_at timestamp
+
+  Note: "Inactive fields cannot receive new bookings."
+}
+
+Table field_price {
+  field_price_id int [pk, increment]
+  field_id int [not null]
+  day_type varchar(30) [not null, note: "weekday, weekend, holiday, or all"]
+  start_time time [not null]
+  end_time time [not null]
+  price decimal(12,2) [not null]
+  effective_from date
+  effective_to date
+  status common_status [not null, default: 'active']
+  created_at timestamp
+  updated_at timestamp
+
+  indexes {
+    (field_id, day_type, start_time, end_time)
+  }
+}
+
+Table slot {
+  slot_id int [pk, increment]
+  field_id int [not null]
+  slot_date date [not null]
+  start_time time [not null]
+  end_time time [not null]
+  status slot_status [not null, default: 'available']
+  block_reason varchar(100)
+  block_note varchar(255)
+  created_by int
+  created_at timestamp
+  updated_at timestamp
+
+  indexes {
+    (field_id, slot_date, start_time, end_time) [unique]
+  }
+
+  Note: "A slot can be bookable or blocked. Block reasons include maintenance, weather, private event, internal use, or other."
+}
+
+Table booking {
+  booking_id int [pk, increment]
+  customer_id int [not null]
+  staff_id int
+  slot_id int [not null]
+  booking_code varchar(30) [not null, unique]
+  status booking_status [not null, default: 'pending']
+  booking_source varchar(20) [not null, default: 'online', note: "online or walk_in"]
+  field_price_amount decimal(12,2) [not null, default: 0]
+  service_total_amount decimal(12,2) [not null, default: 0]
+  promotion_discount_amount decimal(12,2) [not null, default: 0]
+  membership_discount_amount decimal(12,2) [not null, default: 0]
+  total_amount decimal(12,2) [not null, default: 0]
+  deposit_amount decimal(12,2) [not null, default: 0]
+  paid_amount decimal(12,2) [not null, default: 0]
+  remaining_amount decimal(12,2) [not null, default: 0]
+  cancellation_fee_amount decimal(12,2) [not null, default: 0]
+  refundable_amount decimal(12,2) [not null, default: 0]
+  note varchar(255)
+  confirmed_at timestamp
+  checked_in_at timestamp
+  completed_at timestamp
+  cancelled_at timestamp
+  expired_at timestamp
+  created_at timestamp
+  updated_at timestamp
+
+  indexes {
+    (customer_id, status)
+    (slot_id, status)
+  }
+
+  Note: "Do not create another valid booking for a slot with pending, confirmed, or checked_in status. In PostgreSQL, enforce with a partial unique index on slot_id for those active statuses."
+}
+
+Table extra_service {
+  extra_service_id int [pk, increment]
+  service_name varchar(100) [not null]
+  service_type service_type [not null, default: 'rental']
+  description varchar(255)
+  unit_name varchar(30) [not null, default: 'item']
+  unit_price decimal(12,2) [not null]
+  stock_quantity int
+  max_quantity_per_booking int
+  status common_status [not null, default: 'active']
+  created_at timestamp
+  updated_at timestamp
+
+  Note: "Examples: ball rental, bibs, drinks, referee service, video service."
+}
+
+Table booking_service {
+  booking_service_id int [pk, increment]
+  booking_id int [not null]
+  extra_service_id int [not null]
+  quantity int [not null, default: 1]
+  unit_price decimal(12,2) [not null]
+  line_total decimal(12,2) [not null]
+  created_at timestamp
+  updated_at timestamp
+
+  indexes {
+    (booking_id, extra_service_id) [unique]
+  }
+
+  Note: "Stores service price snapshot so invoice remains stable if service price changes later."
+}
+
+Table issue {
+  issue_id int [pk, increment]
+  reporter_id int [not null]
+  booking_id int
+  field_id int
+  extra_service_id int
+  assigned_staff_id int
+  title varchar(150) [not null]
+  description text
+  status issue_status [not null, default: 'open']
+  resolution_note text
+  resolved_at timestamp
+  created_at timestamp
+  updated_at timestamp
+
+  Note: "Issue may be linked to a booking, field, or extra service."
+}
+
+Table promotion {
+  promotion_id int [pk, increment]
+  promotion_code varchar(50) [not null, unique]
+  promotion_name varchar(120) [not null]
+  banner_url varchar(255)
+  description text
+  discount_type discount_type [not null]
+  discount_value decimal(12,2) [not null]
+  max_discount_amount decimal(12,2)
+  min_booking_amount decimal(12,2)
+  usage_limit int
+  used_count int [not null, default: 0]
+  start_date date [not null]
+  end_date date [not null]
+  applicable_field_type_id int
+  applicable_membership_level_id int
+  applicable_extra_service_id int
+  applicable_day_type varchar(30)
+  applicable_start_time time
+  applicable_end_time time
+  stackable boolean [not null, default: false]
+  status common_status [not null, default: 'active']
+  created_at timestamp
+  updated_at timestamp
+
+  Note: "Practical promotion conditions are kept here instead of a separate promotion_condition table."
+}
+
+Table booking_promotion {
+  booking_promotion_id int [pk, increment]
+  booking_id int [not null]
+  promotion_id int [not null]
+  promotion_code_snapshot varchar(50) [not null]
+  discount_amount decimal(12,2) [not null]
+  applied_at timestamp
+
+  indexes {
+    (booking_id, promotion_id) [unique]
+  }
+}
+
+Table payment {
+  payment_id int [pk, increment]
+  booking_id int [not null]
+  payment_code varchar(50) [not null, unique]
+  payment_option payment_option [not null]
+  payment_method payment_method [not null]
+  amount decimal(12,2) [not null]
+  status payment_status [not null, default: 'pending']
+  transaction_code varchar(100)
+  gateway_message varchar(255)
+  paid_at timestamp
+  expired_at timestamp
+  created_by int
+  created_at timestamp
+  updated_at timestamp
+
+  Note: "Supports sandbox online payment and manual/on-site payment for walk-in or remaining balance."
+}
+
+Table invoice {
+  invoice_id int [pk, increment]
+  booking_id int [not null, unique]
+  invoice_code varchar(50) [not null, unique]
+  field_amount decimal(12,2) [not null, default: 0]
+  service_amount decimal(12,2) [not null, default: 0]
+  discount_amount decimal(12,2) [not null, default: 0]
+  total_amount decimal(12,2) [not null, default: 0]
+  paid_amount decimal(12,2) [not null, default: 0]
+  remaining_amount decimal(12,2) [not null, default: 0]
+  refund_amount decimal(12,2) [not null, default: 0]
+  issued_at timestamp
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table refund {
+  refund_id int [pk, increment]
+  booking_id int [not null]
+  payment_id int
+  refund_code varchar(50) [not null, unique]
+  requested_by int
+  processed_by int
+  refund_amount decimal(12,2) [not null]
+  refund_reason varchar(255)
+  status refund_status [not null, default: 'requested']
+  transaction_code varchar(100)
+  requested_at timestamp
+  processed_at timestamp
+  created_at timestamp
+  updated_at timestamp
+
+  Note: "Refund can be created after cancellation or special support cases such as field/service issue."
+}
+
+Table notification {
+  notification_id int [pk, increment]
+  user_id int [not null]
+  booking_id int
+  payment_id int
+  refund_id int
+  notification_type notification_type [not null]
+  title varchar(150) [not null]
+  message text [not null]
+  is_read boolean [not null, default: false]
+  sent_at timestamp
+  created_at timestamp
+}
+
+Table system_setting {
+  setting_id int [pk, increment]
+  setting_key varchar(100) [not null, unique]
+  setting_value varchar(255) [not null]
+  setting_group varchar(50) [not null, note: "deposit, refund, booking, payment, notification"]
+  description varchar(255)
+  status common_status [not null, default: 'active']
+  updated_by int
+  created_at timestamp
+  updated_at timestamp
+
+  Note: "Stores small runtime configuration values such as deposit percent, payment timeout, refund windows, and cancellation fee rules."
+}
+
+Ref: app_user.role_id > role.role_id
+Ref: customer_membership.customer_id > app_user.user_id
+Ref: customer_membership.membership_level_id > membership_level.membership_level_id
+
+Ref: field.field_type_id > field_type.field_type_id
+Ref: field_price.field_id > field.field_id
+Ref: slot.field_id > field.field_id
+Ref: slot.created_by > app_user.user_id
+
+Ref: booking.customer_id > app_user.user_id
+Ref: booking.staff_id > app_user.user_id
+Ref: booking.slot_id > slot.slot_id
+
+Ref: booking_service.booking_id > booking.booking_id
+Ref: booking_service.extra_service_id > extra_service.extra_service_id
+
+Ref: issue.reporter_id > app_user.user_id
+Ref: issue.booking_id > booking.booking_id
+Ref: issue.field_id > field.field_id
+Ref: issue.extra_service_id > extra_service.extra_service_id
+Ref: issue.assigned_staff_id > app_user.user_id
+
+Ref: promotion.applicable_field_type_id > field_type.field_type_id
+Ref: promotion.applicable_membership_level_id > membership_level.membership_level_id
+Ref: promotion.applicable_extra_service_id > extra_service.extra_service_id
+Ref: booking_promotion.booking_id > booking.booking_id
+Ref: booking_promotion.promotion_id > promotion.promotion_id
+
+Ref: payment.booking_id > booking.booking_id
+Ref: payment.created_by > app_user.user_id
+Ref: invoice.booking_id > booking.booking_id
+Ref: refund.booking_id > booking.booking_id
+Ref: refund.payment_id > payment.payment_id
+Ref: refund.requested_by > app_user.user_id
+Ref: refund.processed_by > app_user.user_id
+
+Ref: notification.user_id > app_user.user_id
+Ref: notification.booking_id > booking.booking_id
+Ref: notification.payment_id > payment.payment_id
+Ref: notification.refund_id > refund.refund_id
+Ref: system_setting.updated_by > app_user.user_id
+
+TableGroup account_and_membership {
+  role
+  app_user
+  membership_level
+  customer_membership
+  system_setting
+}
+
+TableGroup field_slot_service_issue {
+  field_type
+  field
+  field_price
+  slot
+  extra_service
+  issue
+}
+
+TableGroup booking_payment_promotion {
+  booking
+  booking_service
+  promotion
+  booking_promotion
+  payment
+  invoice
+  refund
+  notification
+}

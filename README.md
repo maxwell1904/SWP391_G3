@@ -5,8 +5,8 @@ Football Field Booking & Venue Operation System
 ## Tech Stack
 - Backend: Spring Boot
 - Frontend: React + Vite
-- Database: SQL Server
-- Authentication: JWT
+- Database: H2 for local demo, Supabase PostgreSQL ready through env vars
+- Authentication: Demo login now, JWT dependency kept for the next security pass
 
 ## Project Structure
 ```text
@@ -42,3 +42,34 @@ SWP391_G3/
 - Frontend uses React + Axios.
 - Use English for backlog, endpoint names and database schema.
 - Keep business logic simple and aligned with SWP391 scope.
+
+## Run Locally
+
+Backend:
+
+```bash
+scripts/run-backend.sh
+```
+
+Frontend:
+
+```bash
+scripts/run-frontend.sh
+```
+
+Open `http://localhost:5173`.
+
+Default demo accounts all use password `GoalZone@123`:
+
+- `customer@goalzone.local`
+- `member@goalzone.local`
+- `staff@goalzone.local`
+- `admin@goalzone.local`
+
+Registration passwords must be 8-72 characters with uppercase, lowercase, number, special character, and no spaces.
+
+Local dev runs with an in-memory H2 database and seed data. To use Supabase PostgreSQL, copy `.env.example` to a local `.env.local`, fill the password locally, then run `scripts/check-supabase.sh` and `scripts/run-backend.sh`. The backend script automatically loads `.env` and `.env.local`. Do not commit real database passwords.
+
+## Implemented MVP Slice
+
+See `docs/IMPLEMENTED_USE_CASES.md` for implemented UC ownership, `docs/IMPLEMENTATION_SCOPE.md` for backlog coverage and intentional exclusions, `docs/RDS_RULE_ALIGNMENT.md` for business rule alignment, and `docs/SUPABASE_CONNECTION.md` for Supabase connection notes.
