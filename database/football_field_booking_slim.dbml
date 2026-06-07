@@ -127,10 +127,13 @@ Table app_user {
   booking_restricted boolean [not null, default: false]
   restriction_reason varchar(255)
   last_login_at timestamp
+  email_verified boolean [not null, default: false]
+  email_verification_token varchar(16)
+  email_verification_sent_at timestamp
   created_at timestamp
   updated_at timestamp
 
-  Note: "Stores Customer, Staff, and Admin accounts. Guest is unauthenticated. Email or phone should be unique."
+  Note: "Stores Customer, Staff, and Admin accounts. Guest is unauthenticated. Email or phone should be unique. Email verification fields support the UC-01 registration extension."
 }
 
 Table membership_level {
