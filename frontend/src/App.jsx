@@ -1,76 +1,28 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  ArrowRight,
-  CalendarDays,
-  Clock,
-  Eye,
-  EyeOff,
   LogIn,
   LogOut,
-  MailCheck,
   Menu,
-  Search,
-  ShieldCheck,
-  UserRound,
-  Wrench
+  UserRound
 } from 'lucide-react'
+import { pageFromPath, pageRoutes } from './app/routes'
+import { loadStoredUser, saveStoredUser } from './app/session'
+import { AccessPanel, ActionPanel } from './components/common'
+import { demoPassword, emailPattern, passwordIssues, phonePattern } from './features/auth/authRules'
+import {
+  AccountPage,
+  AdminPage,
+  AuthPage,
+  BookingPage,
+  FieldsPage,
+  HomePage,
+  PromotionsPage,
+  StaffPage,
+  VerifyEmailPage
+} from './pages'
 import api from './services/api'
 import './styles/app.css'
-
-const heroImage = 'https://images.unsplash.com/photo-1556056504-5c7696c4c28d?auto=format&fit=crop&w=2200&q=85'
-
-const tomorrow = () => {
-  const date = new Date()
-  date.setDate(date.getDate() + 1)
-  return date.toISOString().slice(0, 10)
-}
-
-const formatMoney = value => new Intl.NumberFormat('vi-VN', {
-  style: 'currency',
-  currency: 'VND',
-  maximumFractionDigits: 0
-}).format(Number(value || 0))
-
-const demoPassword = 'GoalZone@123'
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const phonePattern = /^0\d{9}$/
-
-const pageRoutes = {
-  home: '/',
-  fields: '/fields',
-  booking: '/booking',
-  login: '/login',
-  account: '/account',
-  verifyEmail: '/verify-email',
-  promotions: '/promotions',
-  staff: '/staff',
-  admin: '/admin'
-}
-
-const pageFromPath = pathname => {
-  const match = Object.entries(pageRoutes).find(([, path]) => path === pathname)
-  return match?.[0] || 'home'
-}
-
-const loadStoredUser = () => {
-  try {
-    return JSON.parse(window.localStorage.getItem('goalzone.currentUser')) || null
-  } catch {
-    return null
-  }
-}
-
-const passwordIssues = password => {
-  const issues = []
-  if (!password) return ['Password is required.']
-  if (password.length < 8) issues.push('Use at least 8 characters.')
-  if (/\s/.test(password)) issues.push('Remove spaces.')
-  if (!/[A-Z]/.test(password)) issues.push('Add one uppercase letter.')
-  if (!/[a-z]/.test(password)) issues.push('Add one lowercase letter.')
-  if (!/\d/.test(password)) issues.push('Add one number.')
-  if (!/[^A-Za-z0-9]/.test(password)) issues.push('Add one special character.')
-  return issues
-}
+import { tomorrow } from './utils/format'
 
 function App() {
   const [loading, setLoading] = useState(true)
@@ -109,18 +61,17 @@ function App() {
   const [checkout, setCheckout] = useState(null)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [checkoutError, setCheckoutError] = useState('')
-  const [verificationLink, setVerificationLink] = useState('')
   const [verifyResult, setVerifyResult] = useState({ status: 'idle', message: '' })
   const [loginErrors, setLoginErrors] = useState({})
   const [registerErrors, setRegisterErrors] = useState({})
 
   const [loginForm, setLoginForm] = useState({ emailOrPhone: 'customer@goalzone.local', password: demoPassword })
   const [registerForm, setRegisterForm] = useState({
-    fullName: 'New Customer',
-    email: `customer${Date.now()}@goalzone.local`,
-    phone: `09${String(Date.now()).slice(-8)}`,
-    password: demoPassword,
-    confirmPassword: demoPassword
+    fullName: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirmPassword: ''
   })
   const [issueDraft, setIssueDraft] = useState({
     title: 'Loose goal net',
@@ -130,7 +81,6 @@ function App() {
   const customers = useMemo(() => users.filter(user => user.role === 'Customer'), [users])
   const selectedSlot = slots.find(slot => slot.slotId === Number(selectedSlotId))
   const selectedBooking = bookings.find(booking => booking.bookingId === Number(selectedBookingId)) || bookings[0]
-  const isCustomer = currentUser?.role === 'Customer'
   const isStaff = currentUser?.role === 'Staff'
   const isAdmin = currentUser?.role === 'Admin'
   const canOperate = isStaff || isAdmin
@@ -146,11 +96,7 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (currentUser) {
-      window.localStorage.setItem('goalzone.currentUser', JSON.stringify(currentUser))
-    } else {
-      window.localStorage.removeItem('goalzone.currentUser')
-    }
+    saveStoredUser(currentUser)
   }, [currentUser])
 
   useEffect(() => {
@@ -176,7 +122,6 @@ function App() {
         setVerifyResult({ status: 'success', message: response.data.message || 'Email verified.' })
         if (response.data.user) {
           setCurrentUser(response.data.user)
-          setVerificationLink('')
         }
       })
       .catch(error => {
@@ -314,11 +259,12 @@ function App() {
     setLoading(true)
     try {
       const result = await action()
-      setNotice(successMessage)
+      const serverMessage = result?.data?.message
+      setNotice(serverMessage || successMessage)
       setActionPanel({
         kind: 'success',
         title: successMessage,
-        message: actionMessage(successMessage)
+        message: serverMessage || actionMessage(successMessage)
       })
       await refreshAll()
       await loadSlots()
@@ -340,7 +286,7 @@ function App() {
   function actionMessage(successMessage) {
     if (successMessage.includes('Checkout')) return 'The cost breakdown is ready in the checkout panel.'
     if (successMessage.includes('Booking created')) return 'The booking has been saved and the slot will now be treated as unavailable.'
-    if (successMessage.includes('Account created')) return 'Open the verification link on your account page before online booking.'
+    if (successMessage.includes('Account created')) return 'Check your inbox to verify email before online booking.'
     if (successMessage.includes('Signed in')) return 'Your role-specific workspace is ready.'
     if (successMessage.includes('Email verified')) return 'You can continue with online booking now.'
     if (successMessage.includes('Refund')) return 'Refund information was recorded for the selected booking.'
@@ -437,7 +383,6 @@ function App() {
     if (response?.data?.user) {
       setCurrentUser(response.data.user)
       setAuthMode('login')
-      setVerificationLink('')
       navigatePage('account')
     }
   }
@@ -464,36 +409,25 @@ function App() {
       const user = response.data.user || response.data
       setCurrentUser(user)
       setAuthMode('login')
-      setVerificationLink(response.data.verificationLink || '')
       if (response.data.verificationRequired) {
-        setNotice('Account created. Open the verification link before online booking')
+        setNotice(response.data.message || 'Account created. Check your inbox to verify email before online booking.')
       }
       navigatePage('account')
     }
   }
 
-  async function verifyEmailFromLink(link = verificationLink) {
-    if (!currentUser) return
-    const params = new URLSearchParams(link.split('?')[1] || '')
-    const token = params.get('token')
-    const userId = Number(params.get('userId') || currentUser.userId)
-    const response = await runAction(async () => api.post('/account/email/verify', {
-      userId,
-      token
-    }), 'Email verified')
-    if (response?.data?.user) {
-      setCurrentUser(response.data.user)
-      setVerificationLink('')
-    }
-  }
-
   async function resendVerification() {
     if (!currentUser) return
-    const response = await runAction(async () => api.post('/account/email/resend', {
+    await runAction(async () => api.post('/account/email/resend', {
       userId: currentUser.userId
-    }), 'Verification link sent')
-    if (response?.data?.verificationLink) {
-      setVerificationLink(response.data.verificationLink)
+    }), 'Verification email sent')
+  }
+
+  async function saveProfile(profile) {
+    if (!currentUser) return
+    const response = await runAction(async () => api.put(`/account/users/${currentUser.userId}/profile`, profile), 'Profile updated')
+    if (response?.data) {
+      setCurrentUser(response.data)
     }
   }
 
@@ -591,6 +525,13 @@ function App() {
     }), 'Deposit rule updated')
   }
 
+  async function updateCustomerRestriction(customer, bookingRestricted) {
+    await runAction(async () => api.put(`/account/users/${customer.userId}/restriction`, {
+      bookingRestricted,
+      restrictionReason: bookingRestricted ? 'Restricted by admin from account management' : ''
+    }), bookingRestricted ? 'Customer booking restricted' : 'Customer booking restored')
+  }
+
   const userBookings = currentUser?.role === 'Customer'
     ? bookings.filter(booking => booking.customerId === currentUser.userId)
     : bookings
@@ -640,379 +581,121 @@ function App() {
 
       <main id="main" className={currentPage === 'home' ? '' : 'pageMain'}>
         {currentPage === 'home' && (
-        <section id="home" className="hero" style={{ '--hero-image': `url(${heroImage})` }}>
-          <div className="heroContent">
-            <p className="venueLabel">Football field booking for local venues</p>
-            <h1>GoalZone</h1>
-            <p className="heroCopy">Book a field, add match services, pay the deposit, and manage the booking from one place.</p>
-            <div className="heroActions">
-              <button className="primaryButton" onClick={() => navigatePage('booking')}>
-                <span>Book a field</span>
-                <ArrowRight size={18} />
-              </button>
-              <button className="ghostButton" onClick={() => navigatePage('fields')}>View fields</button>
-            </div>
-          </div>
-          <div className="availabilityStrip" aria-label="Quick availability search">
-            <FieldControl label="Date">
-              <input type="date" value={searchDate} onChange={event => setSearchDate(event.target.value)} />
-            </FieldControl>
-            <FieldControl label="Field type">
-              <select value={fieldTypeFilter} onChange={event => setFieldTypeFilter(event.target.value)}>
-                <option value="">All field types</option>
-                {fieldTypes.map(type => <option key={type.fieldTypeId} value={type.fieldTypeId}>{type.typeName}</option>)}
-              </select>
-            </FieldControl>
-            <button className="stripButton" onClick={() => navigatePage('booking')}>
-              <SearchIcon />
-              <span>Find slots</span>
-            </button>
-          </div>
-        </section>
+          <HomePage
+            searchDate={searchDate}
+            setSearchDate={setSearchDate}
+            fieldTypeFilter={fieldTypeFilter}
+            setFieldTypeFilter={setFieldTypeFilter}
+            fieldTypes={fieldTypes}
+            navigatePage={navigatePage}
+          />
         )}
 
         {(currentPage === 'home' || currentPage === 'fields') && (
-        <section id="fields" className="section">
-          <SectionIntro
-            kicker="Fields"
-            title="Choose the pitch that fits the match"
-            text="Guests can browse active fields and availability before signing in. Booking is required only at checkout."
+          <FieldsPage
+            fields={fields}
+            slots={slots}
+            searchDate={searchDate}
+            setSearchDate={setSearchDate}
+            setFieldTypeFilter={setFieldTypeFilter}
+            setSelectedSlotId={setSelectedSlotId}
+            navigatePage={navigatePage}
           />
-          <div className="fieldGrid">
-            {fields.map(field => (
-              <article className="fieldCard" key={field.fieldId}>
-                <img src={field.imageUrl} alt={`${field.fieldName} football pitch`} />
-                <div>
-                  <span>{field.fieldType}</span>
-                  <h3>{field.fieldName}</h3>
-                  <p>{field.description}</p>
-                  <dl>
-                    <div><dt>Location</dt><dd>{field.location}</dd></div>
-                    <div><dt>Surface</dt><dd>{field.surfaceType}</dd></div>
-                  </dl>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
         )}
 
         {currentPage === 'booking' && (
-        <section id="booking" className="section bookingSection">
-          <SectionIntro
-            kicker="Booking"
-            title="Search, price, and reserve"
-            text="Pick a free slot, add match services, apply a promotion, and see the deposit before the booking is saved."
+          <BookingPage
+            searchDate={searchDate}
+            setSearchDate={setSearchDate}
+            fieldTypeFilter={fieldTypeFilter}
+            setFieldTypeFilter={setFieldTypeFilter}
+            fieldTypes={fieldTypes}
+            canOperate={canOperate}
+            selectedCustomerId={selectedCustomerId}
+            setSelectedCustomerId={setSelectedCustomerId}
+            customers={customers}
+            slots={slots}
+            selectedSlotId={selectedSlotId}
+            setSelectedSlotId={setSelectedSlotId}
+            services={services}
+            selectedServices={selectedServices}
+            setSelectedServices={setSelectedServices}
+            selectedSlot={selectedSlot}
+            promotionCode={promotionCode}
+            setPromotionCode={setPromotionCode}
+            checkout={checkout}
+            checkoutLoading={checkoutLoading}
+            checkoutError={checkoutError}
+            createBooking={createBooking}
+            currentUser={currentUser}
           />
-          <div className="bookingLayout">
-            <div className="bookingMain">
-              <div className="filterRow">
-                <FieldControl label="Playing date">
-                  <input type="date" value={searchDate} onChange={event => setSearchDate(event.target.value)} />
-                </FieldControl>
-                <FieldControl label="Field type">
-                  <select value={fieldTypeFilter} onChange={event => setFieldTypeFilter(event.target.value)}>
-                    <option value="">All</option>
-                    {fieldTypes.map(type => <option key={type.fieldTypeId} value={type.fieldTypeId}>{type.typeName}</option>)}
-                  </select>
-                </FieldControl>
-                {canOperate && (
-                  <FieldControl label="Customer">
-                    <select value={selectedCustomerId} onChange={event => setSelectedCustomerId(Number(event.target.value))}>
-                      {customers.map(user => <option key={user.userId} value={user.userId}>{user.fullName}</option>)}
-                    </select>
-                  </FieldControl>
-                )}
-              </div>
-              <SlotList slots={slots} selectedSlotId={selectedSlotId} onSelect={setSelectedSlotId} />
-              <ServicePicker services={services} selectedServices={selectedServices} setSelectedServices={setSelectedServices} />
-            </div>
-            <aside className="checkoutPanel">
-              <h3>Checkout preview</h3>
-              <SelectedSlot slot={selectedSlot} />
-              <FieldControl label="Promotion code">
-                <input
-                  value={promotionCode}
-                  placeholder="WELCOME10"
-                  onChange={event => setPromotionCode(event.target.value.toUpperCase())}
-                />
-              </FieldControl>
-              <CheckoutSummary checkout={checkout} loading={checkoutLoading} error={checkoutError} />
-              <div className="stackedActions">
-                {canOperate ? (
-                  <button className="ghostDarkButton" onClick={() => createBooking('walk_in')}>Create walk-in booking</button>
-                ) : (
-                  <button className="primaryButton wide" onClick={() => createBooking('online')}>
-                    <CalendarDays size={18} />
-                    <span>{currentUser ? 'Reserve field' : 'Sign in to book'}</span>
-                  </button>
-                )}
-              </div>
-              {!currentUser && <p className="hintText">You can browse prices now. Login or register is required before the booking is saved.</p>}
-            </aside>
-          </div>
-        </section>
         )}
 
         {(currentPage === 'login' || (currentPage === 'account' && !currentUser)) && (
-        <section id="login" className="section authSection">
-          <SectionIntro
-            kicker="Account"
-            title={currentUser ? 'Account ready for checkout' : 'Sign in before checkout'}
-            text={currentUser
-              ? 'Reserve selected slots and track booking, payment, membership, and support updates from your account.'
-              : 'Customers need an account to hold a field and receive payment, cancellation, and refund updates.'}
+          <AuthPage
+            currentUser={currentUser}
+            authMode={authMode}
+            setAuthMode={setAuthMode}
+            loginErrors={loginErrors}
+            registerErrors={registerErrors}
+            loginForm={loginForm}
+            registerForm={registerForm}
+            updateLoginForm={updateLoginForm}
+            updateRegisterForm={updateRegisterForm}
+            showLoginPassword={showLoginPassword}
+            setShowLoginPassword={setShowLoginPassword}
+            showRegisterPassword={showRegisterPassword}
+            setShowRegisterPassword={setShowRegisterPassword}
+            login={login}
+            register={register}
+            logout={logout}
+            navigatePage={navigatePage}
+            resendVerification={resendVerification}
           />
-          <div className="authGrid">
-            <article className="authPanel">
-              {currentUser ? (
-                <div className="signedInCard">
-                  <span>{currentUser.emailVerified ? 'Signed in' : 'Email verification needed'}</span>
-                  <h3>{currentUser.fullName}</h3>
-                  <p>{currentUser.role} account · {currentUser.emailVerified ? 'verified email' : 'unverified email'}</p>
-                  {!currentUser.emailVerified && (
-                    <EmailVerificationPanel
-                      email={currentUser.email}
-                      onResend={resendVerification}
-                    />
-                  )}
-                  <div className="buttonRow noMargin">
-                    <button className="primaryButton wide" onClick={() => navigatePage('booking')}>Continue booking</button>
-                    <button className="ghostDarkButton wide" onClick={logout}>
-                      <LogOut size={18} />
-                      <span>Log out</span>
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="segmented">
-                    <button className={authMode === 'login' ? 'active' : ''} onClick={() => setAuthMode('login')}>Login</button>
-                    <button className={authMode === 'register' ? 'active' : ''} onClick={() => setAuthMode('register')}>Register</button>
-                  </div>
-                  {authMode === 'login' ? (
-                <div className="formStack">
-                  <FieldControl label="Email or phone" error={loginErrors.emailOrPhone}>
-                    <input
-                      autoComplete="username"
-                      value={loginForm.emailOrPhone}
-                      onChange={event => updateLoginForm('emailOrPhone', event.target.value)}
-                    />
-                  </FieldControl>
-                  <PasswordField
-                    label="Password"
-                    value={loginForm.password}
-                    visible={showLoginPassword}
-                    error={loginErrors.password}
-                    autoComplete="current-password"
-                    onToggle={() => setShowLoginPassword(!showLoginPassword)}
-                    onChange={value => updateLoginForm('password', value)}
-                  />
-                  <button className="primaryButton wide" onClick={() => login()}>
-                    <LogIn size={18} />
-                    <span>Login</span>
-                  </button>
-                </div>
-              ) : (
-                <div className="formStack">
-                  <FieldControl label="Full name" error={registerErrors.fullName}>
-                    <input
-                      autoComplete="name"
-                      value={registerForm.fullName}
-                      onChange={event => updateRegisterForm('fullName', event.target.value)}
-                    />
-                  </FieldControl>
-                  <FieldControl label="Email" error={registerErrors.email}>
-                    <input
-                      autoComplete="email"
-                      inputMode="email"
-                      value={registerForm.email}
-                      onChange={event => updateRegisterForm('email', event.target.value)}
-                    />
-                  </FieldControl>
-                  <FieldControl label="Phone" error={registerErrors.phone}>
-                    <input
-                      autoComplete="tel"
-                      inputMode="tel"
-                      value={registerForm.phone}
-                      onChange={event => updateRegisterForm('phone', event.target.value)}
-                    />
-                  </FieldControl>
-                  <PasswordField
-                    label="Password"
-                    value={registerForm.password}
-                    visible={showRegisterPassword}
-                    error={registerErrors.password}
-                    hint="At least 8 characters with uppercase, lowercase, number, and special character."
-                    autoComplete="new-password"
-                    onToggle={() => setShowRegisterPassword(!showRegisterPassword)}
-                    onChange={value => updateRegisterForm('password', value)}
-                  />
-                  <PasswordField
-                    label="Confirm password"
-                    value={registerForm.confirmPassword}
-                    visible={showRegisterPassword}
-                    error={registerErrors.confirmPassword}
-                    autoComplete="new-password"
-                    onToggle={() => setShowRegisterPassword(!showRegisterPassword)}
-                    onChange={value => updateRegisterForm('confirmPassword', value)}
-                  />
-                  <button className="primaryButton wide" onClick={register}>Create account</button>
-                </div>
-                  )}
-                </>
-              )}
-            </article>
-          </div>
-        </section>
         )}
 
         {currentPage === 'account' && currentUser && (
-          <section id="account" className="section accountSection">
-            <SectionIntro
-              kicker="My account"
-              title={`Welcome, ${currentUser.fullName}`}
-              text="Track bookings, payment history, membership progress, and support messages."
-            />
-            {!currentUser.emailVerified && (
-              <div className="accountVerification">
-                <EmailVerificationPanel
-                  email={currentUser.email}
-                  onResend={resendVerification}
-                />
-              </div>
-            )}
-            <div className="accountGrid">
-              <InfoPanel title="My bookings">
-                <BookingList bookings={userBookings} selectedBookingId={selectedBookingId} onSelect={setSelectedBookingId} />
-              </InfoPanel>
-              <InfoPanel title="Payment history">
-                <DataList items={payments
-                  .filter(payment => currentUser.role !== 'Customer' || userBookings.some(booking => booking.bookingCode === payment.bookingCode))
-                  .map(payment => ({
-                    title: payment.paymentCode,
-                    meta: `${payment.bookingCode} · ${payment.paymentMethod}`,
-                    value: `${payment.status} · ${formatMoney(payment.amount)}`
-                  }))}
-                />
-              </InfoPanel>
-              <InfoPanel title="Membership">
-                {membership ? (
-                  <MetricGrid metrics={[
-                    ['Level', membership.currentLevel],
-                    ['Completed', membership.completedBookingCount],
-                    ['Discount', `${membership.discountPercent}%`],
-                    ['To next', membership.bookingsToNextLevel]
-                  ]} />
-                ) : <p className="emptyText">Login as customer to view membership.</p>}
-              </InfoPanel>
-              <InfoPanel title="Notifications">
-                <DataList items={notifications.map(item => ({
-                  title: item.title,
-                  meta: item.message,
-                  value: item.type
-                }))} />
-              </InfoPanel>
-            </div>
-          </section>
+          <AccountPage
+            currentUser={currentUser}
+            userBookings={userBookings}
+            payments={payments}
+            membership={membership}
+            notifications={notifications}
+            selectedBookingId={selectedBookingId}
+            setSelectedBookingId={setSelectedBookingId}
+            resendVerification={resendVerification}
+            onSaveProfile={saveProfile}
+          />
         )}
 
         {currentPage === 'verifyEmail' && (
-          <section id="verify-email" className="section authSection">
-            <SectionIntro
-              kicker="Email verification"
-              title={verifyResult.status === 'success' ? 'Email verified' : 'Verify your email'}
-              text={verifyResult.message || 'Checking the verification link.'}
-            />
-            <div className="authGrid">
-              <article className="authPanel">
-                <div className="signedInCard">
-                  <span>{verifyResult.status === 'error' ? 'Needs attention' : verifyResult.status === 'success' ? 'Verified' : 'Checking'}</span>
-                  <h3>{verifyResult.message || 'Verifying email link'}</h3>
-                  <p>{verifyResult.status === 'success' ? 'You can continue booking online.' : 'If the link has expired, resend it from your account page.'}</p>
-                  <div className="buttonRow noMargin">
-                    <button className="primaryButton wide" onClick={() => navigatePage(currentUser ? 'booking' : 'login')}>
-                      {currentUser ? 'Continue booking' : 'Back to login'}
-                    </button>
-                    {currentUser && !currentUser.emailVerified && (
-                      <button className="ghostDarkButton wide" onClick={resendVerification}>Resend link</button>
-                    )}
-                  </div>
-                </div>
-              </article>
-            </div>
-          </section>
+          <VerifyEmailPage
+            verifyResult={verifyResult}
+            currentUser={currentUser}
+            navigatePage={navigatePage}
+            resendVerification={resendVerification}
+          />
         )}
 
         {(currentPage === 'home' || currentPage === 'promotions') && (
-        <section id="promotions" className="section promotionSection">
-          <SectionIntro
-            kicker="Promotions"
-            title="Active offers and membership benefits"
-            text="Save on selected matches and unlock member discounts after completed bookings."
-          />
-          <div className="promoGrid">
-            {promotions.map(promotion => (
-              <article className="promoCard" key={promotion.promotionId}>
-                <span>{promotion.promotionCode}</span>
-                <h3>{promotion.promotionName}</h3>
-                <p>{promotion.description}</p>
-                <strong>{promotion.discountType === 'percent' ? `${promotion.discountValue}% off` : `${formatMoney(promotion.discountValue)} off`}</strong>
-              </article>
-            ))}
-          </div>
-        </section>
+          <PromotionsPage promotions={promotions} />
         )}
 
         {currentPage === 'staff' && canOperate && (
-          <section id="staff" className="section staffSection">
-            <SectionIntro
-              kicker="Staff operation"
-              title="Daily field operation"
-              text="This role-only area supports walk-in booking, check-in, completion, cancellation, no-show, issue handling, and refund cases."
-            />
-            <div className="operationGrid">
-              <InfoPanel title="Booking calendar">
-                <BookingList bookings={bookings} selectedBookingId={selectedBookingId} onSelect={setSelectedBookingId} />
-              </InfoPanel>
-              <InfoPanel title="Lifecycle actions">
-                <SelectedBooking booking={selectedBooking} />
-                <div className="actionGrid">
-                  <button onClick={() => updateBooking('confirmed')}>Confirm</button>
-                  <button onClick={() => updateBooking('checked_in')}>Check-in</button>
-                  <button onClick={() => updateBooking('completed')}>Complete</button>
-                  <button onClick={() => updateBooking('cancelled')}>Cancel</button>
-                  <button onClick={() => updateBooking('no_show')}>No-show</button>
-                  <button onClick={() => capturePayment('remaining')}>Remaining payment</button>
-                </div>
-              </InfoPanel>
-              <InfoPanel title="Issue report">
-                <FieldControl label="Title">
-                  <input value={issueDraft.title} onChange={event => setIssueDraft({ ...issueDraft, title: event.target.value })} />
-                </FieldControl>
-                <FieldControl label="Description">
-                  <textarea value={issueDraft.description} onChange={event => setIssueDraft({ ...issueDraft, description: event.target.value })} />
-                </FieldControl>
-                <button className="secondaryButton" onClick={createIssue}>
-                  <Wrench size={18} />
-                  <span>Save issue</span>
-                </button>
-                <DataList items={issues.map(issue => ({
-                  title: issue.title,
-                  meta: `${issue.reporter} · ${issue.bookingCode || issue.fieldName || 'general'}`,
-                  value: issue.status
-                }))} />
-              </InfoPanel>
-              <InfoPanel title="Refunds">
-                <button className="secondaryButton" onClick={createRefund}>Process refund</button>
-                <DataList items={refunds.map(refund => ({
-                  title: refund.refundCode,
-                  meta: `${refund.bookingCode} · ${refund.refundReason || 'support case'}`,
-                  value: `${refund.status} · ${formatMoney(refund.refundAmount)}`
-                }))} />
-              </InfoPanel>
-            </div>
-          </section>
+          <StaffPage
+            bookings={bookings}
+            selectedBookingId={selectedBookingId}
+            setSelectedBookingId={setSelectedBookingId}
+            selectedBooking={selectedBooking}
+            updateBooking={updateBooking}
+            capturePayment={capturePayment}
+            issueDraft={issueDraft}
+            setIssueDraft={setIssueDraft}
+            createIssue={createIssue}
+            issues={issues}
+            createRefund={createRefund}
+            refunds={refunds}
+          />
         )}
 
         {currentPage === 'staff' && !canOperate && (
@@ -1020,41 +703,13 @@ function App() {
         )}
 
         {currentPage === 'admin' && isAdmin && (
-          <section id="admin" className="section adminSection">
-            <SectionIntro
-              kicker="Admin"
-              title="Management and reports"
-              text="Admin can review revenue, booking activity, customer activity, and lightweight deposit/refund configuration."
-            />
-            <div className="adminGrid">
-              <InfoPanel title="Revenue report">
-                <MetricGrid metrics={[
-                  ['Revenue', formatMoney(reports?.totalRevenue)],
-                  ['Bookings', reports?.bookingCount || 0],
-                  ['Completed', reports?.completedCount || 0],
-                  ['Cancelled', reports?.cancelledCount || 0]
-                ]} />
-              </InfoPanel>
-              <InfoPanel title="Field utilization">
-                <DataList items={Object.entries(reports?.fieldUtilization || {}).map(([field, count]) => ({
-                  title: field,
-                  meta: 'Bookings',
-                  value: count
-                }))} />
-              </InfoPanel>
-              <InfoPanel title="Deposit rule">
-                <DataList items={settings.map(setting => ({
-                  title: setting.settingKey,
-                  meta: setting.description,
-                  value: setting.settingValue
-                }))} />
-                <div className="buttonRow">
-                  <button onClick={() => updateDepositSetting(30)}>Set 30%</button>
-                  <button onClick={() => updateDepositSetting(50)}>Set 50%</button>
-                </div>
-              </InfoPanel>
-            </div>
-          </section>
+          <AdminPage
+            reports={reports}
+            settings={settings}
+            updateDepositSetting={updateDepositSetting}
+            customers={customers}
+            updateCustomerRestriction={updateCustomerRestriction}
+          />
         )}
 
         {currentPage === 'admin' && !isAdmin && (
@@ -1087,269 +742,6 @@ function App() {
           onClose={() => setActionPanel(null)}
         />
       )}
-    </div>
-  )
-}
-
-function SearchIcon() {
-  return <Search size={18} />
-}
-
-function AccessPanel({ title, text, onLogin }) {
-  return (
-    <section className="section accessSection">
-      <div className="accessPanel">
-        <span>Restricted area</span>
-        <h2>{title}</h2>
-        <p>{text}</p>
-        <button className="primaryButton" onClick={onLogin}>
-          <LogIn size={18} />
-          <span>Login</span>
-        </button>
-      </div>
-    </section>
-  )
-}
-
-function ActionPanel({ panel, onClose }) {
-  return (
-    <div className={panel.kind === 'error' ? 'actionPanel error' : 'actionPanel'} role="status" aria-live="polite">
-      <div>
-        <span>{panel.kind === 'error' ? 'Needs attention' : 'Done'}</span>
-        <h3>{panel.title}</h3>
-        <p>{panel.message}</p>
-      </div>
-      <button onClick={onClose}>Close</button>
-    </div>
-  )
-}
-
-function SectionIntro({ kicker, title, text }) {
-  return (
-    <div className="sectionIntro">
-      <span>{kicker}</span>
-      <h2>{title}</h2>
-      <p>{text}</p>
-    </div>
-  )
-}
-
-function FieldControl({ label, children, error, hint }) {
-  return (
-    <label className={error ? 'fieldControl invalid' : 'fieldControl'}>
-      <span>{label}</span>
-      {children}
-      {error && <small className="fieldError">{error}</small>}
-      {!error && hint && <small className="fieldHint">{hint}</small>}
-    </label>
-  )
-}
-
-function PasswordField({ label, value, visible, error, hint, autoComplete = 'current-password', onToggle, onChange }) {
-  return (
-    <FieldControl label={label} error={error} hint={hint}>
-      <span className="passwordInput">
-        <input
-          type={visible ? 'text' : 'password'}
-          autoComplete={autoComplete}
-          value={value}
-          onChange={event => onChange(event.target.value)}
-        />
-        <button type="button" onClick={onToggle} aria-label={visible ? 'Hide password' : 'Show password'}>
-          {visible ? <EyeOff size={18} /> : <Eye size={18} />}
-        </button>
-      </span>
-    </FieldControl>
-  )
-}
-
-function EmailVerificationPanel({ email, onResend }) {
-  const [sentNotice, setSentNotice] = useState(false)
-
-  const handleResend = async () => {
-    await onResend()
-    setSentNotice(true)
-    setTimeout(() => setSentNotice(false), 5000)
-  }
-
-  return (
-    <div className="verificationPanel">
-      <div>
-        <MailCheck size={20} />
-        <span>Email Verification Required</span>
-      </div>
-      <p>
-        We have sent a verification link to your email address: <strong>{email}</strong>. 
-        Please check your inbox (and spam folder) to activate your account and enable online booking.
-      </p>
-      <div className="buttonRow noMargin">
-        <button className="secondaryButton" onClick={handleResend}>
-          {sentNotice ? 'Verification link resent!' : 'Resend verification link'}
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function SlotList({ slots, selectedSlotId, onSelect }) {
-  if (!slots.length) return <p className="emptyText">No slots found for this date.</p>
-  return (
-    <div className="slotList">
-      {slots.map(slot => (
-        <button
-          key={slot.slotId}
-          className={Number(selectedSlotId) === slot.slotId ? 'slotItem selected' : 'slotItem'}
-          onClick={() => onSelect(slot.slotId)}
-          disabled={!slot.available}
-        >
-          <span>{slot.fieldName}</span>
-          <strong>{slot.startTime} - {slot.endTime}</strong>
-          <em>{formatMoney(slot.price)}</em>
-          <small>{slot.status}</small>
-        </button>
-      ))}
-    </div>
-  )
-}
-
-function ServicePicker({ services, selectedServices, setSelectedServices }) {
-  return (
-    <div className="serviceBlock">
-      <h3>Add services</h3>
-      <div className="serviceGrid">
-        {services.map(service => (
-          <label key={service.extraServiceId} className="serviceOption">
-            <span>
-              <strong>{service.serviceName}</strong>
-              <small>{formatMoney(service.unitPrice)} / {service.unitName}</small>
-            </span>
-            <input
-              type="number"
-              min="0"
-              max={service.maxQuantityPerBooking || 5}
-              value={selectedServices[service.extraServiceId] || 0}
-              onChange={event => setSelectedServices({
-                ...selectedServices,
-                [service.extraServiceId]: event.target.value
-              })}
-            />
-          </label>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function SelectedSlot({ slot }) {
-  if (!slot) return <p className="emptyText">Select an available slot first.</p>
-  return (
-    <div className="selectedSlot">
-      <Clock size={18} />
-      <div>
-        <strong>{slot.fieldName}</strong>
-        <p>{slot.slotDate} · {slot.startTime} - {slot.endTime}</p>
-      </div>
-      <span>{formatMoney(slot.price)}</span>
-    </div>
-  )
-}
-
-function CheckoutSummary({ checkout, loading, error }) {
-  if (loading) return <p className="emptyText">Updating checkout...</p>
-  if (error) return <p className="errorText">{error}</p>
-  if (!checkout) return <p className="emptyText">Choose an available slot to see pricing.</p>
-  const promotionDiscount = Number(checkout.promotionDiscountAmount || 0)
-  const membershipDiscount = Number(checkout.membershipDiscountAmount || 0)
-  return (
-    <div className="checkoutSummary">
-      <Line label="Field price" value={formatMoney(checkout.fieldPriceAmount)} />
-      <Line label="Services" value={formatMoney(checkout.serviceTotalAmount)} />
-      {promotionDiscount > 0 && <Line label="Promotion" value={`-${formatMoney(checkout.promotionDiscountAmount)}`} />}
-      {membershipDiscount > 0 && <Line label="Membership" value={`-${formatMoney(checkout.membershipDiscountAmount)}`} />}
-      <Line label="Deposit" value={formatMoney(checkout.depositAmount)} />
-      <Line label="Total" value={formatMoney(checkout.totalAmount)} strong />
-    </div>
-  )
-}
-
-function Line({ label, value, strong }) {
-  return (
-    <div className={strong ? 'summaryLine strong' : 'summaryLine'}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  )
-}
-
-function InfoPanel({ title, children }) {
-  return (
-    <article className="infoPanel">
-      <h3>{title}</h3>
-      {children}
-    </article>
-  )
-}
-
-function BookingList({ bookings, selectedBookingId, onSelect }) {
-  if (!bookings.length) return <p className="emptyText">No bookings yet.</p>
-  return (
-    <div className="bookingList">
-      {bookings.map(booking => (
-        <button
-          key={booking.bookingId}
-          className={Number(selectedBookingId) === booking.bookingId ? 'bookingItem selected' : 'bookingItem'}
-          onClick={() => onSelect(booking.bookingId)}
-        >
-          <span>
-            <strong>{booking.bookingCode}</strong>
-            <small>{booking.customer} · {booking.fieldName} · {booking.startTime}</small>
-          </span>
-          <em>{booking.status}</em>
-        </button>
-      ))}
-    </div>
-  )
-}
-
-function SelectedBooking({ booking }) {
-  if (!booking) return <p className="emptyText">Select a booking first.</p>
-  return (
-    <div className="selectedBooking">
-      <ShieldCheck size={19} />
-      <div>
-        <strong>{booking.bookingCode} · {booking.status}</strong>
-        <p>{booking.customer} · {booking.fieldName} · {formatMoney(booking.totalAmount)}</p>
-      </div>
-    </div>
-  )
-}
-
-function DataList({ items }) {
-  if (!items.length) return <p className="emptyText">No records yet.</p>
-  return (
-    <div className="dataList">
-      {items.map((item, index) => (
-        <div className="dataRow" key={`${item.title}-${index}`}>
-          <span>
-            <strong>{item.title}</strong>
-            <small>{item.meta}</small>
-          </span>
-          <em>{item.value}</em>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function MetricGrid({ metrics }) {
-  return (
-    <div className="metricGrid">
-      {metrics.map(([label, value]) => (
-        <div className="metric" key={label}>
-          <span>{label}</span>
-          <strong>{value}</strong>
-        </div>
-      ))}
     </div>
   )
 }

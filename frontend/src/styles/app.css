@@ -199,8 +199,8 @@ button:active {
 .ghostButton,
 .ghostDarkButton,
 .stripButton,
-.actionGrid button,
-.buttonRow button,
+.actionGrid button:not(.mantine-Button-root),
+.buttonRow button:not(.mantine-Button-root),
 .demoButtons button {
   border: 0;
   border-radius: 10px;
@@ -295,7 +295,8 @@ main.pageMain .section {
 
 .venueLabel,
 .sectionIntro span,
-.fieldCard span,
+.workspaceIntro > span,
+.fieldCard .fieldEyebrow,
 .promoCard span,
 .toast span {
   display: inline-flex;
@@ -444,33 +445,175 @@ main.pageMain .section {
   text-wrap: pretty;
 }
 
+.workspaceHeader {
+  margin-bottom: 22px;
+  padding: clamp(18px, 3vw, 26px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.82fr);
+  align-items: stretch;
+  gap: 18px;
+  border-color: rgba(255, 255, 255, 0.64) !important;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(247, 252, 246, 0.82)),
+    var(--white);
+  box-shadow: var(--shadow);
+}
+
+.workspaceIntro {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 8px;
+}
+
+.workspaceIntro > span {
+  color: var(--green);
+}
+
+.workspaceIntro h2 {
+  margin: 0;
+  max-width: 740px;
+  font-size: clamp(2rem, 4vw, 3.6rem);
+  line-height: 0.98;
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+.workspaceIntro p {
+  max-width: 64ch;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.workspaceSummary {
+  min-width: 0;
+  display: grid;
+  align-content: space-between;
+  gap: 14px;
+}
+
+.workspaceStatus {
+  width: max-content;
+  max-width: 100%;
+  justify-self: end;
+  border: 1px solid rgba(23, 111, 70, 0.18);
+  background: rgba(23, 111, 70, 0.1) !important;
+  color: var(--green-dark) !important;
+}
+
+.workspaceStatus.warning {
+  border-color: rgba(228, 168, 45, 0.26);
+  background: rgba(228, 168, 45, 0.13) !important;
+  color: #7a5205 !important;
+}
+
+.workspaceStatus.success {
+  border-color: rgba(23, 111, 70, 0.2);
+}
+
+.workspaceMetricStrip {
+  min-width: 0;
+}
+
+.workspaceMetric {
+  min-height: 74px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.76);
+  padding: 12px;
+  display: grid;
+  align-content: space-between;
+}
+
+.workspaceMetric span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.workspaceMetric strong {
+  color: var(--ink);
+  font-size: clamp(1.08rem, 2vw, 1.34rem);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.fieldSection {
+  width: min(1210px, calc(100% - 36px));
+}
+
+.fieldBrowserLayout {
+  display: grid;
+  grid-template-columns: minmax(360px, 0.92fr) minmax(0, 1.28fr);
+  align-items: start;
+  gap: 18px;
+}
+
 .fieldGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
 }
 
+.fieldRail {
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
 .fieldCard {
   min-width: 0;
   overflow: hidden;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.86);
+  background: rgba(255, 255, 255, 0.88);
   box-shadow: var(--shadow);
+}
+
+.fieldCardButton {
+  width: 100%;
+  min-height: 206px;
+  border: 1px solid var(--line);
+  padding: 0;
+  display: grid;
+  grid-template-columns: 156px minmax(0, 1fr);
+  color: var(--ink);
+  text-align: left;
+  box-shadow: none;
+}
+
+.fieldCardButton:hover {
+  border-color: rgba(23, 111, 70, 0.32);
+  box-shadow: 0 18px 42px rgba(24, 69, 42, 0.12);
+  transform: translateY(-2px);
+}
+
+.fieldCardButton.selected {
+  border-color: rgba(23, 111, 70, 0.56);
+  background: linear-gradient(180deg, var(--white), #f3fbf4);
+  box-shadow: inset 0 0 0 2px rgba(23, 111, 70, 0.12), 0 18px 42px rgba(24, 69, 42, 0.11);
 }
 
 .fieldCard img {
   width: 100%;
-  aspect-ratio: 1.25;
+  height: 100%;
+  min-height: 206px;
   object-fit: cover;
   display: block;
 }
 
-.fieldCard div {
-  padding: 18px;
+.fieldCardBody {
+  padding: 16px;
+  display: grid;
+  align-content: start;
+  gap: 11px;
 }
 
-.fieldCard span {
-  color: var(--orange);
+.fieldCapacity {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 820;
 }
 
 .fieldCard h3,
@@ -500,8 +643,12 @@ main.pageMain .section {
   font-weight: 760;
 }
 
+.fieldCard p {
+  margin: 7px 0 0;
+}
+
 .fieldCard dl {
-  margin: 14px 0 0;
+  margin: 0;
   display: grid;
   gap: 8px;
 }
@@ -528,6 +675,203 @@ main.pageMain .section {
 .fieldCard dd {
   font-weight: 800;
   text-align: right;
+}
+
+.fieldCardFooter {
+  margin-top: 2px;
+  padding-top: 11px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.fieldCardFooter span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 760;
+}
+
+.fieldCardFooter strong {
+  color: var(--green);
+  font-size: 0.84rem;
+}
+
+.fieldDetailPanel {
+  position: sticky;
+  top: 98px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.fieldDetailHero {
+  display: grid;
+  grid-template-columns: minmax(230px, 0.95fr) minmax(0, 1.08fr);
+  min-height: 292px;
+}
+
+.fieldDetailImage {
+  width: 100%;
+  height: 100%;
+}
+
+.fieldDetailImage img {
+  height: 100%;
+  min-height: 292px;
+  object-fit: cover;
+}
+
+.fieldDetailContent {
+  padding: 22px;
+  display: grid;
+  align-content: start;
+  gap: 15px;
+}
+
+.fieldDetailContent h2 {
+  margin: 8px 0 0;
+  color: var(--ink);
+  font-size: clamp(1.45rem, 3vw, 2.2rem);
+  line-height: 1.08;
+}
+
+.detailStatGrid {
+  margin-top: 2px;
+}
+
+.detailStat {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(247, 251, 245, 0.86);
+  padding: 12px;
+  display: grid;
+  gap: 5px;
+}
+
+.detailStat svg {
+  color: var(--green);
+}
+
+.detailStat span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 820;
+  text-transform: uppercase;
+}
+
+.detailStat strong {
+  min-width: 0;
+  color: var(--ink);
+  font-size: 0.92rem;
+  overflow-wrap: anywhere;
+}
+
+.fieldDetailBody {
+  border-top: 1px solid var(--line);
+  padding: 18px;
+  display: grid;
+  gap: 16px;
+}
+
+.fieldDetailToolbar {
+  gap: 12px;
+}
+
+.fieldDetailToolbar .fieldControl {
+  width: min(210px, 100%);
+}
+
+.miniSlotList,
+.priceRows {
+  display: grid;
+  gap: 9px;
+}
+
+.miniSlotItem,
+.priceRow {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--white);
+  padding: 12px;
+}
+
+.miniSlotItem {
+  display: grid;
+  grid-template-columns: auto minmax(90px, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  text-align: left;
+}
+
+.miniSlotItem:hover {
+  border-color: rgba(23, 111, 70, 0.34);
+  box-shadow: 0 10px 24px rgba(24, 69, 42, 0.09);
+}
+
+.miniSlotItem svg {
+  color: var(--green);
+}
+
+.miniSlotItem span {
+  font-weight: 850;
+}
+
+.miniSlotItem strong {
+  color: var(--green);
+  font-size: 0.94rem;
+}
+
+.miniSlotItem.unavailable {
+  color: var(--muted);
+  background: #f2f5f1;
+  box-shadow: none;
+}
+
+.miniSlotItem.unavailable strong,
+.miniSlotItem.unavailable svg {
+  color: var(--muted);
+}
+
+.priceRow {
+  display: grid;
+  grid-template-columns: minmax(80px, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.priceRow span,
+.priceRow strong,
+.priceRow em {
+  min-width: 0;
+}
+
+.priceRow span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 840;
+  text-transform: capitalize;
+}
+
+.priceRow strong {
+  color: var(--ink);
+  font-size: 0.92rem;
+}
+
+.priceRow em {
+  color: var(--green);
+  font-style: normal;
+  font-weight: 880;
+  text-align: right;
+}
+
+.fieldDetailActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .bookingSection {
@@ -632,20 +976,20 @@ main.pageMain .section {
 
 .slotList {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(166px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
 }
 
 .slotItem {
-  min-height: 132px;
+  min-height: 154px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--white);
   color: var(--ink);
-  padding: 13px;
+  padding: 14px;
   display: grid;
   align-content: start;
-  gap: 7px;
+  gap: 11px;
   text-align: left;
 }
 
@@ -668,25 +1012,44 @@ main.pageMain .section {
   transform: none;
 }
 
-.slotItem span,
+.slotFieldName,
 .bookingItem strong,
 .dataRow strong {
   font-weight: 850;
 }
 
-.slotItem strong {
-  font-size: 1rem;
+.slotFieldName {
+  font-size: 1.02rem;
+  line-height: 1.25;
 }
 
-.slotItem em,
-.slotItem small {
-  font-style: normal;
+.slotTimeLine,
+.slotMetaLine {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   color: var(--muted);
+  font-size: 0.9rem;
 }
 
-.slotItem em {
+.slotTimeLine svg,
+.slotMetaLine svg {
   color: var(--green);
-  font-weight: 850;
+  flex: 0 0 auto;
+}
+
+.slotPrice {
+  color: var(--green);
+  font-size: 0.88rem;
+  font-weight: 880;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.slotItem:disabled .slotPrice,
+.slotItem:disabled .slotTimeLine svg,
+.slotItem:disabled .slotMetaLine svg {
+  color: var(--muted);
 }
 
 .serviceBlock {
@@ -839,6 +1202,11 @@ main.pageMain .section {
   gap: 12px;
 }
 
+.profileForm {
+  display: grid;
+  gap: 12px;
+}
+
 .passwordInput {
   min-width: 0;
   display: grid;
@@ -964,8 +1332,8 @@ main.pageMain .section {
 }
 
 .demoButtons button,
-.actionGrid button,
-.buttonRow button {
+.actionGrid button:not(.mantine-Button-root),
+.buttonRow button:not(.mantine-Button-root) {
   min-height: 40px;
   border: 1px solid var(--line);
   background: var(--white);
@@ -973,8 +1341,8 @@ main.pageMain .section {
 }
 
 .demoButtons button:hover,
-.actionGrid button:hover,
-.buttonRow button:hover {
+.actionGrid button:not(.mantine-Button-root):hover,
+.buttonRow button:not(.mantine-Button-root):hover {
   border-color: rgba(23, 111, 70, 0.34);
   background: var(--green-soft);
 }
@@ -983,15 +1351,22 @@ main.pageMain .section {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.roleGrid {
+  align-items: start;
+}
+
 .infoPanel {
   min-width: 0;
   display: grid;
   align-content: start;
   gap: 12px;
+  border-color: rgba(255, 255, 255, 0.62) !important;
+  background: rgba(255, 255, 255, 0.86) !important;
 }
 
 .bookingList,
-.dataList {
+.dataList,
+.customerAdminList {
   display: grid;
   gap: 8px;
   max-height: 360px;
@@ -1000,7 +1375,8 @@ main.pageMain .section {
 }
 
 .bookingItem,
-.dataRow {
+.dataRow,
+.customerAdminRow {
   width: 100%;
   min-height: 66px;
   border: 1px solid var(--line);
@@ -1019,20 +1395,28 @@ main.pageMain .section {
   border-color: rgba(23, 111, 70, 0.34);
 }
 
+.customerAdminRow button {
+  min-width: 92px;
+  min-height: 38px;
+  padding: 0 12px;
+}
+
 .bookingItem.selected {
   border-color: var(--green);
   background: var(--green-soft);
 }
 
 .bookingItem span,
-.dataRow span {
+.dataRow span,
+.customerAdminRow span {
   min-width: 0;
   display: grid;
   gap: 4px;
 }
 
 .bookingItem small,
-.dataRow small {
+.dataRow small,
+.customerAdminRow small {
   color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1047,6 +1431,12 @@ main.pageMain .section {
   font-weight: 900;
   text-align: right;
   white-space: nowrap;
+}
+
+.listBadge {
+  flex: 0 0 auto;
+  max-width: min(180px, 42%);
+  text-transform: none;
 }
 
 .metricGrid {
@@ -1112,6 +1502,10 @@ main.pageMain .section {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 9px;
+}
+
+.actionGrid .wideAction {
+  grid-column: 1 / -1;
 }
 
 .buttonRow {
@@ -1310,6 +1704,9 @@ main.pageMain .section {
   }
 
   .sectionIntro,
+  .workspaceHeader,
+  .fieldBrowserLayout,
+  .fieldDetailHero,
   .bookingLayout,
   .authGrid,
   .operationGrid,
@@ -1323,6 +1720,7 @@ main.pageMain .section {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .fieldDetailPanel,
   .checkoutPanel {
     position: static;
   }
@@ -1352,7 +1750,8 @@ main.pageMain .section {
   .promoGrid,
   .accountGrid,
   .serviceGrid,
-  .metricGrid {
+  .metricGrid,
+  .workspaceMetricStrip {
     grid-template-columns: 1fr;
   }
 
@@ -1366,6 +1765,32 @@ main.pageMain .section {
 
   .slotList {
     grid-template-columns: 1fr;
+  }
+
+  .fieldCardButton {
+    grid-template-columns: 1fr;
+  }
+
+  .fieldCard img,
+  .fieldDetailImage img {
+    min-height: 220px;
+  }
+
+  .fieldDetailToolbar {
+    align-items: stretch;
+  }
+
+  .fieldDetailToolbar .fieldControl {
+    width: 100%;
+  }
+
+  .miniSlotItem,
+  .priceRow {
+    grid-template-columns: 1fr;
+  }
+
+  .miniSlotItem {
+    align-items: start;
   }
 
   .serviceOption,
@@ -1383,6 +1808,10 @@ main.pageMain .section {
   .bookingItem em,
   .dataRow em {
     text-align: left;
+  }
+
+  .listBadge {
+    max-width: 100%;
   }
 
   .actionGrid {
