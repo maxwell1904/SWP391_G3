@@ -4,7 +4,8 @@ import com.swp391.backend.dto.ApiRequests;
 import com.swp391.backend.entity.*;
 import com.swp391.backend.enums.*;
 import com.swp391.backend.repository.*;
-import com.swp391.backend.service.MvpDemoService;
+import com.swp391.backend.service.BookingWorkflowService;
+import com.swp391.backend.service.PaymentWorkflowService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -30,7 +31,8 @@ public class DataSeeder {
             ExtraServiceRepository extraServiceRepository,
             PromotionRepository promotionRepository,
             SystemSettingRepository systemSettingRepository,
-            MvpDemoService demoService
+            BookingWorkflowService bookingWorkflowService,
+            PaymentWorkflowService paymentWorkflowService
     ) {
         return args -> {
             if (roleRepository.count() > 0) {
@@ -103,8 +105,8 @@ public class DataSeeder {
                     List.of(new ApiRequests.ServiceSelection(ball.getExtraServiceId(), 1), new ApiRequests.ServiceSelection(water.getExtraServiceId(), 1)),
                     "Seeded online booking"
             );
-            Long bookingId = ((Number) demoService.createBooking(bookingCreate).get("bookingId")).longValue();
-            demoService.capturePayment(new ApiRequests.PaymentCapture(
+            Long bookingId = ((Number) bookingWorkflowService.createBooking(bookingCreate).get("bookingId")).longValue();
+            paymentWorkflowService.capturePayment(new ApiRequests.PaymentCapture(
                     bookingId,
                     customer.getUserId(),
                     "deposit",
