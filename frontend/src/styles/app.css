@@ -1202,6 +1202,27 @@ main.pageMain .section {
   gap: 12px;
 }
 
+.forgotPasswordRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -4px;
+}
+
+.forgotPasswordLink {
+  background: none;
+  border: none;
+  color: #1d6fb0;
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+}
+
+.forgotPasswordLink:hover {
+  text-decoration: underline;
+  color: #155a8a;
+}
+
 .profileForm {
   display: grid;
   gap: 12px;

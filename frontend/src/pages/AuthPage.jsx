@@ -106,6 +106,11 @@ function LoginForm({ loginForm, loginErrors, showLoginPassword, setShowLoginPass
         onToggle={() => setShowLoginPassword(!showLoginPassword)}
         onChange={value => updateLoginForm('password', value)}
       />
+      <div className="forgotPasswordRow">
+        <button className="forgotPasswordLink" onClick={() => window.location.href = '/forgot-password'}>
+          Forgot password?
+        </button>
+      </div>
       <button className="primaryButton wide" onClick={() => login()}>
         <LogIn size={18} />
         <span>Login</span>

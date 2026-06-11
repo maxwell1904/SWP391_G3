@@ -48,6 +48,16 @@ public class AccountController {
         return accountService.changePassword(userId, request);
     }
 
+    @PostMapping("/forgot-password")
+    public Object forgotPassword(@RequestBody ApiRequests.ForgotPassword request) {
+        return accountService.forgotPassword(request);
+    }
+
+    @PostMapping("/reset-password")
+    public Object resetPassword(@RequestBody ApiRequests.ResetPassword request) {
+        return accountService.resetPassword(request);
+    }
+
     @PutMapping("/users/{userId}/restriction")
     public Object updateRestriction(@PathVariable Long userId, @RequestBody ApiRequests.RestrictionUpdate request) {
         return accountService.updateRestriction(userId, request);

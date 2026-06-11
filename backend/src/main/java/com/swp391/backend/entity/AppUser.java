@@ -66,4 +66,10 @@ public class AppUser extends AuditEntity {
 
     @Column(name = "email_verification_sent_at")
     private LocalDateTime emailVerificationSentAt;
+
+    @Column(name = "password_reset_token", length = 16)
+    private String passwordResetToken;
+
+    @Column(name = "password_reset_sent_at")
+    private LocalDateTime passwordResetSentAt;
 }

@@ -15,8 +15,10 @@ import {
   AuthPage,
   BookingPage,
   FieldsPage,
+  ForgotPasswordPage,
   HomePage,
   PromotionsPage,
+  ResetPasswordPage,
   StaffPage,
   VerifyEmailPage
 } from './pages'
@@ -65,6 +67,17 @@ function App() {
   const [loginErrors, setLoginErrors] = useState({})
   const [registerErrors, setRegisterErrors] = useState({})
   const [registerLoading, setRegisterLoading] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotSent, setForgotSent] = useState(false)
+  const [forgotLoading, setForgotLoading] = useState(false)
+  const [forgotError, setForgotError] = useState('')
+  const [resetPassword, setResetPassword] = useState('')
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('')
+  const [showResetPassword, setShowResetPassword] = useState(false)
+  const [resetResult, setResetResult] = useState(null)
+  const [resetLoading, setResetLoading] = useState(false)
+  const [resetErrors, setResetErrors] = useState({})
+  const [resetPasswordToken, setResetPasswordToken] = useState(null)
 
   const [loginForm, setLoginForm] = useState({ emailOrPhone: 'customer@goalzone.local', password: demoPassword })
   const [registerForm, setRegisterForm] = useState({
@@ -133,6 +146,15 @@ function App() {
     return () => {
       cancelled = true
     }
+  }, [currentPage])
+
+  useEffect(() => {
+    if (currentPage !== 'resetPassword') return undefined
+    const params = new URLSearchParams(window.location.search)
+    const userId = params.get('userId')
+    const token = params.get('token')
+    setResetPasswordToken(userId && token ? { userId: Number(userId), token } : null)
+    return undefined
   }, [currentPage])
 
   useEffect(() => {
@@ -430,6 +452,64 @@ function App() {
     }), 'Verification email sent')
   }
 
+  async function sendResetLink() {
+    const email = forgotEmail.trim()
+    if (!emailPattern.test(email)) {
+      setForgotError('Enter a valid email address.')
+      setActionPanel({ kind: 'error', title: 'Check email', message: 'Enter a valid email address.' })
+      return
+    }
+    setForgotLoading(true)
+    setForgotError('')
+    try {
+      const response = await api.post('/account/forgot-password', { email })
+      setForgotSent(true)
+      setActionPanel({ kind: 'success', title: 'Reset link sent', message: response.data?.message || 'Check your inbox for the reset link.' })
+    } catch (error) {
+      const message = error.response?.data?.error || 'Could not send reset link'
+      setForgotError(message)
+      setActionPanel({ kind: 'error', title: 'Failed to send', message })
+    } finally {
+      setForgotLoading(false)
+    }
+  }
+
+  async function submitReset() {
+    if (!resetPasswordToken) return
+    const errors = {}
+    const issues = passwordIssues(resetPassword)
+    if (issues.length) errors.password = issues[0]
+    if (resetPassword !== resetConfirmPassword) errors.confirmPassword = 'Passwords do not match.'
+    if (Object.keys(errors).length) {
+      setResetErrors(errors)
+      return
+    }
+    setResetLoading(true)
+    setResetErrors({})
+    try {
+      const response = await api.post('/account/reset-password', {
+        userId: resetPasswordToken.userId,
+        token: resetPasswordToken.token,
+        newPassword: resetPassword,
+        confirmPassword: resetConfirmPassword
+      })
+      setResetResult({ status: 'success', message: response.data?.message || 'Password reset successfully.' })
+      setActionPanel({ kind: 'success', title: 'Password reset', message: response.data?.message || 'Password reset successfully.' })
+    } catch (error) {
+      const message = error.response?.data?.error || 'Could not reset password'
+      setResetResult({ status: 'error', message })
+      setActionPanel({ kind: 'error', title: 'Reset failed', message })
+    } finally {
+      setResetLoading(false)
+    }
+  }
+
+  function updateResetForm(field, value) {
+    if (field === 'resetPassword') setResetPassword(value)
+    if (field === 'resetConfirmPassword') setResetConfirmPassword(value)
+    setResetErrors(({ [field]: _ignored, ...rest }) => rest)
+  }
+
   async function saveProfile(profile) {
     if (!currentUser) return
     const response = await runAction(async () => api.put(`/account/users/${currentUser.userId}/profile`, profile), 'Profile updated')
@@ -682,6 +762,33 @@ function App() {
             currentUser={currentUser}
             navigatePage={navigatePage}
             resendVerification={resendVerification}
+          />
+        )}
+
+        {currentPage === 'forgotPassword' && (
+          <ForgotPasswordPage
+            forgotEmail={forgotEmail}
+            setForgotEmail={setForgotEmail}
+            forgotSent={forgotSent}
+            forgotLoading={forgotLoading}
+            forgotError={forgotError}
+            sendResetLink={sendResetLink}
+            navigatePage={navigatePage}
+          />
+        )}
+
+        {currentPage === 'resetPassword' && (
+          <ResetPasswordPage
+            resetPassword={resetPassword}
+            resetConfirmPassword={resetConfirmPassword}
+            resetResult={resetResult}
+            resetLoading={resetLoading}
+            resetErrors={resetErrors}
+            showResetPassword={showResetPassword}
+            setShowResetPassword={setShowResetPassword}
+            resetPasswordToken={resetPasswordToken}
+            updateResetForm={updateResetForm}
+            submitReset={submitReset}
           />
         )}
 
