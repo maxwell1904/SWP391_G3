@@ -44,6 +44,50 @@ public class VerificationEmailService {
                 + "&token=" + user.getEmailVerificationToken();
     }
 
+    public String passwordResetLink(AppUser user) {
+        return frontendBaseUrl
+                + "/reset-password?userId=" + user.getUserId()
+                + "&token=" + user.getPasswordResetToken();
+    }
+
+    public VerificationEmailDelivery sendPasswordResetEmail(AppUser user) {
+        if (isBlank(smtpUsername) || isBlank(fromEmail)) {
+            return new VerificationEmailDelivery(
+                    false,
+                    "not_configured",
+                    "Password reset email was not sent because SMTP is not configured."
+            );
+        }
+
+        String link = passwordResetLink(user);
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setTo(user.getEmail());
+            helper.setFrom(senderAddress());
+            helper.setSubject("Reset your GoalZone password");
+            helper.setText(resetPlainText(user, link), resetHtmlText(user, link));
+            mailSender.send(message);
+            return new VerificationEmailDelivery(
+                    true,
+                    "sent",
+                    "Password reset email sent. Please check your inbox."
+            );
+        } catch (MailException | AddressException | UnsupportedEncodingException exception) {
+            logMailFailure(exception);
+            throw new ApiException(
+                    org.springframework.http.HttpStatus.BAD_GATEWAY,
+                    "Could not send password reset email. Check SMTP settings and try again."
+            );
+        } catch (Exception exception) {
+            logMailFailure(exception);
+            throw new ApiException(
+                    org.springframework.http.HttpStatus.BAD_GATEWAY,
+                    "Could not send password reset email. Check SMTP settings and try again."
+            );
+        }
+    }
+
     public VerificationEmailDelivery sendVerificationEmail(AppUser user) {
         if (isBlank(smtpUsername) || isBlank(fromEmail)) {
             return new VerificationEmailDelivery(
@@ -104,6 +148,29 @@ public class VerificationEmailService {
             }
         }
         return new InternetAddress(fromEmail, fromName);
+    }
+
+    private String resetPlainText(AppUser user, String link) {
+        return "Hi " + user.getFullName() + ",\n\n"
+                + "A password reset was requested for your GoalZone account.\n"
+                + "Open this link to set a new password:\n"
+                + link + "\n\n"
+                + "If you did not request this, you can ignore this email.";
+    }
+
+    private String resetHtmlText(AppUser user, String link) {
+        String name = escapeHtml(user.getFullName());
+        String safeLink = escapeHtml(link);
+        return "<div style=\"font-family:Arial,sans-serif;line-height:1.5;color:#17211b;max-width:560px\">"
+                + "<h2 style=\"margin:0 0 12px\">Reset your GoalZone password</h2>"
+                + "<p>Hi " + name + ",</p>"
+                + "<p>A password reset was requested for your GoalZone account.</p>"
+                + "<p><a href=\"" + safeLink + "\" style=\"display:inline-block;background:#167a42;color:#fff;"
+                + "padding:12px 18px;border-radius:6px;text-decoration:none;font-weight:700\">Reset password</a></p>"
+                + "<p>If the button does not work, copy this link into your browser:</p>"
+                + "<p><a href=\"" + safeLink + "\">" + safeLink + "</a></p>"
+                + "<p style=\"color:#607062;font-size:13px\">If you did not request this, ignore this email.</p>"
+                + "</div>";
     }
 
     private String plainText(AppUser user, String link) {

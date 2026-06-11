@@ -5,6 +5,8 @@ export const pageRoutes = {
   login: '/login',
   account: '/account',
   verifyEmail: '/verify-email',
+  forgotPassword: '/forgot-password',
+  resetPassword: '/reset-password',
   promotions: '/promotions',
   staff: '/staff',
   admin: '/admin'
