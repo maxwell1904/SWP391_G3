@@ -1,4 +1,4 @@
-import { LogIn, LogOut } from 'lucide-react'
+import { Loader2, LogIn, LogOut } from 'lucide-react'
 import { FieldControl, PasswordField, SectionIntro } from '../components/common'
 import { EmailVerificationPanel } from '../features/account/components'
 
@@ -18,6 +18,7 @@ export function AuthPage({
   setShowRegisterPassword,
   login,
   register,
+  registerLoading,
   logout,
   navigatePage,
   resendVerification
@@ -75,6 +76,7 @@ export function AuthPage({
                   setShowRegisterPassword={setShowRegisterPassword}
                   updateRegisterForm={updateRegisterForm}
                   register={register}
+                  registerLoading={registerLoading}
                 />
               )}
             </>
@@ -112,7 +114,7 @@ function LoginForm({ loginForm, loginErrors, showLoginPassword, setShowLoginPass
   )
 }
 
-function RegisterForm({ registerForm, registerErrors, showRegisterPassword, setShowRegisterPassword, updateRegisterForm, register }) {
+function RegisterForm({ registerForm, registerErrors, showRegisterPassword, setShowRegisterPassword, updateRegisterForm, register, registerLoading }) {
   return (
     <div className="formStack">
       <FieldControl label="Full name" error={registerErrors.fullName}>
@@ -157,7 +159,10 @@ function RegisterForm({ registerForm, registerErrors, showRegisterPassword, setS
         onToggle={() => setShowRegisterPassword(!showRegisterPassword)}
         onChange={value => updateRegisterForm('confirmPassword', value)}
       />
-      <button className="primaryButton wide" onClick={register}>Create account</button>
+      <button className="primaryButton wide" onClick={register} disabled={registerLoading}>
+        {registerLoading ? <Loader2 className="spin" size={18} /> : null}
+        <span>{registerLoading ? 'Creating account...' : 'Create account'}</span>
+      </button>
     </div>
   )
 }

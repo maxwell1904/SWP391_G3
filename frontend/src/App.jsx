@@ -64,6 +64,7 @@ function App() {
   const [verifyResult, setVerifyResult] = useState({ status: 'idle', message: '' })
   const [loginErrors, setLoginErrors] = useState({})
   const [registerErrors, setRegisterErrors] = useState({})
+  const [registerLoading, setRegisterLoading] = useState(false)
 
   const [loginForm, setLoginForm] = useState({ emailOrPhone: 'customer@goalzone.local', password: demoPassword })
   const [registerForm, setRegisterForm] = useState({
@@ -404,15 +405,21 @@ function App() {
       email: registerForm.email.trim(),
       phone: registerForm.phone.trim()
     }
-    const response = await runAction(async () => api.post('/account/register', payload), 'Account created')
-    if (response?.data) {
-      const user = response.data.user || response.data
-      setCurrentUser(user)
-      setAuthMode('login')
-      if (response.data.verificationRequired) {
-        setNotice(response.data.message || 'Account created. Check your inbox to verify email before online booking.')
+    setRegisterLoading(true)
+    try {
+      const response = await runAction(async () => api.post('/account/register', payload), 'Account created')
+      if (response?.data) {
+        const user = response.data.user || response.data
+        setCurrentUser(user)
+        setAuthMode('login')
+        setRegisterForm({ fullName: '', email: '', phone: '', password: '', confirmPassword: '' })
+        if (response.data.verificationRequired) {
+          setNotice(response.data.message || 'Account created. Check your inbox to verify email before online booking.')
+        }
+        navigatePage('account')
       }
-      navigatePage('account')
+    } finally {
+      setRegisterLoading(false)
     }
   }
 
@@ -648,6 +655,7 @@ function App() {
             setShowRegisterPassword={setShowRegisterPassword}
             login={login}
             register={register}
+            registerLoading={registerLoading}
             logout={logout}
             navigatePage={navigatePage}
             resendVerification={resendVerification}
