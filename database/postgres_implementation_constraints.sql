@@ -2,6 +2,12 @@
 -- Run these after the ORM has created the base tables, or translate them into
 -- Flyway/Liquibase migrations when the Spring Boot project is scaffolded.
 
+-- Keep the database constraint aligned with PaymentMethod.java. Older
+-- databases predate the PayPal sandbox checkout method.
+alter table payment drop constraint if exists payment_payment_method_check;
+alter table payment add constraint payment_payment_method_check
+check (payment_method in ('cash', 'online_sandbox', 'paypal_sandbox', 'bank_transfer'));
+
 -- A slot can only have one active booking at a time. Cancelled, rejected,
 -- expired, completed, and no-show bookings no longer reserve the slot.
 create unique index if not exists ux_booking_active_slot

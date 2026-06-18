@@ -21,7 +21,7 @@ This file tracks the demo implementation against the RDS business rules so the r
 - UC-23: issue status/resolution fields exist, but the resolve workflow is still missing.
 - UC-31/37: reschedule and manual conflict-resolution workflows are still missing.
 - UC-49/50: deposit setting exists as a lightweight demo; full cancellation/refund policy configuration is not implemented.
-- Payment sandbox: current code stores deterministic demo payment records only. Real PayPal sandbox should wait until API credentials and redirect/callback flow are ready.
+- Payment sandbox: PayPal JavaScript SDK checkout and server-side Orders v2 create/capture are implemented for sandbox. Cancelled checkout expires the pending booking and releases its slot. Webhook reconciliation and gateway refunds remain future work.
 - Email verification: implemented with Spring Boot Mail SMTP. Verification links are delivered to the registered email address; provider credentials stay in local environment variables.
 - Backlog/RDS/code mismatches are tracked in `docs/BACKLOG_RDS_CODE_GAP_ANALYSIS.md`.
 
@@ -30,5 +30,5 @@ This file tracks the demo implementation against the RDS business rules so the r
 - `AccountController`: account status, email verification, profile, and future deletion safeguards.
 - `FieldOperationController`: field management, price management, slot blocking, issue resolution.
 - `BookingController`: booking detail, lifecycle, future reschedule and cancellation preview.
-- `PaymentController`: payment records, invoices, refund management, future PayPal callback.
+- `PaymentController`: payment records, PayPal sandbox create/capture/cancel, invoices, and refund management.
 - `PromotionReportController`: promotion, membership, settings, notifications, reports.

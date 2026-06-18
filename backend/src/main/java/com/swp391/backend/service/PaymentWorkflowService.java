@@ -27,11 +27,17 @@ public class PaymentWorkflowService {
 
     public Map<String, Object> capturePayment(ApiRequests.PaymentCapture request) {
         Booking booking = support.getBooking(request.bookingId());
-        BigDecimal amount = request.amount() == null ? booking.getDepositAmount() : support.money(request.amount());
+        PaymentOption paymentOption = support.parseEnum(PaymentOption.class, request.paymentOption(), PaymentOption.deposit);
+        BigDecimal payableAmount = payableAmount(booking, paymentOption);
+        BigDecimal amount = request.amount() == null ? payableAmount : support.money(request.amount());
+        if (amount.compareTo(payableAmount) != 0) {
+            throw support.badRequest("Payment amount must match the payable amount for " + paymentOption.name());
+        }
+
         Payment payment = new Payment();
         payment.setBooking(booking);
         payment.setPaymentCode("PAY" + System.currentTimeMillis());
-        payment.setPaymentOption(support.parseEnum(PaymentOption.class, request.paymentOption(), PaymentOption.deposit));
+        payment.setPaymentOption(paymentOption);
         payment.setPaymentMethod(support.parseEnum(PaymentMethod.class, request.paymentMethod(), PaymentMethod.online_sandbox));
         payment.setAmount(amount);
         payment.setCreatedBy(request.createdById() == null ? booking.getCustomer() : support.getUser(request.createdById()));
@@ -51,6 +57,25 @@ public class PaymentWorkflowService {
         support.paymentRepository.save(payment);
         support.generateInvoice(booking);
         return bookingWorkflowService.bookingDetail(booking.getBookingId());
+    }
+
+    private BigDecimal payableAmount(Booking booking, PaymentOption paymentOption) {
+        if (booking.getStatus() == BookingStatus.cancelled
+                || booking.getStatus() == BookingStatus.rejected
+                || booking.getStatus() == BookingStatus.expired
+                || booking.getStatus() == BookingStatus.no_show) {
+            throw support.badRequest("Payments cannot be captured for a " + booking.getStatus().name() + " booking");
+        }
+
+        BigDecimal amount = switch (paymentOption) {
+            case deposit -> booking.getDepositAmount().subtract(booking.getPaidAmount());
+            case full, remaining -> booking.getRemainingAmount();
+        };
+        amount = support.money(amount.max(BigDecimal.ZERO));
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw support.badRequest("This booking has no payable amount for " + paymentOption.name());
+        }
+        return amount;
     }
 
     @Transactional(readOnly = true)

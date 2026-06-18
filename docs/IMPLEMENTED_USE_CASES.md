@@ -1,6 +1,6 @@
 # Implemented Use Cases
 
-Last updated: 2026-06-03
+Last updated: 2026-06-11
 
 Source of truth: `../SWP391_G3_Backlog.xlsx`, sheet `Backlog`. The `Contribution` sheet has one owner/module mismatch for BaoNG, so the UC IDs below follow the `Backlog` sheet.
 
@@ -69,14 +69,14 @@ Status meanings:
 | UC | Backlog use case | Current status | Notes |
 | --- | --- | --- | --- |
 | UC-38 | View checkout summary | Done | Checkout summary updates automatically when slot, services, promotion, or customer context changes. |
-| UC-39 | Choose payment option | Partial | Backend supports deposit/full/remaining options. The customer-facing UI does not expose a full payment-option selector yet. |
-| UC-40 | Pay deposit/full amount via online payment sandbox | Partial | Deterministic `online_sandbox` payment records exist. No real PayPal redirect/callback is wired yet. |
+| UC-39 | Choose payment option | Done | Checkout exposes deposit/full choices for customer and staff flows, shows the payable amount, and captures the selected amount after booking creation. |
+| UC-40 | Pay deposit/full amount via online payment sandbox | Done for sandbox | Customer checkout uses the PayPal JavaScript SDK and server-side Orders v2 create/capture calls for deposit or full payment. A mock fallback remains available for local automated tests. |
 | UC-41 | Capture/confirm online payment | Done for sandbox | Payment capture stores status/transaction code and can confirm pending booking after deposit is paid. |
 | UC-42 | Confirm remaining payment | Done | Staff/Admin can capture remaining payment, usually as cash for venue operation demo. |
-| UC-43 | Handle failed/expired payment | Partial | Failed payments can be stored. Expiry timer/job and UI handling are not implemented. |
+| UC-43 | Handle failed/expired payment | Partial | Failed payments can be stored, and cancelling PayPal Checkout expires the pending payment/booking and releases the slot. A scheduled timeout job is not implemented. |
 | UC-44 | View payment history | Done | Payment history is shown in account/staff/admin data flows. |
 | UC-45 | Generate booking invoice | Done | Invoice summary is generated/updated after payment capture and completion. |
-| UC-46 | View invoice/payment status | Partial | Payment status is visible and booking detail API returns invoice. No dedicated invoice detail page yet. |
+| UC-46 | View invoice/payment status | Done for demo | Customer and staff workspaces load booking billing detail with derived payment status, invoice totals, paid/remaining/refund amounts, and transaction history. |
 | UC-47 | Process online refund | Partial | Refund records and completed refund transaction codes exist. No real gateway refund call. |
 | UC-48 | Manage refund requests | Partial | Staff/Admin can process a refund demo case. A full request queue with approve/reject states is missing. |
 | UC-49 | Configure deposit rules | Partial | Admin can switch deposit percent between demo values through `system_setting`. Full rule editor is not implemented. |

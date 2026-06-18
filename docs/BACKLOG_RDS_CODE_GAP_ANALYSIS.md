@@ -1,6 +1,6 @@
 # Backlog, RDS, and Code Gap Analysis
 
-Last updated: 2026-06-03
+Last updated: 2026-06-11
 
 ## Source Files Checked
 
@@ -21,6 +21,8 @@ Use the `Backlog` sheet as the UC source of truth. The `Contribution` sheet curr
 - Added profile editing UI/API support for UC-04.
 - Added Admin customer restrict/restore UI support for UC-07/UC-10.
 - Added staff reject-booking support for UC-30 with pending-status guard and customer notification.
+- Completed UC-39 with deposit/full selection in checkout and server-side payable amount validation.
+- Completed UC-46 demo coverage with invoice/payment detail panels for customer and staff workspaces.
 
 ## Main Mismatches
 
@@ -48,11 +50,11 @@ RDS recommendation: remove review text from field detail unless the team adds a 
 
 Current fix: DBML and PostgreSQL notes now include those fields/index notes.
 
-### 5. Payment Sandbox Is Internal, Not PayPal Sandbox
+### 5. PayPal Sandbox Checkout Is Implemented
 
-The current payment flow creates deterministic `online_sandbox` records and transaction codes. It does not perform PayPal redirect, callback verification, webhook handling, or gateway refund.
+Customer checkout now loads the PayPal JavaScript SDK and uses server-side Orders v2 create/capture calls with sandbox credentials. Captured amount and currency are validated before the booking and invoice are updated. Cancelling the popup expires the local pending payment/booking and releases the slot.
 
-RDS recommendation: call the current behavior "online payment sandbox record" for demo. Only document PayPal sandbox if credentials, redirect/callback flow, and error handling are implemented.
+Remaining production gaps are webhook reconciliation, scheduled payment expiry, and gateway-backed refunds.
 
 ### 6. Manage/CRUD Use Cases Are Mostly Not Implemented Yet
 

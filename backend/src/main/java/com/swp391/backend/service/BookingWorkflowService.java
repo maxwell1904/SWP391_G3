@@ -121,6 +121,7 @@ public class BookingWorkflowService {
         detail.put("promotions", support.bookingPromotionRepository.findByBooking_BookingId(bookingId).stream().map(support::bookingPromotionSummary).toList());
         detail.put("invoice", support.invoiceRepository.findByBooking_BookingId(bookingId).map(support::invoiceSummary).orElse(null));
         detail.put("refunds", support.refundRepository.findByBooking_BookingIdOrderByRefundIdDesc(bookingId).stream().map(support::refundSummary).toList());
+        detail.put("paymentStatus", support.paymentStatus(booking));
         return detail;
     }
 

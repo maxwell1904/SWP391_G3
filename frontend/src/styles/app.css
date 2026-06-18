@@ -1,22 +1,27 @@
 :root {
-  --ink: #122018;
-  --muted: #647267;
-  --faint: #eef4ee;
-  --paper: #fbfdf9;
-  --line: rgba(18, 32, 24, 0.12);
-  --line-strong: rgba(18, 32, 24, 0.22);
-  --green: #176f46;
-  --green-dark: #0f3f2a;
-  --green-soft: #dff1e5;
-  --amber: #e4a82d;
-  --orange: #d45c2d;
+  --ink: #0a120d;
+  --muted: #4e5c52;
+  --faint: #f0f6f2;
+  --paper: #ffffff;
+  --line: rgba(10, 18, 13, 0.08);
+  --line-strong: rgba(10, 18, 13, 0.16);
+  --green: #107c41;
+  --green-dark: #094a27;
+  --green-soft: #eaf6ee;
+  --amber: #ca8a04;
+  --orange: #dc2626;
   --white: #ffffff;
-  --shadow: 0 22px 55px rgba(24, 69, 42, 0.14);
+  --shadow: 0 20px 40px -15px rgba(10, 30, 20, 0.08), 0 1px 3px rgba(10, 30, 20, 0.02);
   color: var(--ink);
   background: #f6faf5;
-  font-family: Aptos, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, h5, h6, .brandButton, .brandMark, .workspaceMetric strong, .slotFieldName {
+  font-family: 'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-weight: 700;
 }
 
 * {
@@ -908,8 +913,21 @@ main.pageMain .section {
 .checkoutPanel {
   position: sticky;
   top: 98px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
   display: grid;
   gap: 15px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(10, 18, 13, 0.2) transparent;
+}
+
+.checkoutPanel::-webkit-scrollbar {
+  width: 4px;
+}
+
+.checkoutPanel::-webkit-scrollbar-thumb {
+  background: rgba(10, 18, 13, 0.15);
+  border-radius: 4px;
 }
 
 .filterRow {
@@ -1122,6 +1140,92 @@ main.pageMain .section {
   gap: 6px;
   border-top: 1px solid var(--line);
   padding-top: 12px;
+}
+
+.paymentChoice {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.paymentChoice legend {
+  margin-bottom: 8px;
+  color: #485b4d;
+  font-size: 0.78rem;
+  font-weight: 830;
+}
+
+.paymentChoiceGrid {
+  display: grid;
+  gap: 8px;
+}
+
+.paymentOption {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--white);
+  padding: 11px;
+  cursor: pointer;
+}
+
+.paymentOption.selected {
+  border-color: rgba(23, 111, 70, 0.5);
+  background: var(--green-soft);
+  box-shadow: 0 0 0 2px rgba(23, 111, 70, 0.08);
+}
+
+.paymentOption input {
+  accent-color: var(--green);
+}
+
+.paymentOption span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.paymentOption small {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.paymentOption em {
+  color: var(--green-dark);
+  font-style: normal;
+  font-weight: 880;
+  white-space: nowrap;
+}
+
+.paypalCheckout {
+  min-height: 44px;
+  display: grid;
+  gap: 8px;
+}
+
+.paypalCheckout iframe {
+  border-radius: 10px;
+}
+
+.paypalStatus {
+  margin: 0;
+  color: var(--green-dark);
+  font-size: 0.86rem;
+  font-weight: 760;
+  text-align: center;
+}
+
+.paypalMockButton {
+  min-height: 46px;
+  border: 1px solid #dcae1d;
+  border-radius: 10px;
+  background: #ffc439;
+  color: #142c8e;
+  font-weight: 880;
 }
 
 .summaryLine {
@@ -1383,6 +1487,97 @@ main.pageMain .section {
   gap: 12px;
   border-color: rgba(255, 255, 255, 0.62) !important;
   background: rgba(255, 255, 255, 0.86) !important;
+}
+
+.billingDetails {
+  display: grid;
+  gap: 15px;
+}
+
+.billingHeading,
+.billingHeading > span,
+.paymentRecord {
+  display: flex;
+  align-items: center;
+}
+
+.billingHeading {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.billingHeading > span {
+  min-width: 0;
+  gap: 10px;
+}
+
+.billingHeading > span > span,
+.paymentRecord > span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.billingHeading small,
+.paymentRecord small {
+  color: var(--muted);
+  text-transform: capitalize;
+}
+
+.invoiceAmounts {
+  display: grid;
+  gap: 3px;
+  border-block: 1px solid var(--line);
+  padding: 9px 0;
+}
+
+.invoiceAmount {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.invoiceAmount strong {
+  color: var(--ink);
+}
+
+.invoiceAmount.strong {
+  margin-top: 3px;
+  border-top: 1px dashed var(--line);
+  padding-top: 7px;
+  color: var(--ink);
+  font-size: 1.04rem;
+}
+
+.paymentTimeline {
+  display: grid;
+  gap: 8px;
+}
+
+.paymentTimeline h4 {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.paymentRecord {
+  gap: 9px;
+  border-radius: 10px;
+  background: #f4f7f4;
+  padding: 10px;
+}
+
+.paymentRecordValue {
+  margin-left: auto;
+  text-align: right;
+}
+
+.paymentRecordValue strong {
+  color: var(--green-dark);
+  white-space: nowrap;
 }
 
 .bookingList,
@@ -1815,6 +2010,8 @@ main.pageMain .section {
   }
 
   .serviceOption,
+  .paymentOption,
+  .paymentRecord,
   .bookingItem,
   .dataRow,
   .siteFooter {
@@ -1824,6 +2021,17 @@ main.pageMain .section {
 
   .serviceOption input {
     width: 100%;
+  }
+
+  .paymentOption {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .paymentOption em,
+  .paymentRecordValue {
+    grid-column: 2;
+    margin-left: 0;
+    text-align: left;
   }
 
   .bookingItem em,
