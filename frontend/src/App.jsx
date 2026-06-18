@@ -484,6 +484,8 @@ function App() {
     if (response?.data?.user) {
       const user = response.data.user
       setCurrentUser(user)
+      setLoginForm({ emailOrPhone: '', password: '' })
+      setLoginErrors({})
       setAuthMode('login')
       if (user.role === 'Admin') {
         navigatePage('admin')
