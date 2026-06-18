@@ -405,6 +405,8 @@ function App() {
     }), 'Signed in')
     if (response?.data?.user) {
       setCurrentUser(response.data.user)
+      setLoginForm({ emailOrPhone: '', password: '' })
+      setLoginErrors({})
       setAuthMode('login')
       navigatePage('account')
     }
