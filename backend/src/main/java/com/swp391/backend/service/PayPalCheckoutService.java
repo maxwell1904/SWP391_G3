@@ -122,6 +122,10 @@ public class PayPalCheckoutService {
         if (payment.getStatus() == PaymentStatus.paid) {
             return bookingWorkflowService.bookingDetail(bookingId);
         }
+        BigDecimal currentPayableAmount = payableAmount(booking, payment.getPaymentOption());
+        if (payment.getAmount().compareTo(currentPayableAmount) != 0) {
+            throw support.badRequest("Booking balance changed after the PayPal order was created");
+        }
 
         String captureId;
         String providerStatus;
@@ -174,6 +178,30 @@ public class PayPalCheckoutService {
         return bookingWorkflowService.bookingDetail(bookingId);
     }
 
+    public Map<String, Object> cancelOrder(Long bookingId, String orderId) {
+        Booking booking = support.getBooking(bookingId);
+        Payment payment = support.paymentRepository.findByProviderOrderId(orderId)
+                .orElseThrow(() -> support.notFound("PayPal order not found"));
+        if (!payment.getBooking().getBookingId().equals(bookingId)) {
+            throw support.badRequest("PayPal order does not belong to this booking");
+        }
+        if (payment.getStatus() == PaymentStatus.paid) {
+            throw support.badRequest("A captured PayPal order cannot be cancelled");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        payment.setStatus(PaymentStatus.expired);
+        payment.setExpiredAt(now);
+        payment.setProviderStatus("CANCELLED_BY_CUSTOMER");
+        payment.setGatewayMessage("PayPal checkout was cancelled by the customer");
+
+        if (booking.getStatus() == BookingStatus.pending && booking.getPaidAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            booking.setStatus(BookingStatus.expired);
+            booking.setExpiredAt(now);
+        }
+        return bookingWorkflowService.bookingDetail(bookingId);
+    }
+
     private Payment createPendingPayment(
             Booking booking,
             Long createdById,
@@ -216,6 +244,12 @@ public class PayPalCheckoutService {
     }
 
     private BigDecimal payableAmount(Booking booking, PaymentOption option) {
+        if (booking.getStatus() == BookingStatus.cancelled
+                || booking.getStatus() == BookingStatus.rejected
+                || booking.getStatus() == BookingStatus.expired
+                || booking.getStatus() == BookingStatus.no_show) {
+            throw support.badRequest("PayPal checkout is not available for a " + booking.getStatus().name() + " booking");
+        }
         BigDecimal amount = switch (option) {
             case full -> booking.getTotalAmount().subtract(booking.getPaidAmount());
             case remaining -> booking.getRemainingAmount();

@@ -60,9 +60,15 @@ function App() {
   const [selectedStaffId, setSelectedStaffId] = useState(3)
   const [promotionCode, setPromotionCode] = useState('')
   const [selectedServices, setSelectedServices] = useState({})
+  const [paymentOption, setPaymentOption] = useState('deposit')
   const [checkout, setCheckout] = useState(null)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [checkoutError, setCheckoutError] = useState('')
+  const [paypalConfig, setPaypalConfig] = useState(null)
+  const [paypalConfigError, setPaypalConfigError] = useState('')
+  const [selectedBookingDetail, setSelectedBookingDetail] = useState(null)
+  const [billingLoading, setBillingLoading] = useState(false)
+  const [billingError, setBillingError] = useState('')
   const [verifyResult, setVerifyResult] = useState({ status: 'idle', message: '' })
   const [loginErrors, setLoginErrors] = useState({})
   const [registerErrors, setRegisterErrors] = useState({})
@@ -97,10 +103,34 @@ function App() {
   const selectedBooking = bookings.find(booking => booking.bookingId === Number(selectedBookingId)) || bookings[0]
   const isStaff = currentUser?.role === 'Staff'
   const isAdmin = currentUser?.role === 'Admin'
-  const canOperate = isStaff || isAdmin
+  const canOperate = isStaff
+  const userBookings = currentUser?.role === 'Customer'
+    ? bookings.filter(booking => booking.customerId === currentUser.userId)
+    : []
+  const brandRoute = useMemo(() => {
+    if (currentUser?.role === 'Admin') return 'admin'
+    if (currentUser?.role === 'Staff') return 'staff'
+    return 'home'
+  }, [currentUser])
 
   useEffect(() => {
     refreshAll()
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    api.get('/payments/paypal/config')
+      .then(response => {
+        if (!cancelled) setPaypalConfig(response.data)
+      })
+      .catch(error => {
+        if (!cancelled) {
+          setPaypalConfigError(error.response?.data?.error || 'PayPal Sandbox is not available')
+        }
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   useEffect(() => {
@@ -199,6 +229,52 @@ function App() {
     }
   }, [currentUser])
 
+  useEffect(() => {
+    if (!currentUser || !bookings.length) {
+      setSelectedBookingId(null)
+      return
+    }
+    const accessibleBookings = currentUser.role === 'Customer'
+      ? bookings.filter(booking => booking.customerId === currentUser.userId)
+      : bookings
+    setSelectedBookingId(current => accessibleBookings.some(booking => booking.bookingId === Number(current))
+      ? current
+      : accessibleBookings[0]?.bookingId || null)
+  }, [bookings, currentUser?.role, currentUser?.userId])
+
+  useEffect(() => {
+    const summary = bookings.find(booking => booking.bookingId === Number(selectedBookingId))
+    const canView = summary && currentUser && (
+      currentUser.role !== 'Customer' || summary.customerId === currentUser.userId
+    )
+    if (!canView) {
+      setSelectedBookingDetail(null)
+      setBillingError('')
+      return undefined
+    }
+
+    let cancelled = false
+    setBillingLoading(true)
+    setBillingError('')
+    api.get(`/bookings/${selectedBookingId}`)
+      .then(response => {
+        if (!cancelled) setSelectedBookingDetail(response.data)
+      })
+      .catch(error => {
+        if (!cancelled) {
+          setSelectedBookingDetail(null)
+          setBillingError(error.response?.data?.error || 'Could not load invoice details')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setBillingLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [bookings, currentUser?.role, currentUser?.userId, selectedBookingId])
+
   async function refreshAll() {
     setLoading(true)
     try {
@@ -244,7 +320,9 @@ function App() {
       setPromotions(promoRes.data)
       setReports(reportRes.data)
       setSettings(settingRes.data)
-      if (bookingRes.data[0]) setSelectedBookingId(bookingRes.data[0].bookingId)
+      setSelectedBookingId(current => bookingRes.data.some(booking => booking.bookingId === Number(current))
+        ? current
+        : bookingRes.data[0]?.bookingId || null)
       if (currentUser?.role === 'Customer') {
         await Promise.all([loadMembership(currentUser.userId), loadNotifications(currentUser.userId)])
       }
@@ -404,11 +482,16 @@ function App() {
       password: loginForm.password
     }), 'Signed in')
     if (response?.data?.user) {
-      setCurrentUser(response.data.user)
-      setLoginForm({ emailOrPhone: '', password: '' })
-      setLoginErrors({})
+      const user = response.data.user
+      setCurrentUser(user)
       setAuthMode('login')
-      navigatePage('account')
+      if (user.role === 'Admin') {
+        navigatePage('admin')
+      } else if (user.role === 'Staff') {
+        navigatePage('staff')
+      } else {
+        navigatePage('account')
+      }
     }
   }
 
@@ -534,7 +617,7 @@ function App() {
     navigatePage('home')
   }
 
-  async function createBooking(source = 'online') {
+  async function createBooking(source = 'online', option = 'deposit') {
     if (!currentUser) {
       setAuthMode('login')
       navigatePage('login')
@@ -546,15 +629,99 @@ function App() {
       setNotice('Verify your email before online booking')
       return
     }
-    await runAction(async () => api.post('/bookings', {
-      customerId: bookingCustomerId(),
-      staffId: source === 'walk_in' ? Number(selectedStaffId) : null,
-      slotId: Number(selectedSlotId),
-      bookingSource: source,
-      promotionCode,
-      services: serviceSelections(),
-      note: source === 'walk_in' ? 'Created by staff at venue' : 'Created from customer website'
-    }), source === 'walk_in' ? 'Walk-in booking created' : 'Booking created')
+    const response = await runAction(async () => {
+      const bookingResponse = await api.post('/bookings', {
+        customerId: bookingCustomerId(),
+        staffId: source === 'walk_in' ? Number(selectedStaffId) : null,
+        slotId: Number(selectedSlotId),
+        bookingSource: source,
+        promotionCode,
+        services: serviceSelections(),
+        note: source === 'walk_in' ? 'Created by staff at venue' : 'Created from customer website'
+      })
+      if (source !== 'walk_in') return bookingResponse
+      return api.post('/payments/capture', {
+        bookingId: bookingResponse.data.bookingId,
+        createdById: currentUser.userId,
+        paymentOption: option,
+        paymentMethod: 'cash',
+        amount: null,
+        success: true
+      })
+    }, source === 'walk_in' ? 'Walk-in booking and payment recorded' : 'Booking created')
+
+    if (response?.data) {
+      setSelectedBookingId(response.data.bookingId)
+      setSelectedBookingDetail(response.data)
+      setSelectedServices({})
+      setPromotionCode('')
+      navigatePage(source === 'walk_in' ? 'staff' : 'account')
+    }
+  }
+
+  async function preparePayPalBooking() {
+    if (!currentUser) {
+      navigatePage('login')
+      throw new Error('Sign in before starting PayPal checkout')
+    }
+    if (currentUser.role === 'Customer' && !currentUser.emailVerified) {
+      navigatePage('account')
+      throw new Error('Verify your email before online booking')
+    }
+
+    setLoading(true)
+    try {
+      const response = await api.post('/bookings', {
+        customerId: bookingCustomerId(),
+        staffId: null,
+        slotId: Number(selectedSlotId),
+        bookingSource: 'online',
+        promotionCode,
+        services: serviceSelections(),
+        note: 'Created for PayPal Sandbox checkout'
+      })
+      setSelectedBookingId(response.data.bookingId)
+      setSelectedBookingDetail(response.data)
+      setNotice('Booking reserved. Complete approval in PayPal Sandbox.')
+      return response.data
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function completePayPalPayment(detail) {
+    setSelectedBookingId(detail.bookingId)
+    setSelectedBookingDetail(detail)
+    setSelectedServices({})
+    setPromotionCode('')
+    setNotice('PayPal Sandbox payment completed')
+    setActionPanel({
+      kind: 'success',
+      title: 'PayPal payment completed',
+      message: `${detail.bookingCode} is confirmed and its invoice is ready.`
+    })
+    await Promise.all([refreshAll(), loadSlots()])
+    navigatePage('account')
+  }
+
+  function cancelPayPalPayment() {
+    setNotice('PayPal checkout was cancelled and the slot was released.')
+    setActionPanel({
+      kind: 'error',
+      title: 'PayPal checkout cancelled',
+      message: 'No payment was captured. The pending booking expired and the slot is available again.'
+    })
+    refreshAll()
+    loadSlots()
+  }
+
+  function failPayPalPayment(message) {
+    setNotice(message)
+    setActionPanel({
+      kind: 'error',
+      title: 'PayPal checkout failed',
+      message
+    })
   }
 
   async function updateBooking(status) {
@@ -621,22 +788,24 @@ function App() {
     }), bookingRestricted ? 'Customer booking restricted' : 'Customer booking restored')
   }
 
-  const userBookings = currentUser?.role === 'Customer'
-    ? bookings.filter(booking => booking.customerId === currentUser.userId)
-    : bookings
-
   return (
     <div className="siteShell">
       <a className="skipLink" href="#main">Skip to content</a>
       <header className="siteHeader">
-        <button className="brandButton" onClick={() => navigatePage('home')} aria-label="Go to home">
+        <button className="brandButton" onClick={() => navigatePage(brandRoute)} aria-label="Go to home">
           <span className="brandMark">GZ</span>
           <span>GoalZone</span>
         </button>
         <nav className={mobileOpen ? 'mainNav open' : 'mainNav'} aria-label="Primary navigation">
-          <button className={currentPage === 'fields' ? 'active' : ''} onClick={() => navigatePage('fields')}>Fields</button>
-          <button className={currentPage === 'booking' ? 'active' : ''} onClick={() => navigatePage('booking')}>Booking</button>
-          <button className={currentPage === 'promotions' ? 'active' : ''} onClick={() => navigatePage('promotions')}>Promotions</button>
+          {(!currentUser || currentUser.role !== 'Admin') && (
+            <>
+              <button className={currentPage === 'fields' ? 'active' : ''} onClick={() => navigatePage('fields')}>Fields</button>
+              <button className={currentPage === 'booking' ? 'active' : ''} onClick={() => navigatePage('booking')}>Booking</button>
+            </>
+          )}
+          {(!currentUser || currentUser.role === 'Customer') && (
+            <button className={currentPage === 'promotions' ? 'active' : ''} onClick={() => navigatePage('promotions')}>Promotions</button>
+          )}
           {currentUser && <button className={currentPage === 'account' ? 'active' : ''} onClick={() => navigatePage('account')}>My account</button>}
           {canOperate && <button className={currentPage === 'staff' ? 'active' : ''} onClick={() => navigatePage('staff')}>Staff</button>}
           {isAdmin && <button className={currentPage === 'admin' ? 'active' : ''} onClick={() => navigatePage('admin')}>Admin</button>}
@@ -715,6 +884,14 @@ function App() {
             checkout={checkout}
             checkoutLoading={checkoutLoading}
             checkoutError={checkoutError}
+            paymentOption={paymentOption}
+            setPaymentOption={setPaymentOption}
+            paypalConfig={paypalConfig}
+            paypalConfigError={paypalConfigError}
+            preparePayPalBooking={preparePayPalBooking}
+            completePayPalPayment={completePayPalPayment}
+            cancelPayPalPayment={cancelPayPalPayment}
+            failPayPalPayment={failPayPalPayment}
             createBooking={createBooking}
             currentUser={currentUser}
           />
@@ -753,6 +930,9 @@ function App() {
             notifications={notifications}
             selectedBookingId={selectedBookingId}
             setSelectedBookingId={setSelectedBookingId}
+            selectedBookingDetail={selectedBookingDetail}
+            billingLoading={billingLoading}
+            billingError={billingError}
             resendVerification={resendVerification}
             onSaveProfile={saveProfile}
           />
@@ -804,6 +984,9 @@ function App() {
             selectedBookingId={selectedBookingId}
             setSelectedBookingId={setSelectedBookingId}
             selectedBooking={selectedBooking}
+            selectedBookingDetail={selectedBookingDetail}
+            billingLoading={billingLoading}
+            billingError={billingError}
             updateBooking={updateBooking}
             capturePayment={capturePayment}
             issueDraft={issueDraft}
@@ -840,8 +1023,14 @@ function App() {
           <p>Book local football fields, manage payments, and keep match-day service in one place.</p>
         </div>
         <div className="footerLinks">
-          <button onClick={() => navigatePage('fields')}>Fields</button>
-          <button onClick={() => navigatePage('booking')}>Booking</button>
+          {(!currentUser || currentUser.role !== 'Admin') && (
+            <>
+              <button onClick={() => navigatePage('fields')}>Fields</button>
+              <button onClick={() => navigatePage('booking')}>Booking</button>
+            </>
+          )}
+          {currentUser?.role === 'Admin' && <button onClick={() => navigatePage('admin')}>Admin</button>}
+          {currentUser?.role === 'Staff' && <button onClick={() => navigatePage('staff')}>Staff</button>}
           <button onClick={() => navigatePage(currentUser ? 'account' : 'login')}>{currentUser ? 'Account' : 'Login'}</button>
         </div>
       </footer>

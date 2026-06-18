@@ -6,9 +6,9 @@ import App from './App'
 
 const theme = createTheme({
   primaryColor: 'green',
-  fontFamily: 'Aptos, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
+  fontFamily: "'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
   headings: {
-    fontFamily: 'Aptos, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif'
+    fontFamily: "'Outfit', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif"
   },
   defaultRadius: 'md',
   colors: {

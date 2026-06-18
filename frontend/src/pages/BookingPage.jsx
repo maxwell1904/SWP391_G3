@@ -2,10 +2,12 @@ import { CalendarDays } from 'lucide-react'
 import { FieldControl, SectionIntro } from '../components/common'
 import {
   CheckoutSummary,
+  PaymentOptionSelector,
   SelectedSlot,
   ServicePicker,
   SlotList
 } from '../features/booking/components'
+import { PayPalCheckout } from '../features/payments/components'
 
 export function BookingPage({
   searchDate,
@@ -29,6 +31,14 @@ export function BookingPage({
   checkout,
   checkoutLoading,
   checkoutError,
+  paymentOption,
+  setPaymentOption,
+  paypalConfig,
+  paypalConfigError,
+  preparePayPalBooking,
+  completePayPalPayment,
+  cancelPayPalPayment,
+  failPayPalPayment,
   createBooking,
   currentUser
 }) {
@@ -73,17 +83,37 @@ export function BookingPage({
             />
           </FieldControl>
           <CheckoutSummary checkout={checkout} loading={checkoutLoading} error={checkoutError} />
+          <PaymentOptionSelector checkout={checkout} value={paymentOption} onChange={setPaymentOption} />
           <div className="stackedActions">
             {canOperate ? (
-              <button className="ghostDarkButton" onClick={() => createBooking('walk_in')}>Create walk-in booking</button>
+              <button className="ghostDarkButton" disabled={!checkout} onClick={() => createBooking('walk_in', paymentOption)}>
+                Create and record {paymentOption === 'full' ? 'full payment' : 'deposit'}
+              </button>
+            ) : currentUser ? (
+              <PayPalCheckout
+                key={`${selectedSlotId}-${paymentOption}-${promotionCode}-${JSON.stringify(selectedServices)}`}
+                config={paypalConfig}
+                disabled={!checkout || currentUser.bookingRestricted}
+                paymentOption={paymentOption}
+                onPrepareBooking={preparePayPalBooking}
+                onPaymentComplete={completePayPalPayment}
+                onCancel={cancelPayPalPayment}
+                onError={failPayPalPayment}
+              />
             ) : (
-              <button className="primaryButton wide" onClick={() => createBooking('online')}>
+              <button className="primaryButton wide" disabled={!checkout} onClick={() => createBooking('online', paymentOption)}>
                 <CalendarDays size={18} />
-                <span>{currentUser ? 'Reserve field' : 'Sign in to book'}</span>
+                <span>Sign in to book</span>
               </button>
             )}
           </div>
+          {paypalConfigError && <p className="errorText">{paypalConfigError}</p>}
           {!currentUser && <p className="hintText">You can browse prices now. Login or register is required before the booking is saved.</p>}
+          {currentUser?.bookingRestricted && (
+            <p className="errorText" style={{ marginTop: '0.5rem', color: 'var(--orange, #ff6b6b)' }}>
+              Your account is restricted from booking: {currentUser.restrictionReason || 'Booking restricted by admin.'}
+            </p>
+          )}
         </aside>
       </div>
     </section>

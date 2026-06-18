@@ -13,3 +13,11 @@ export const formatMoney = value => new Intl.NumberFormat('vi-VN', {
 export const formatTime = value => String(value || '').slice(0, 5)
 
 export const formatTimeRange = (startTime, endTime) => `${formatTime(startTime)} - ${formatTime(endTime)}`
+
+export const formatDateTime = value => {
+  if (!value) return 'Pending'
+  return new Intl.DateTimeFormat('vi-VN', {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  }).format(new Date(value))
+}
