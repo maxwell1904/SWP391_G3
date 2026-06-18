@@ -1818,8 +1818,8 @@ main.pageMain .section {
   padding: clamp(24px, 6vw, 64px);
 }
 
-.accessPanel span,
-.actionPanel span {
+.accessPanel > span,
+.actionPanel > span {
   color: var(--green);
   font-size: 0.78rem;
   font-weight: 850;
