@@ -53,6 +53,11 @@ public class AccountController {
         return accountService.forgotPassword(request);
     }
 
+    @PostMapping("/validate-reset-token")
+    public Object validateResetToken(@RequestBody ApiRequests.ValidateResetToken request) {
+        return accountService.validateResetToken(request);
+    }
+
     @PostMapping("/reset-password")
     public Object resetPassword(@RequestBody ApiRequests.ResetPassword request) {
         return accountService.resetPassword(request);

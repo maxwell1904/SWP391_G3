@@ -180,11 +180,29 @@ function App() {
 
   useEffect(() => {
     if (currentPage !== 'resetPassword') return undefined
+    let cancelled = false
     const params = new URLSearchParams(window.location.search)
     const userId = params.get('userId')
     const token = params.get('token')
-    setResetPasswordToken(userId && token ? { userId: Number(userId), token } : null)
-    return undefined
+
+    if (!userId || !token) {
+      setResetPasswordToken(null)
+      setResetResult({ status: 'error', message: 'Reset link is missing required information.' })
+      return undefined
+    }
+
+    api.post('/account/validate-reset-token', { userId: Number(userId), token })
+      .then(() => {
+        if (!cancelled) setResetPasswordToken({ userId: Number(userId), token })
+      })
+      .catch(error => {
+        if (!cancelled) {
+          setResetPasswordToken(null)
+          setResetResult({ status: 'error', message: error.response?.data?.error || 'Reset link is invalid or expired.' })
+        }
+      })
+
+    return () => { cancelled = true }
   }, [currentPage])
 
   useEffect(() => {

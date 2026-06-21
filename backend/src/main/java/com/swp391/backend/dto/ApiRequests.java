@@ -47,6 +47,12 @@ public final class ApiRequests {
     ) {
     }
 
+    public record ValidateResetToken(
+            Long userId,
+            String token
+    ) {
+    }
+
     public record ProfileUpdate(
             String fullName,
             String phone,
