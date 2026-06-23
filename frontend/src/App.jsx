@@ -84,6 +84,7 @@ function App() {
   const [resetLoading, setResetLoading] = useState(false)
   const [resetErrors, setResetErrors] = useState({})
   const [resetPasswordToken, setResetPasswordToken] = useState(null)
+  const [resetTokenChecking, setResetTokenChecking] = useState(true)
 
   const [loginForm, setLoginForm] = useState({ emailOrPhone: 'customer@goalzone.local', password: demoPassword })
   const [registerForm, setRegisterForm] = useState({
@@ -181,23 +182,30 @@ function App() {
   useEffect(() => {
     if (currentPage !== 'resetPassword') return undefined
     let cancelled = false
+    setResetTokenChecking(true)
+    setResetPasswordToken(null)
+    setResetResult(null)
     const params = new URLSearchParams(window.location.search)
     const userId = params.get('userId')
     const token = params.get('token')
 
     if (!userId || !token) {
-      setResetPasswordToken(null)
+      setResetTokenChecking(false)
       setResetResult({ status: 'error', message: 'Reset link is missing required information.' })
       return undefined
     }
 
     api.post('/account/validate-reset-token', { userId: Number(userId), token })
       .then(() => {
-        if (!cancelled) setResetPasswordToken({ userId: Number(userId), token })
+        if (!cancelled) {
+          setResetPasswordToken({ userId: Number(userId), token })
+          setResetTokenChecking(false)
+        }
       })
       .catch(error => {
         if (!cancelled) {
           setResetPasswordToken(null)
+          setResetTokenChecking(false)
           setResetResult({ status: 'error', message: error.response?.data?.error || 'Reset link is invalid or expired.' })
         }
       })
@@ -989,6 +997,7 @@ function App() {
             showResetPassword={showResetPassword}
             setShowResetPassword={setShowResetPassword}
             resetPasswordToken={resetPasswordToken}
+            resetTokenChecking={resetTokenChecking}
             updateResetForm={updateResetForm}
             submitReset={submitReset}
           />
