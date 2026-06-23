@@ -96,7 +96,7 @@ export function AccountPage({
                     onChange={event => updateProfileField('address', event.target.value)}
                   />
                 </FieldControl>
-                <button className="secondaryButton" onClick={() => onSaveProfile(profileForm)}>Save profile</button>
+                <button className="primaryButton" onClick={() => onSaveProfile(profileForm)}>Save profile</button>
               </div>
             </InfoPanel>
             <InfoPanel title="My bookings">
@@ -168,7 +168,7 @@ export function AccountPage({
                     onChange={event => updateProfileField('address', event.target.value)}
                   />
                 </FieldControl>
-                <button className="secondaryButton" onClick={() => onSaveProfile(profileForm)}>Save profile</button>
+                <button className="primaryButton" onClick={() => onSaveProfile(profileForm)}>Save profile</button>
               </div>
             </InfoPanel>
             <InfoPanel title="Account details">
