@@ -10,6 +10,7 @@ export function ResetPasswordPage({
   showResetPassword,
   setShowResetPassword,
   resetPasswordToken,
+  resetTokenChecking,
   updateResetForm,
   submitReset
 }) {
@@ -19,16 +20,24 @@ export function ResetPasswordPage({
     <section id="reset-password" className="section authSection">
       <SectionIntro
         kicker="Password reset"
-        title={isDone ? 'Password updated' : resetPasswordToken ? 'Set new password' : 'Invalid link'}
-        text={isDone
-          ? 'Your password has been reset successfully.'
-          : resetPasswordToken
-            ? 'Enter a new password for your account.'
-            : 'This reset link is missing required information or has expired.'}
+        title={resetTokenChecking ? 'Checking...' : isDone ? 'Password updated' : resetPasswordToken ? 'Set new password' : 'Invalid link'}
+        text={resetTokenChecking
+          ? 'Validating your reset link.'
+          : isDone
+            ? 'Your password has been reset successfully.'
+            : resetPasswordToken
+              ? 'Enter a new password for your account.'
+              : 'This reset link is missing required information or has expired.'}
       />
       <div className="authGrid">
         <article className="authPanel">
-          {isDone ? (
+          {resetTokenChecking ? (
+            <div className="signedInCard">
+              <span>Checking</span>
+              <h3>Validating reset link</h3>
+              <p>Please wait while we check your reset link.</p>
+            </div>
+          ) : isDone ? (
             <div className="signedInCard">
               <span>Success</span>
               <h3>Password reset complete</h3>
