@@ -422,6 +422,25 @@ public class DemoSupportService {
         return map;
     }
 
+    String paymentStatus(Booking booking) {
+        BigDecimal completedRefunds = refundRepository.findByBooking_BookingIdOrderByRefundIdDesc(booking.getBookingId()).stream()
+                .filter(refund -> refund.getStatus() == RefundStatus.completed)
+                .map(Refund::getRefundAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (completedRefunds.compareTo(BigDecimal.ZERO) > 0) {
+            return completedRefunds.compareTo(booking.getPaidAmount()) >= 0 ? "refunded" : "partially_refunded";
+        }
+        if (booking.getStatus() == BookingStatus.expired) {
+            return "expired";
+        }
+        if (booking.getPaidAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            boolean hasFailedPayment = paymentRepository.findByBooking_BookingIdOrderByPaymentIdDesc(booking.getBookingId()).stream()
+                    .anyMatch(payment -> payment.getStatus() == PaymentStatus.failed);
+            return hasFailedPayment ? "failed" : "unpaid";
+        }
+        return booking.getRemainingAmount().compareTo(BigDecimal.ZERO) <= 0 ? "paid" : "partially_paid";
+    }
+
     Map<String, Object> bookingServiceSummary(BookingServiceItem item) {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("serviceName", item.getExtraService().getServiceName());

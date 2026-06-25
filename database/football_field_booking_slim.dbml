@@ -56,6 +56,7 @@ Enum payment_status {
 Enum payment_method {
   cash
   online_sandbox
+  paypal_sandbox
   bank_transfer
 }
 

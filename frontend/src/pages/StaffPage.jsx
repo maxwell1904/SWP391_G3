@@ -3,6 +3,7 @@ import { Wrench } from 'lucide-react'
 import { FieldControl, InfoPanel, WorkspaceHeader } from '../components/common'
 import { DataList } from '../components/data'
 import { BookingList, SelectedBooking } from '../features/operations/components'
+import { BillingDetails } from '../features/payments/components'
 import { formatMoney } from '../utils/format'
 
 export function StaffPage({
@@ -10,6 +11,9 @@ export function StaffPage({
   selectedBookingId,
   setSelectedBookingId,
   selectedBooking,
+  selectedBookingDetail,
+  billingLoading,
+  billingError,
   updateBooking,
   capturePayment,
   issueDraft,
@@ -53,8 +57,18 @@ export function StaffPage({
             <Button variant="light" onClick={() => updateBooking('completed')}>Complete</Button>
             <Button color="red" variant="light" onClick={() => updateBooking('cancelled')}>Cancel</Button>
             <Button color="yellow" variant="light" onClick={() => updateBooking('no_show')}>No-show</Button>
-            <Button className="wideAction" variant="outline" onClick={() => capturePayment('remaining')}>Remaining payment</Button>
+            <Button
+              className="wideAction"
+              variant="outline"
+              disabled={!selectedBooking || Number(selectedBooking.remainingAmount) <= 0}
+              onClick={() => capturePayment('remaining')}
+            >
+              Remaining payment
+            </Button>
           </div>
+        </InfoPanel>
+        <InfoPanel title="Invoice and payment status">
+          <BillingDetails detail={selectedBookingDetail} loading={billingLoading} error={billingError} />
         </InfoPanel>
         <InfoPanel title="Issue report">
           <FieldControl label="Title">

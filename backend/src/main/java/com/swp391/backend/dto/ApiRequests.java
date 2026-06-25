@@ -34,6 +34,25 @@ public final class ApiRequests {
     ) {
     }
 
+    public record ForgotPassword(
+            String email
+    ) {
+    }
+
+    public record ResetPassword(
+            Long userId,
+            String token,
+            String newPassword,
+            String confirmPassword
+    ) {
+    }
+
+    public record ValidateResetToken(
+            Long userId,
+            String token
+    ) {
+    }
+
     public record ProfileUpdate(
             String fullName,
             String phone,

@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -106,6 +107,10 @@ public class AccountService {
         if (!Objects.equals(user.getEmailVerificationToken(), request.token().trim())) {
             throw support.badRequest("Invalid or expired verification link");
         }
+        if (user.getEmailVerificationSentAt() == null
+                || Duration.between(user.getEmailVerificationSentAt(), LocalDateTime.now()).toHours() >= 1) {
+            throw support.badRequest("Verification link has expired. Request a new one.");
+        }
         user.setEmailVerified(true);
         user.setEmailVerificationToken(null);
         user.setEmailVerificationSentAt(null);
@@ -152,6 +157,56 @@ public class AccountService {
         return support.userSummary(user);
     }
 
+    public Map<String, Object> validateResetToken(ApiRequests.ValidateResetToken request) {
+        AppUser user = support.getUser(request.userId());
+        if (!Objects.equals(user.getPasswordResetToken(), request.token().trim())) {
+            throw support.badRequest("Invalid or expired reset link");
+        }
+        if (user.getPasswordResetSentAt() == null
+                || Duration.between(user.getPasswordResetSentAt(), LocalDateTime.now()).toHours() >= 1) {
+            throw support.badRequest("Reset link has expired. Request a new one.");
+        }
+        return Map.of("valid", true);
+    }
+
+    public Map<String, Object> forgotPassword(ApiRequests.ForgotPassword request) {
+        String email = support.clean(request.email());
+        support.requireText(email, "Email is required");
+        if (!EMAIL_PATTERN.matcher(email).matches()) {
+            throw support.badRequest("Email format is invalid");
+        }
+
+        AppUser user = support.userRepository.findByEmail(email).orElse(null);
+        if (user == null) {
+            return Map.of("message", "If this email is registered, a password reset link has been sent.");
+        }
+        if (user.getStatus() != AccountStatus.active) {
+            return Map.of("message", "If this email is registered, a password reset link has been sent.");
+        }
+
+        issuePasswordReset(user);
+        support.userRepository.save(user);
+        verificationEmailService.sendPasswordResetEmail(user);
+        return Map.of("message", "If this email is registered, a password reset link has been sent.");
+    }
+
+    public Map<String, Object> resetPassword(ApiRequests.ResetPassword request) {
+        AppUser user = support.getUser(request.userId());
+        support.requireText(request.token(), "Reset token is required");
+        if (!Objects.equals(user.getPasswordResetToken(), request.token().trim())) {
+            throw support.badRequest("Invalid or expired reset link");
+        }
+        if (user.getPasswordResetSentAt() == null
+                || Duration.between(user.getPasswordResetSentAt(), LocalDateTime.now()).toHours() >= 1) {
+            throw support.badRequest("Reset link has expired. Request a new one.");
+        }
+        validatePassword(request.newPassword(), request.confirmPassword());
+        user.setPasswordHash(request.newPassword());
+        user.setPasswordResetToken(null);
+        user.setPasswordResetSentAt(null);
+        return Map.of("message", "Password reset successfully");
+    }
+
     // Backlog owner: BonVT - UC-05 Change password.
     public Map<String, Object> changePassword(Long userId, ApiRequests.PasswordChange request) {
         AppUser user = support.getUser(userId);
@@ -193,6 +248,12 @@ public class AccountService {
         String token = UUID.randomUUID().toString().replace("-", "").substring(0, 16);
         user.setEmailVerificationToken(token);
         user.setEmailVerificationSentAt(LocalDateTime.now());
+    }
+
+    private void issuePasswordReset(AppUser user) {
+        String token = UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+        user.setPasswordResetToken(token);
+        user.setPasswordResetSentAt(LocalDateTime.now());
     }
 
     private void validatePassword(String password, String confirmPassword) {

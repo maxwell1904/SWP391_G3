@@ -45,6 +45,13 @@ app:
   mail:
     from-email: ${FROM_EMAIL:${SMTP_USER:${SPRING_MAIL_USERNAME:}}}
     from-name: ${FROM_NAME:GoalZone}
+  paypal:
+    client-id: ${PAYPAL_CLIENT_ID:}
+    client-secret: ${PAYPAL_CLIENT_SECRET:}
+    env: ${PAYPAL_ENV:sandbox}
+    currency: ${PAYPAL_CURRENCY:USD}
+    vnd-rate: ${PAYPAL_VND_RATE:25000}
+    mock-mode: ${PAYPAL_MOCK_MODE:true}
 
 jwt:
   secret: swp391_secret_key
