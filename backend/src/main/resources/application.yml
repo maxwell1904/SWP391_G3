@@ -31,12 +31,20 @@ spring:
       mail:
         smtp:
           auth: true
+          ssl:
+            enable: ${SMTP_SECURE:false}
           starttls:
-            enable: true
-            required: true
+            enable: ${SMTP_STARTTLS_ENABLE:true}
+            required: ${SMTP_STARTTLS_REQUIRED:false}
 
 server:
   port: 8080
+
+app:
+  frontend-base-url: ${APP_FRONTEND_BASE_URL:${FRONTEND_URL:http://localhost:5173}}
+  mail:
+    from-email: ${FROM_EMAIL:${SMTP_USER:${SPRING_MAIL_USERNAME:}}}
+    from-name: ${FROM_NAME:GoalZone}
 
 jwt:
   secret: swp391_secret_key

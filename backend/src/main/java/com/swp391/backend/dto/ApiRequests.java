@@ -42,6 +42,13 @@ public final class ApiRequests {
     ) {
     }
 
+    public record PasswordChange(
+            String currentPassword,
+            String newPassword,
+            String confirmPassword
+    ) {
+    }
+
     public record RestrictionUpdate(
             boolean bookingRestricted,
             String restrictionReason
@@ -83,6 +90,13 @@ public final class ApiRequests {
     ) {
     }
 
+    public record IssueStatusUpdate(
+            String status,
+            String resolutionNote,
+            Long assignedStaffId
+    ) {
+    }
+
     public record PaymentCapture(
             Long bookingId,
             Long createdById,
@@ -90,6 +104,17 @@ public final class ApiRequests {
             String paymentMethod,
             BigDecimal amount,
             boolean success
+    ) {
+    }
+
+    public record PayPalOrderCreate(
+            Long createdById,
+            String paymentOption
+    ) {
+    }
+
+    public record PayPalOrderCapture(
+            Long createdById
     ) {
     }
 
@@ -113,9 +138,47 @@ public final class ApiRequests {
     ) {
     }
 
+    public record PromotionUpsert(
+            String promotionCode,
+            String promotionName,
+            String description,
+            String bannerUrl,
+            String discountType,
+            BigDecimal discountValue,
+            BigDecimal maxDiscountAmount,
+            BigDecimal minBookingAmount,
+            Integer usageLimit,
+            LocalDate startDate,
+            LocalDate endDate,
+            String status
+    ) {
+    }
+
     public record SettingUpdate(
             String settingValue,
             Long updatedById
+    ) {
+    }
+
+    public record FieldUpsert(
+            Long fieldTypeId,
+            String fieldName,
+            String description,
+            String imageUrl,
+            String location,
+            String surfaceType,
+            String status
+    ) {
+    }
+
+    public record FieldPriceUpsert(
+            String dayType,
+            String startTime,
+            String endTime,
+            BigDecimal price,
+            LocalDate effectiveFrom,
+            LocalDate effectiveTo,
+            String status
     ) {
     }
 

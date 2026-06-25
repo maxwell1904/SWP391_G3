@@ -11,6 +11,9 @@ where status in ('pending', 'confirmed', 'checked_in');
 -- Postgres does not automatically index foreign key columns. Keep common
 -- lookup and join paths fast for booking screens and reports.
 create index if not exists idx_app_user_role_id on app_user (role_id);
+create index if not exists idx_app_user_email_verification_token
+on app_user (email_verification_token)
+where email_verification_token is not null;
 create index if not exists idx_customer_membership_customer_id on customer_membership (customer_id);
 create index if not exists idx_customer_membership_level_id on customer_membership (membership_level_id);
 create index if not exists idx_field_field_type_id on field (field_type_id);
