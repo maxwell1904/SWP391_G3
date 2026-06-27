@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { FieldControl, InfoPanel, WorkspaceHeader } from '../components/common'
+import { FieldControl, InfoPanel, PasswordField, WorkspaceHeader } from '../components/common'
 import { DataList, MetricGrid } from '../components/data'
 import { EmailVerificationPanel } from '../features/account/components'
 import { BookingList } from '../features/operations/components'
 import { BillingDetails } from '../features/payments/components'
+import { passwordIssues } from '../features/auth/authRules'
 import { formatMoney } from '../utils/format'
 
 export function AccountPage({
@@ -18,7 +19,8 @@ export function AccountPage({
   billingLoading,
   billingError,
   resendVerification,
-  onSaveProfile
+  onSaveProfile,
+  onChangePassword
 }) {
   const [profileForm, setProfileForm] = useState(() => profileFromUser(currentUser))
 
@@ -98,6 +100,7 @@ export function AccountPage({
                 </FieldControl>
                 <button className="primaryButton" onClick={() => onSaveProfile(profileForm)}>Save profile</button>
               </div>
+              <ChangePasswordForm onChangePassword={onChangePassword} />
             </InfoPanel>
             <InfoPanel title="My bookings">
               <BookingList bookings={userBookings} selectedBookingId={selectedBookingId} onSelect={setSelectedBookingId} />
@@ -170,6 +173,7 @@ export function AccountPage({
                 </FieldControl>
                 <button className="primaryButton" onClick={() => onSaveProfile(profileForm)}>Save profile</button>
               </div>
+              <ChangePasswordForm onChangePassword={onChangePassword} />
             </InfoPanel>
             <InfoPanel title="Account details">
               <div style={{ display: 'grid', gap: '14px', padding: '4px 0' }}>
@@ -199,6 +203,69 @@ export function AccountPage({
         </>
       )}
     </section>
+  )
+}
+
+function ChangePasswordForm({ onChangePassword }) {
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPasswords, setShowPasswords] = useState(false)
+  const [errors, setErrors] = useState({})
+
+  const handleSubmit = () => {
+    const issues = {}
+    if (!currentPassword) issues.currentPassword = 'Current password is required.'
+    const newIssues = passwordIssues(newPassword)
+    if (newIssues.length) issues.newPassword = newIssues[0]
+    if (newPassword !== confirmPassword) issues.confirmPassword = 'Passwords do not match.'
+    if (Object.keys(issues).length) {
+      setErrors(issues)
+      return
+    }
+    onChangePassword(currentPassword, newPassword, confirmPassword)
+    setCurrentPassword('')
+    setNewPassword('')
+    setConfirmPassword('')
+    setErrors({})
+  }
+
+  return (
+    <div className="changePasswordSection">
+      <hr className="sectionDivider" />
+      <h4 className="sectionSubtitle">Change password</h4>
+      <div className="profileForm">
+        <PasswordField
+          label="Current password"
+          value={currentPassword}
+          visible={showPasswords}
+          error={errors.currentPassword}
+          autoComplete="current-password"
+          onToggle={() => setShowPasswords(!showPasswords)}
+          onChange={setCurrentPassword}
+        />
+        <PasswordField
+          label="New password"
+          value={newPassword}
+          visible={showPasswords}
+          error={errors.newPassword}
+          autoComplete="new-password"
+          hint="At least 8 characters with uppercase, lowercase, number, and special character."
+          onToggle={() => setShowPasswords(!showPasswords)}
+          onChange={setNewPassword}
+        />
+        <PasswordField
+          label="Confirm new password"
+          value={confirmPassword}
+          visible={showPasswords}
+          error={errors.confirmPassword}
+          autoComplete="new-password"
+          onToggle={() => setShowPasswords(!showPasswords)}
+          onChange={setConfirmPassword}
+        />
+        <button className="primaryButton" onClick={handleSubmit}>Change password</button>
+      </div>
+    </div>
   )
 }
 
