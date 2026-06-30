@@ -1,5 +1,4 @@
 const storageKey = 'goalzone.currentUser'
-const tokenKey = 'goalzone.token'
 
 export const loadStoredUser = () => {
   try {
@@ -16,16 +15,3 @@ export const saveStoredUser = user => {
     window.localStorage.removeItem(storageKey)
   }
 }
-
-export const loadStoredToken = () => {
-  return window.localStorage.getItem(tokenKey) || null
-}
-
-export const saveStoredToken = token => {
-  if (token) {
-    window.localStorage.setItem(tokenKey, token)
-  } else {
-    window.localStorage.removeItem(tokenKey)
-  }
-}
-

@@ -6,7 +6,7 @@ import {
   UserRound
 } from 'lucide-react'
 import { pageFromPath, pageRoutes } from './app/routes'
-import { loadStoredUser, saveStoredUser, saveStoredToken } from './app/session'
+import { loadStoredUser, saveStoredUser } from './app/session'
 import { AccessPanel, ActionPanel } from './components/common'
 import { demoPassword, emailPattern, passwordIssues, phonePattern } from './features/auth/authRules'
 import {
@@ -142,9 +142,6 @@ function App() {
 
   useEffect(() => {
     saveStoredUser(currentUser)
-    if (!currentUser) {
-      saveStoredToken(null)
-    }
   }, [currentUser])
 
   useEffect(() => {
@@ -317,98 +314,53 @@ function App() {
   async function refreshAll() {
     setLoading(true)
     try {
-      // 1. Load public/common data accessible to everyone (Guests, Customers, Staff, Admins)
       const [
+        userRes,
         fieldRes,
         typeRes,
         serviceRes,
+        bookingRes,
+        paymentRes,
+        refundRes,
+        issueRes,
         promoRes,
+        reportRes,
         settingRes
       ] = await Promise.all([
+        api.get('/account/users'),
         api.get('/fields'),
         api.get('/field-types'),
         api.get('/services'),
+        api.get('/bookings'),
+        api.get('/payments'),
+        api.get('/refunds'),
+        api.get('/issues'),
         api.get('/promotions'),
+        api.get('/reports'),
         api.get('/settings')
       ])
-      
+      setUsers(userRes.data)
+      if (currentUser) {
+        const freshUser = userRes.data.find(u => u.userId === currentUser.userId)
+        if (freshUser) {
+          setCurrentUser(freshUser)
+        }
+      }
       setFields(fieldRes.data)
       setFieldTypes(typeRes.data)
       setServices(serviceRes.data)
+      setBookings(bookingRes.data)
+      setPayments(paymentRes.data)
+      setRefunds(refundRes.data)
+      setIssues(issueRes.data)
       setPromotions(promoRes.data)
+      setReports(reportRes.data)
       setSettings(settingRes.data)
-
-      // 2. Load role-specific data conditionally
-      const isStaffOrAdmin = currentUser?.role === 'Staff' || currentUser?.role === 'Admin'
-      const isCustomer = currentUser?.role === 'Customer'
-
-      if (isStaffOrAdmin) {
-        // Staff and Admin can view all users, bookings, payments, refunds, issues, and reports
-        const [
-          userRes,
-          bookingRes,
-          paymentRes,
-          refundRes,
-          issueRes,
-          reportRes
-        ] = await Promise.all([
-          api.get('/account/users'),
-          api.get('/bookings'),
-          api.get('/payments'),
-          api.get('/refunds'),
-          api.get('/issues'),
-          api.get('/reports')
-        ])
-        
-        setUsers(userRes.data)
-        setBookings(bookingRes.data)
-        setPayments(paymentRes.data)
-        setRefunds(refundRes.data)
-        setIssues(issueRes.data)
-        setReports(reportRes.data)
-
-        if (currentUser) {
-          const freshUser = userRes.data.find(u => u.userId === currentUser.userId)
-          if (freshUser) {
-            setCurrentUser(freshUser)
-          }
-        }
-        
-        setSelectedBookingId(current => bookingRes.data.some(booking => booking.bookingId === Number(current))
-          ? current
-          : bookingRes.data[0]?.bookingId || null)
-          
-      } else if (isCustomer) {
-        // Customers can view their own bookings, and their own membership/notifications
-        const [
-          bookingRes,
-          membershipRes,
-          notificationRes
-        ] = await Promise.all([
-          api.get('/bookings', { params: { customerId: currentUser.userId } }),
-          api.get(`/membership/${currentUser.userId}/progress`),
-          api.get(`/notifications/${currentUser.userId}`)
-        ])
-        
-        setBookings(bookingRes.data)
-        setMembership(membershipRes.data)
-        setNotifications(notificationRes.data)
-        
-        setSelectedBookingId(current => bookingRes.data.some(booking => booking.bookingId === Number(current))
-          ? current
-          : bookingRes.data[0]?.bookingId || null)
-          
-      } else {
-        // Guests
-        setUsers([])
-        setBookings([])
-        setPayments([])
-        setRefunds([])
-        setIssues([])
-        setReports(null)
-        setNotifications([])
-        setMembership(null)
-        setSelectedBookingId(null)
+      setSelectedBookingId(current => bookingRes.data.some(booking => booking.bookingId === Number(current))
+        ? current
+        : bookingRes.data[0]?.bookingId || null)
+      if (currentUser?.role === 'Customer') {
+        await Promise.all([loadMembership(currentUser.userId), loadNotifications(currentUser.userId)])
       }
     } catch (error) {
       setNotice(error.response?.data?.error || 'Could not connect to the booking server')
@@ -567,8 +519,6 @@ function App() {
     }), 'Signed in')
     if (response?.data?.user) {
       const user = response.data.user
-      const token = response.data.token
-      saveStoredToken(token)
       setCurrentUser(user)
       setLoginForm({ emailOrPhone: '', password: '' })
       setLoginErrors({})
@@ -604,9 +554,7 @@ function App() {
     try {
       const response = await runAction(async () => api.post('/account/register', payload), 'Account created')
       if (response?.data) {
-        const user = response.data.user
-        const token = response.data.token
-        saveStoredToken(token)
+        const user = response.data.user || response.data
         setCurrentUser(user)
         setAuthMode('login')
         setRegisterForm({ fullName: '', email: '', phone: '', password: '', confirmPassword: '' })
