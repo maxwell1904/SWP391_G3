@@ -5,6 +5,7 @@ import com.swp391.backend.entity.AppUser;
 import com.swp391.backend.entity.Role;
 import com.swp391.backend.enums.AccountStatus;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,10 +30,12 @@ public class AccountService {
 
     private final DemoSupportService support;
     private final VerificationEmailService verificationEmailService;
+    private final BCryptPasswordEncoder passwordEncoder;
 
-    public AccountService(DemoSupportService support, VerificationEmailService verificationEmailService) {
+    public AccountService(DemoSupportService support, VerificationEmailService verificationEmailService, BCryptPasswordEncoder passwordEncoder) {
         this.support = support;
         this.verificationEmailService = verificationEmailService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public Map<String, Object> register(ApiRequests.Register request) {
@@ -62,7 +65,7 @@ public class AccountService {
         user.setFullName(support.clean(request.fullName()));
         user.setEmail(email);
         user.setPhone(phone);
-        user.setPasswordHash(request.password());
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setEmailVerified(false);
         issueEmailVerification(user);
         user = support.userRepository.save(user);
@@ -84,7 +87,7 @@ public class AccountService {
         AppUser user = support.userRepository.findByEmail(identity)
                 .or(() -> support.userRepository.findByPhone(identity))
                 .orElseThrow(() -> support.notFound("Account not found"));
-        if (!Objects.equals(user.getPasswordHash(), request.password())) {
+        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
         if (user.getStatus() != AccountStatus.active) {
@@ -201,7 +204,7 @@ public class AccountService {
             throw support.badRequest("Reset link has expired. Request a new one.");
         }
         validatePassword(request.newPassword(), request.confirmPassword());
-        user.setPasswordHash(request.newPassword());
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
         user.setPasswordResetToken(null);
         user.setPasswordResetSentAt(null);
         return Map.of("message", "Password reset successfully");
@@ -211,14 +214,14 @@ public class AccountService {
     public Map<String, Object> changePassword(Long userId, ApiRequests.PasswordChange request) {
         AppUser user = support.getUser(userId);
         support.requireText(request.currentPassword(), "Current password is required");
-        if (!Objects.equals(user.getPasswordHash(), request.currentPassword())) {
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "Current password is incorrect");
         }
         validatePassword(request.newPassword(), request.confirmPassword());
-        if (Objects.equals(user.getPasswordHash(), request.newPassword())) {
+        if (passwordEncoder.matches(request.newPassword(), user.getPasswordHash())) {
             throw support.badRequest("New password must be different from the current password");
         }
-        user.setPasswordHash(request.newPassword());
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
         return Map.of(
                 "user", support.userSummary(user),
                 "message", "Password changed successfully"
