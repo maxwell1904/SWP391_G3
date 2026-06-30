@@ -641,6 +641,15 @@ function App() {
     }
   }
 
+  async function changePassword(currentPassword, newPassword, confirmPassword) {
+    if (!currentUser) return
+    await runAction(async () => api.put(`/account/users/${currentUser.userId}/password`, {
+      currentPassword,
+      newPassword,
+      confirmPassword
+    }), 'Password changed')
+  }
+
   function logout() {
     setCurrentUser(null)
     setMembership(null)
@@ -973,6 +982,7 @@ function App() {
             billingError={billingError}
             resendVerification={resendVerification}
             onSaveProfile={saveProfile}
+            onChangePassword={changePassword}
           />
         )}
 
