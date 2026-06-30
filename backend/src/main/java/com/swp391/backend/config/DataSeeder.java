@@ -9,6 +9,7 @@ import com.swp391.backend.service.PaymentWorkflowService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -32,7 +33,8 @@ public class DataSeeder {
             PromotionRepository promotionRepository,
             SystemSettingRepository systemSettingRepository,
             BookingWorkflowService bookingWorkflowService,
-            PaymentWorkflowService paymentWorkflowService
+            PaymentWorkflowService paymentWorkflowService,
+            BCryptPasswordEncoder passwordEncoder
     ) {
         return args -> {
             if (roleRepository.count() > 0) {
@@ -43,10 +45,10 @@ public class DataSeeder {
             Role staffRole = roleRepository.save(new Role("Staff", "Venue operation staff"));
             Role adminRole = roleRepository.save(new Role("Admin", "System administrator"));
 
-            AppUser customer = user("Nguyen Van Customer", "customer@goalzone.local", "0900000001", customerRole);
-            AppUser secondCustomer = user("Le Thi Member", "member@goalzone.local", "0900000002", customerRole);
-            AppUser staff = user("Staff Operator", "staff@goalzone.local", "0900000003", staffRole);
-            AppUser admin = user("Admin Manager", "admin@goalzone.local", "0900000004", adminRole);
+            AppUser customer = user("Nguyen Van Customer", "customer@goalzone.local", "0900000001", customerRole, passwordEncoder);
+            AppUser secondCustomer = user("Le Thi Member", "member@goalzone.local", "0900000002", customerRole, passwordEncoder);
+            AppUser staff = user("Staff Operator", "staff@goalzone.local", "0900000003", staffRole, passwordEncoder);
+            AppUser admin = user("Admin Manager", "admin@goalzone.local", "0900000004", adminRole, passwordEncoder);
             userRepository.saveAll(List.of(customer, secondCustomer, staff, admin));
 
             MembershipLevel bronze = membership("Bronze", 0, "0", "Default tier with standard booking rules", 1);
@@ -117,12 +119,12 @@ public class DataSeeder {
         };
     }
 
-    private AppUser user(String fullName, String email, String phone, Role role) {
+    private AppUser user(String fullName, String email, String phone, Role role, BCryptPasswordEncoder passwordEncoder) {
         AppUser user = new AppUser();
         user.setFullName(fullName);
         user.setEmail(email);
         user.setPhone(phone);
-        user.setPasswordHash("GoalZone@123");
+        user.setPasswordHash(passwordEncoder.encode("GoalZone@123"));
         user.setRole(role);
         user.setEmailVerified(true);
         return user;
