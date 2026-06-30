@@ -4,6 +4,7 @@ import com.swp391.backend.dto.ApiRequests;
 import com.swp391.backend.entity.AppUser;
 import com.swp391.backend.entity.Role;
 import com.swp391.backend.enums.AccountStatus;
+import com.swp391.backend.security.JwtService;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -31,11 +32,13 @@ public class AccountService {
     private final DemoSupportService support;
     private final VerificationEmailService verificationEmailService;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
-    public AccountService(DemoSupportService support, VerificationEmailService verificationEmailService, BCryptPasswordEncoder passwordEncoder) {
+    public AccountService(DemoSupportService support, VerificationEmailService verificationEmailService, BCryptPasswordEncoder passwordEncoder, JwtService jwtService) {
         this.support = support;
         this.verificationEmailService = verificationEmailService;
         this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
     public Map<String, Object> register(ApiRequests.Register request) {
@@ -73,6 +76,8 @@ public class AccountService {
         support.attachDefaultMembership(user);
 
         Map<String, Object> response = new LinkedHashMap<>();
+        String token = jwtService.generateToken(user.getEmail() != null ? user.getEmail() : user.getPhone());
+        response.put("token", token);
         response.put("user", support.userSummary(user));
         response.put("verificationRequired", !user.isEmailVerified());
         response.put("emailDeliveryStatus", delivery.status());
@@ -98,10 +103,10 @@ public class AccountService {
             throw new ApiException(HttpStatus.FORBIDDEN, "Account is restricted. Reason: " + reason);
         }
         user.setLastLoginAt(LocalDateTime.now());
+        String token = jwtService.generateToken(user.getEmail() != null ? user.getEmail() : user.getPhone());
         return Map.of(
-                "token", "demo-token-" + user.getUserId(),
-                "user", support.userSummary(user),
-                "note", "Demo login only. Replace with JWT before production."
+                "token", token,
+                "user", support.userSummary(user)
         );
     }
 
