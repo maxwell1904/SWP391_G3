@@ -25,20 +25,20 @@ Status meanings:
 | UC-07 | Manage customer accounts | Partial | Admin can list customers and restrict/restore booking access. Full customer edit/lock/delete management is not implemented. |
 | UC-08 | Manage staff accounts | Not implemented | Staff CRUD is not exposed yet. |
 | UC-09 | View customer activity status | Partial | Activity is visible through bookings, membership, and reports. No dedicated customer-activity screen yet. |
-| UC-10 | Restrict/unrestrict customer booking ability | Done | Admin UI and backend endpoint update restriction flags, and booking creation blocks restricted customers. |
+| UC-10 | Restrict/unrestrict customer booking ability | Done | Admin UI requires a restriction reason, emails the customer, blocks restricted customers from login, and booking creation also rejects restricted customers. |
 
 ## BaoNG - Field, Slot, Service, and Issue
 
 | UC | Backlog use case | Current status | Notes |
 | --- | --- | --- | --- |
 | UC-11 | View field list | Done | Public field list is available in React and REST API. |
-| UC-12 | View field detail | Partial | Backend detail exists; the current UI is list-focused and has no separate detail/review section. |
+| UC-12 | View field detail | Done for demo | Field detail shows image, basic info, price range/bands, active services, review status, and availability summary. Reviews are noted as not modelled in the MVP schema. |
 | UC-13 | Search available fields by date/time | Done for demo | Slot search filters by date and field type, removes booked/blocked/past slots, and refreshes pricing automatically. |
-| UC-14 | Manage football fields | Not implemented | Field CRUD is not exposed yet. |
-| UC-15 | Manage field pricing by time range | Not implemented | Pricing is seeded/modelled, but there is no management UI/API flow. |
+| UC-14 | Manage football fields | Done for demo | Admin can create, edit, activate, and deactivate football fields. Public browsing and slot search only expose active fields. |
+| UC-15 | Manage field pricing by time range | Done for demo | Admin can create and edit active/inactive pricing rules by day type and time range, with optional effective dates. |
 | UC-16 | Manage unavailable slots | Backend only | Slot blocking endpoint exists. Staff UI for blocking/unblocking slots is still missing. |
 | UC-17 | View field operation calendar | Partial | Staff can view booking operations by list/date context. A full field/date calendar is not implemented. |
-| UC-18 | Manage extra services | Partial | Services are seeded/listed and used in booking. Extra-service CRUD is not implemented. |
+| UC-18 | Manage extra services | Done for demo | Admin can create, edit, activate, and deactivate extra services. Active services are exposed to booking and field detail flows. |
 | UC-19 | Check extra service availability | Done | Booking validates requested service quantity against max/stock rules. |
 | UC-20 | Add extra services to booking | Done | Services can be selected before booking and are priced in checkout/invoice snapshots. |
 | UC-21 | Update extra services before check-in | Not implemented | No post-booking service edit flow yet. |

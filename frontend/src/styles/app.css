@@ -567,6 +567,20 @@ main.pageMain .section {
   gap: 12px;
 }
 
+.fieldGridCards {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.fieldGridCards .fieldCardButton {
+  grid-template-columns: 1fr;
+}
+
+.fieldGridCards .fieldCard img {
+  height: 190px;
+  min-height: 190px;
+}
+
 .fieldCard {
   min-width: 0;
   overflow: hidden;
@@ -708,6 +722,12 @@ main.pageMain .section {
   top: 98px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.92);
+}
+
+.fieldDetailModal {
+  position: static;
+  top: auto;
+  box-shadow: none;
 }
 
 .fieldDetailHero {
@@ -876,6 +896,58 @@ main.pageMain .section {
 .fieldDetailActions {
   display: flex;
   flex-wrap: wrap;
+  gap: 10px;
+}
+
+.fieldServiceList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.fieldServiceItem,
+.fieldReviewSummary {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--white);
+  padding: 12px;
+}
+
+.fieldServiceItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.fieldServiceItem svg,
+.fieldReviewSummary svg {
+  color: var(--green);
+}
+
+.fieldServiceItem span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.fieldServiceItem strong {
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+
+.fieldServiceItem small,
+.fieldReviewSummary span {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.fieldReviewSummary {
+  display: flex;
+  align-items: center;
   gap: 10px;
 }
 
@@ -1634,6 +1706,11 @@ main.pageMain .section {
   padding: 0 12px;
 }
 
+.customerAdminRow.selected {
+  border-color: var(--green);
+  background: var(--green-soft);
+}
+
 .bookingItem.selected {
   border-color: var(--green);
   background: var(--green-soft);
@@ -1670,6 +1747,101 @@ main.pageMain .section {
   flex: 0 0 auto;
   max-width: min(180px, 42%);
   text-transform: none;
+}
+
+.adminPanelHeader {
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.adminPanelHeader span {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.adminFormGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.adminFormGrid.compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.adminFormGrid .fieldControl:last-child {
+  grid-column: 1 / -1;
+}
+
+.addListButton {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 20px;
+  background: transparent;
+  border: 2px dashed var(--mantine-color-gray-3);
+  border-radius: 8px;
+  color: var(--mantine-color-gray-6);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 8px;
+  font-weight: 500;
+  justify-content: center;
+}
+
+.addListButton:hover:not(:disabled) {
+  background: var(--mantine-color-gray-0);
+  border-color: var(--mantine-color-blue-3);
+  color: var(--mantine-color-blue-7);
+}
+
+.addListButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.adminPriceRow {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(90px, 0.95fr) minmax(110px, 1.05fr) minmax(96px, 0.8fr);
+  align-items: center;
+  column-gap: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.adminPriceRow .priceRowLabel {
+  min-width: 0;
+  font-weight: 850;
+  text-transform: capitalize;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adminPriceRow .priceRowRange {
+  min-width: 0;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adminPriceRow .priceRowAmount {
+  min-width: 0;
+  color: var(--green);
+  font-style: normal;
+  font-weight: 850;
+  justify-self: end;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .metricGrid {
@@ -1753,6 +1925,21 @@ main.pageMain .section {
 
 .adminGrid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.adminWidePanel {
+  grid-column: 1 / -1;
+}
+
+.adminManagerLayout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.78fr) minmax(0, 1.22fr);
+  align-items: start;
+  gap: 14px;
+}
+
+.adminWidePanel .customerAdminList {
+  max-height: 420px;
 }
 
 .siteFooter {
@@ -1943,7 +2130,8 @@ main.pageMain .section {
   .bookingLayout,
   .authGrid,
   .operationGrid,
-  .adminGrid {
+  .adminGrid,
+  .adminManagerLayout {
     grid-template-columns: 1fr;
   }
 
@@ -2015,6 +2203,12 @@ main.pageMain .section {
 
   .fieldDetailToolbar .fieldControl {
     width: 100%;
+  }
+
+  .fieldServiceList,
+  .adminFormGrid,
+  .adminFormGrid.compact {
+    grid-template-columns: 1fr;
   }
 
   .miniSlotItem,

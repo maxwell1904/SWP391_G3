@@ -179,6 +179,40 @@ public final class ApiRequests {
     ) {
     }
 
+    public record FieldUpsert(
+            Long fieldTypeId,
+            String fieldName,
+            String description,
+            String imageUrl,
+            String location,
+            String surfaceType,
+            String status
+    ) {
+    }
+
+    public record FieldPriceUpsert(
+            String dayType,
+            String startTime,
+            String endTime,
+            BigDecimal price,
+            LocalDate effectiveFrom,
+            LocalDate effectiveTo,
+            String status
+    ) {
+    }
+
+    public record ExtraServiceUpsert(
+            String serviceName,
+            String serviceType,
+            String description,
+            String unitName,
+            BigDecimal unitPrice,
+            Integer stockQuantity,
+            Integer maxQuantityPerBooking,
+            String status
+    ) {
+    }
+
     public record SlotBlock(
             Long fieldId,
             LocalDate slotDate,

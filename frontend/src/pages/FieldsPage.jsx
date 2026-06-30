@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Badge, Button, Divider, Group, Image, Paper, SimpleGrid, Stack, Text, Title } from '@mantine/core'
-import { CalendarDays, Clock3, MapPin, Ruler, UsersRound } from 'lucide-react'
+import { Badge, Button, Divider, Group, Image, Modal, Paper, SimpleGrid, Stack, Text, Title } from '@mantine/core'
+import { CalendarDays, Clock3, MapPin, Ruler, Star, UsersRound, Wrench } from 'lucide-react'
 import { FieldControl, SectionIntro } from '../components/common'
 import api from '../services/api'
 import { formatMoney, formatTimeRange } from '../utils/format'
@@ -20,21 +20,19 @@ export function FieldsPage({
   const [fieldDetail, setFieldDetail] = useState(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
+  const [detailOpen, setDetailOpen] = useState(false)
   const [availability, setAvailability] = useState({ loaded: false, items: [], error: '' })
 
   useEffect(() => {
-    if (!fields.length) {
+    if (!fields.length || !fields.some(field => Number(field.fieldId) === Number(selectedFieldId))) {
       setSelectedFieldId(null)
-      return
-    }
-    if (!fields.some(field => Number(field.fieldId) === Number(selectedFieldId))) {
-      setSelectedFieldId(fields[0].fieldId)
+      setDetailOpen(false)
     }
   }, [fields, selectedFieldId])
 
   const selectedField = useMemo(() => {
     if (!fields.length) return null
-    return fields.find(field => Number(field.fieldId) === Number(selectedFieldId)) || fields[0]
+    return fields.find(field => Number(field.fieldId) === Number(selectedFieldId)) || null
   }, [fields, selectedFieldId])
 
   useEffect(() => {
@@ -97,11 +95,20 @@ export function FieldsPage({
   const availableSlots = selectedSlots.filter(slot => slot.available)
   const previewSlots = selectedSlots.slice(0, 5)
   const displayDetail = fieldDetail || selectedField
+  const priceRange = fieldDetail?.priceRange
+  const detailServices = fieldDetail?.services || []
+  const nextOpenSlots = fieldDetail?.availabilitySummary?.nextOpenSlots || []
 
   function openBooking(slot) {
     setFieldTypeFilter?.('')
     if (slot?.slotId) setSelectedSlotId?.(slot.slotId)
+    setDetailOpen(false)
     navigatePage?.('booking')
+  }
+
+  function openFieldDetail(field) {
+    setSelectedFieldId(field.fieldId)
+    setDetailOpen(true)
   }
 
   return (
@@ -115,10 +122,10 @@ export function FieldsPage({
       {!fields.length ? (
         <p className="emptyText">No active fields are available right now.</p>
       ) : (
-        <div className="fieldBrowserLayout">
-          <div className="fieldGrid fieldRail" aria-label="Active football fields">
+        <>
+          <div className="fieldGrid fieldGridCards" aria-label="Active football fields">
             {fields.map(field => {
-              const isSelected = Number(field.fieldId) === Number(selectedField?.fieldId)
+              const isSelected = detailOpen && Number(field.fieldId) === Number(selectedField?.fieldId)
               const fieldSlots = availabilityItems.filter(slot => Number(slot.fieldId) === Number(field.fieldId))
               const openSlotCount = fieldSlots.filter(slot => slot.available).length
 
@@ -127,7 +134,7 @@ export function FieldsPage({
                   type="button"
                   className={isSelected ? 'fieldCard fieldCardButton selected' : 'fieldCard fieldCardButton'}
                   key={field.fieldId}
-                  onClick={() => setSelectedFieldId(field.fieldId)}
+                  onClick={() => openFieldDetail(field)}
                   aria-pressed={isSelected}
                 >
                   <img src={field.imageUrl} alt={`${field.fieldName} football pitch`} />
@@ -154,7 +161,15 @@ export function FieldsPage({
             })}
           </div>
 
-          <Paper className="fieldDetailPanel" withBorder shadow="sm" radius="md">
+          <Modal
+            opened={detailOpen && Boolean(displayDetail)}
+            onClose={() => setDetailOpen(false)}
+            size="xl"
+            centered
+            title="Field details"
+          >
+          {displayDetail && (
+          <Paper className="fieldDetailPanel fieldDetailModal" withBorder shadow="sm" radius="md">
             <div className="fieldDetailHero">
               <Image
                 className="fieldDetailImage"
@@ -190,6 +205,13 @@ export function FieldsPage({
                     <UsersRound size={17} />
                     <span>Capacity</span>
                     <strong>{displayDetail.playerCapacity || '-'} players</strong>
+                  </div>
+                  <div className="detailStat">
+                    <CalendarDays size={17} />
+                    <span>Price range</span>
+                    <strong>
+                      {priceRange ? `${formatMoney(priceRange.min)} - ${formatMoney(priceRange.max)}` : 'Loading'}
+                    </strong>
                   </div>
                 </SimpleGrid>
               </div>
@@ -255,6 +277,64 @@ export function FieldsPage({
                 </div>
               </Stack>
 
+              <Divider />
+
+              <Stack gap="xs">
+                <Group justify="space-between" align="center">
+                  <div>
+                    <Text fw={850}>Services and reviews</Text>
+                    <Text size="sm" c="dimmed">Available add-ons for match-day bookings and MVP review status.</Text>
+                  </div>
+                  <Badge color="green" variant="light">{detailServices.length} services</Badge>
+                </Group>
+                <div className="fieldServiceList">
+                  {detailServices.length ? detailServices.map(service => (
+                    <div className="fieldServiceItem" key={service.extraServiceId}>
+                      <Wrench size={17} />
+                      <span>
+                        <strong>{service.serviceName}</strong>
+                        <small>{service.serviceType?.replace(/_/g, ' ')} · {formatMoney(service.unitPrice)} / {service.unitName}</small>
+                      </span>
+                    </div>
+                  )) : (
+                    <p className="emptyText">No active services are configured.</p>
+                  )}
+                </div>
+                <div className="fieldReviewSummary">
+                  <Star size={17} />
+                  <span>{fieldDetail?.reviewSummary || 'Review summary is loading.'}</span>
+                </div>
+              </Stack>
+
+              <Divider />
+
+              <Stack gap="xs">
+                <Group justify="space-between" align="center">
+                  <div>
+                    <Text fw={850}>Next open slots</Text>
+                    <Text size="sm" c="dimmed">A short availability summary across the next few days.</Text>
+                  </div>
+                  <Badge color="green" variant="light">{fieldDetail?.availabilitySummary?.nextOpenSlotCount || 0} open</Badge>
+                </Group>
+                <div className="miniSlotList">
+                  {nextOpenSlots.length ? nextOpenSlots.map(slot => (
+                    <button
+                      type="button"
+                      className="miniSlotItem"
+                      key={`${slot.slotDate}-${slot.slotId}`}
+                      onClick={() => openBooking(slot)}
+                    >
+                      <Clock3 size={18} />
+                      <span>{slot.slotDate} · {formatTimeRange(slot.startTime, slot.endTime)}</span>
+                      <strong>{formatMoney(slot.price)}</strong>
+                      <Badge color="green" variant="light" radius="sm">Open</Badge>
+                    </button>
+                  )) : (
+                    <p className="emptyText">No upcoming open slots were found in the detail summary.</p>
+                  )}
+                </div>
+              </Stack>
+
               <div className="fieldDetailActions">
                 <Button color="green" leftSection={<CalendarDays size={18} />} onClick={() => openBooking(availableSlots[0])}>
                   {availableSlots[0] ? 'Book earliest slot' : 'Open booking'}
@@ -265,7 +345,9 @@ export function FieldsPage({
               </div>
             </div>
           </Paper>
-        </div>
+          )}
+          </Modal>
+        </>
       )}
     </section>
   )

@@ -340,6 +340,7 @@ public class DemoSupportService {
     Map<String, Object> fieldSummary(FootballField field) {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("fieldId", field.getFieldId());
+        map.put("fieldTypeId", field.getFieldType().getFieldTypeId());
         map.put("fieldName", field.getFieldName());
         map.put("fieldType", field.getFieldType().getTypeName());
         map.put("playerCapacity", field.getFieldType().getPlayerCapacity());
@@ -369,10 +370,12 @@ public class DemoSupportService {
         map.put("extraServiceId", service.getExtraServiceId());
         map.put("serviceName", service.getServiceName());
         map.put("serviceType", service.getServiceType().name());
+        map.put("description", service.getDescription());
         map.put("unitName", service.getUnitName());
         map.put("unitPrice", service.getUnitPrice());
         map.put("stockQuantity", service.getStockQuantity());
         map.put("maxQuantityPerBooking", service.getMaxQuantityPerBooking());
+        map.put("status", service.getStatus().name());
         return map;
     }
 

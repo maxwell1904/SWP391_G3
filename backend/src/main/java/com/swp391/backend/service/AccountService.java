@@ -93,6 +93,10 @@ public class AccountService {
         if (user.getStatus() != AccountStatus.active) {
             throw new ApiException(HttpStatus.FORBIDDEN, "Account is not active");
         }
+        if (user.isBookingRestricted()) {
+            String reason = support.nvl(user.getRestrictionReason(), "Your account has been restricted by admin");
+            throw new ApiException(HttpStatus.FORBIDDEN, "Account is restricted. Reason: " + reason);
+        }
         user.setLastLoginAt(LocalDateTime.now());
         return Map.of(
                 "token", "demo-token-" + user.getUserId(),
@@ -233,10 +237,27 @@ public class AccountService {
         if (!"Customer".equalsIgnoreCase(user.getRole().getRoleName())) {
             throw support.badRequest("Only customer accounts can be restricted for booking");
         }
+        VerificationEmailDelivery delivery = null;
         user.setBookingRestricted(request.bookingRestricted());
         String reason = support.clean(request.restrictionReason());
-        user.setRestrictionReason(request.bookingRestricted() ? (support.isBlank(reason) ? "Booking restricted by admin" : reason) : null);
-        return support.userSummary(user);
+        if (request.bookingRestricted()) {
+            support.requireText(reason, "Restriction reason is required");
+            user.setRestrictionReason(reason);
+            if (!support.isBlank(user.getEmail())) {
+                delivery = verificationEmailService.sendRestrictionEmail(user, reason);
+            }
+        } else {
+            user.setRestrictionReason(null);
+        }
+
+        Map<String, Object> response = new LinkedHashMap<>(support.userSummary(user));
+        if (delivery != null) {
+            response.put("emailDeliveryStatus", delivery.status());
+            response.put("message", delivery.message());
+        } else {
+            response.put("message", request.bookingRestricted() ? "Customer restricted." : "Customer booking access restored.");
+        }
+        return response;
     }
 
     @Transactional(readOnly = true)
