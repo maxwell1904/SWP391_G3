@@ -201,6 +201,18 @@ public final class ApiRequests {
     ) {
     }
 
+    public record ExtraServiceUpsert(
+            String serviceName,
+            String serviceType,
+            String description,
+            String unitName,
+            BigDecimal unitPrice,
+            Integer stockQuantity,
+            Integer maxQuantityPerBooking,
+            String status
+    ) {
+    }
+
     public record SlotBlock(
             Long fieldId,
             LocalDate slotDate,

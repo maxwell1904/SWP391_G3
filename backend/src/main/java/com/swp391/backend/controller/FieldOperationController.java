@@ -79,6 +79,21 @@ public class FieldOperationController {
         return fieldOperationService.services();
     }
 
+    @GetMapping("/admin/services")
+    public Object managedServices() {
+        return fieldOperationService.managedServices();
+    }
+
+    @PostMapping("/admin/services")
+    public Object createService(@RequestBody ApiRequests.ExtraServiceUpsert request) {
+        return fieldOperationService.createService(request);
+    }
+
+    @PutMapping("/admin/services/{serviceId}")
+    public Object updateService(@PathVariable Long serviceId, @RequestBody ApiRequests.ExtraServiceUpsert request) {
+        return fieldOperationService.updateService(serviceId, request);
+    }
+
     @GetMapping("/issues")
     public Object issues() {
         return fieldOperationService.issues();

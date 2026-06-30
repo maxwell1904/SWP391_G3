@@ -370,6 +370,7 @@ public class DemoSupportService {
         map.put("extraServiceId", service.getExtraServiceId());
         map.put("serviceName", service.getServiceName());
         map.put("serviceType", service.getServiceType().name());
+        map.put("description", service.getDescription());
         map.put("unitName", service.getUnitName());
         map.put("unitPrice", service.getUnitPrice());
         map.put("stockQuantity", service.getStockQuantity());

@@ -1910,6 +1910,21 @@ main.pageMain .section {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.adminWidePanel {
+  grid-column: 1 / -1;
+}
+
+.adminManagerLayout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.78fr) minmax(0, 1.22fr);
+  align-items: start;
+  gap: 14px;
+}
+
+.adminWidePanel .customerAdminList {
+  max-height: 420px;
+}
+
 .siteFooter {
   width: min(1160px, calc(100% - 36px));
   margin: 72px auto 28px;
@@ -2098,7 +2113,8 @@ main.pageMain .section {
   .bookingLayout,
   .authGrid,
   .operationGrid,
-  .adminGrid {
+  .adminGrid,
+  .adminManagerLayout {
     grid-template-columns: 1fr;
   }
 

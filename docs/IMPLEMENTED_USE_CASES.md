@@ -25,7 +25,7 @@ Status meanings:
 | UC-07 | Manage customer accounts | Partial | Admin can list customers and restrict/restore booking access. Full customer edit/lock/delete management is not implemented. |
 | UC-08 | Manage staff accounts | Not implemented | Staff CRUD is not exposed yet. |
 | UC-09 | View customer activity status | Partial | Activity is visible through bookings, membership, and reports. No dedicated customer-activity screen yet. |
-| UC-10 | Restrict/unrestrict customer booking ability | Done | Admin UI and backend endpoint update restriction flags, and booking creation blocks restricted customers. |
+| UC-10 | Restrict/unrestrict customer booking ability | Done | Admin UI requires a restriction reason, emails the customer, blocks restricted customers from login, and booking creation also rejects restricted customers. |
 
 ## BaoNG - Field, Slot, Service, and Issue
 
@@ -38,7 +38,7 @@ Status meanings:
 | UC-15 | Manage field pricing by time range | Done for demo | Admin can create and edit active/inactive pricing rules by day type and time range, with optional effective dates. |
 | UC-16 | Manage unavailable slots | Backend only | Slot blocking endpoint exists. Staff UI for blocking/unblocking slots is still missing. |
 | UC-17 | View field operation calendar | Partial | Staff can view booking operations by list/date context. A full field/date calendar is not implemented. |
-| UC-18 | Manage extra services | Partial | Services are seeded/listed and used in booking. Extra-service CRUD is not implemented. |
+| UC-18 | Manage extra services | Done for demo | Admin can create, edit, activate, and deactivate extra services. Active services are exposed to booking and field detail flows. |
 | UC-19 | Check extra service availability | Done | Booking validates requested service quantity against max/stock rules. |
 | UC-20 | Add extra services to booking | Done | Services can be selected before booking and are priced in checkout/invoice snapshots. |
 | UC-21 | Update extra services before check-in | Not implemented | No post-booking service edit flow yet. |

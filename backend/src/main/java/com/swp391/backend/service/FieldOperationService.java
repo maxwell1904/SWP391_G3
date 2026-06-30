@@ -5,6 +5,7 @@ import com.swp391.backend.entity.*;
 import com.swp391.backend.enums.CommonStatus;
 import com.swp391.backend.enums.IssueStatus;
 import com.swp391.backend.enums.NotificationType;
+import com.swp391.backend.enums.ServiceType;
 import com.swp391.backend.enums.SlotStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -163,6 +164,26 @@ public class FieldOperationService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> managedServices() {
+        return support.extraServiceRepository.findAll().stream()
+                .sorted(Comparator.comparing(ExtraService::getExtraServiceId))
+                .map(support::serviceSummary)
+                .toList();
+    }
+
+    public Map<String, Object> createService(ApiRequests.ExtraServiceUpsert request) {
+        ExtraService service = new ExtraService();
+        applyServiceRequest(service, request);
+        return support.serviceSummary(support.extraServiceRepository.save(service));
+    }
+
+    public Map<String, Object> updateService(Long serviceId, ApiRequests.ExtraServiceUpsert request) {
+        ExtraService service = support.getExtraService(serviceId);
+        applyServiceRequest(service, request);
+        return support.serviceSummary(service);
+    }
+
     public Map<String, Object> createIssue(ApiRequests.IssueCreate request) {
         support.requireText(request.title(), "Issue title is required");
         Issue issue = new Issue();
@@ -264,6 +285,28 @@ public class FieldOperationService {
         price.setEffectiveFrom(request.effectiveFrom());
         price.setEffectiveTo(request.effectiveTo());
         price.setStatus(support.parseEnum(CommonStatus.class, request.status(), CommonStatus.active));
+    }
+
+    private void applyServiceRequest(ExtraService service, ApiRequests.ExtraServiceUpsert request) {
+        support.requireText(request.serviceName(), "Service name is required");
+        support.requireText(request.unitName(), "Unit name is required");
+        if (request.unitPrice() == null || request.unitPrice().compareTo(BigDecimal.ZERO) < 0) {
+            throw support.badRequest("Unit price must be zero or greater");
+        }
+        if (request.stockQuantity() != null && request.stockQuantity() < 0) {
+            throw support.badRequest("Stock quantity must be zero or greater");
+        }
+        if (request.maxQuantityPerBooking() != null && request.maxQuantityPerBooking() < 1) {
+            throw support.badRequest("Max quantity per booking must be at least one");
+        }
+        service.setServiceName(support.clean(request.serviceName()));
+        service.setServiceType(support.parseEnum(ServiceType.class, request.serviceType(), ServiceType.rental));
+        service.setDescription(support.clean(request.description()));
+        service.setUnitName(support.clean(request.unitName()));
+        service.setUnitPrice(support.money(request.unitPrice()));
+        service.setStockQuantity(request.stockQuantity());
+        service.setMaxQuantityPerBooking(request.maxQuantityPerBooking());
+        service.setStatus(support.parseEnum(CommonStatus.class, request.status(), CommonStatus.active));
     }
 
     private Map<String, Object> fieldPriceSummary(FieldPrice price) {

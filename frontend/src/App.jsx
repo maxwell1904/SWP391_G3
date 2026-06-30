@@ -145,6 +145,16 @@ function App() {
   }, [currentUser])
 
   useEffect(() => {
+    if (!currentUser?.bookingRestricted) return
+    const reason = currentUser.restrictionReason || 'Your account has been restricted by admin.'
+    setCurrentUser(null)
+    setMembership(null)
+    setNotifications([])
+    setNotice(`Account restricted: ${reason}`)
+    navigatePage('login')
+  }, [currentUser?.bookingRestricted])
+
+  useEffect(() => {
     loadSlots()
   }, [searchDate, fieldTypeFilter])
 
@@ -809,10 +819,10 @@ function App() {
     }), 'Deposit rule updated')
   }
 
-  async function updateCustomerRestriction(customer, bookingRestricted) {
+  async function updateCustomerRestriction(customer, bookingRestricted, restrictionReason = '') {
     await runAction(async () => api.put(`/account/users/${customer.userId}/restriction`, {
       bookingRestricted,
-      restrictionReason: bookingRestricted ? 'Restricted by admin from account management' : ''
+      restrictionReason: bookingRestricted ? restrictionReason : ''
     }), bookingRestricted ? 'Customer booking restricted' : 'Customer booking restored')
   }
 

@@ -26,6 +26,17 @@ const emptyPriceForm = {
   status: 'active'
 }
 
+const emptyServiceForm = {
+  serviceName: '',
+  serviceType: 'rental',
+  description: '',
+  unitName: 'item',
+  unitPrice: '',
+  stockQuantity: '',
+  maxQuantityPerBooking: '',
+  status: 'active'
+}
+
 const statusColor = status => status === 'active' ? 'green' : 'gray'
 
 export function AdminPage({
@@ -44,15 +55,24 @@ export function AdminPage({
   const [fieldForm, setFieldForm] = useState(emptyFieldForm)
   const [priceForm, setPriceForm] = useState(emptyPriceForm)
   const [editingPriceId, setEditingPriceId] = useState(null)
+  const [adminServices, setAdminServices] = useState([])
+  const [selectedServiceId, setSelectedServiceId] = useState(null)
+  const [serviceForm, setServiceForm] = useState(emptyServiceForm)
   const [fieldNotice, setFieldNotice] = useState('')
   const [feedbackModal, setFeedbackModal] = useState({ opened: false, title: '', message: '' })
+  const [restrictionModal, setRestrictionModal] = useState({ opened: false, customer: null, reason: '' })
 
   const selectedField = useMemo(() => (
     selectedFieldId === 'new' ? null : adminFields.find(field => Number(field.fieldId) === Number(selectedFieldId))
   ), [adminFields, selectedFieldId])
 
+  const selectedService = useMemo(() => (
+    selectedServiceId === 'new' ? null : adminServices.find(service => Number(service.extraServiceId) === Number(selectedServiceId))
+  ), [adminServices, selectedServiceId])
+
   useEffect(() => {
     loadAdminFields()
+    loadAdminServices()
   }, [])
 
   useEffect(() => {
@@ -83,6 +103,32 @@ export function AdminPage({
     setPriceForm(emptyPriceForm)
   }, [selectedField?.fieldId])
 
+  useEffect(() => {
+    if (!adminServices.length) {
+      setSelectedServiceId(null)
+      setServiceForm(emptyServiceForm)
+      return
+    }
+    if (selectedServiceId === 'new') return
+    if (!selectedServiceId || !adminServices.some(service => Number(service.extraServiceId) === Number(selectedServiceId))) {
+      setSelectedServiceId(adminServices[0].extraServiceId)
+    }
+  }, [adminServices, selectedServiceId])
+
+  useEffect(() => {
+    if (selectedServiceId === 'new' || !selectedService) return
+    setServiceForm({
+      serviceName: selectedService.serviceName || '',
+      serviceType: selectedService.serviceType || 'rental',
+      description: selectedService.description || '',
+      unitName: selectedService.unitName || 'item',
+      unitPrice: String(selectedService.unitPrice ?? ''),
+      stockQuantity: selectedService.stockQuantity == null ? '' : String(selectedService.stockQuantity),
+      maxQuantityPerBooking: selectedService.maxQuantityPerBooking == null ? '' : String(selectedService.maxQuantityPerBooking),
+      status: selectedService.status || 'active'
+    })
+  }, [selectedService?.extraServiceId])
+
   async function loadAdminFields() {
     const response = await api.get('/admin/fields')
     setAdminFields(response.data)
@@ -93,6 +139,11 @@ export function AdminPage({
     setFieldPrices(response.data)
   }
 
+  async function loadAdminServices() {
+    const response = await api.get('/admin/services')
+    setAdminServices(response.data)
+  }
+
   function updateFieldForm(name, value) {
     setFieldForm(form => ({ ...form, [name]: value }))
   }
@@ -101,12 +152,38 @@ export function AdminPage({
     setPriceForm(form => ({ ...form, [name]: value }))
   }
 
+  function updateServiceForm(name, value) {
+    setServiceForm(form => ({ ...form, [name]: value }))
+  }
+
   function openFeedbackModal(title, message) {
     setFeedbackModal({ opened: true, title, message })
   }
 
   function closeFeedbackModal() {
     setFeedbackModal({ opened: false, title: '', message: '' })
+  }
+
+  function openRestrictionModal(customer) {
+    setRestrictionModal({
+      opened: true,
+      customer,
+      reason: customer.restrictionReason || ''
+    })
+  }
+
+  function closeRestrictionModal() {
+    setRestrictionModal({ opened: false, customer: null, reason: '' })
+  }
+
+  async function confirmRestriction() {
+    const reason = restrictionModal.reason.trim()
+    if (!reason) {
+      setFieldNotice('Restriction reason is required.')
+      return
+    }
+    await updateCustomerRestriction(restrictionModal.customer, true, reason)
+    closeRestrictionModal()
   }
 
   function startNewPriceRule() {
@@ -237,6 +314,51 @@ export function AdminPage({
     }
   }
 
+  function createNewService() {
+    setSelectedServiceId('new')
+    setServiceForm(emptyServiceForm)
+    setFieldNotice('Creating a new extra service.')
+  }
+
+  async function saveService() {
+    const payload = {
+      ...serviceForm,
+      unitPrice: Number(serviceForm.unitPrice),
+      stockQuantity: serviceForm.stockQuantity === '' ? null : Number(serviceForm.stockQuantity),
+      maxQuantityPerBooking: serviceForm.maxQuantityPerBooking === '' ? null : Number(serviceForm.maxQuantityPerBooking)
+    }
+    if (!payload.serviceName.trim()) {
+      setFieldNotice('Service name is required.')
+      return
+    }
+    try {
+      if (selectedService?.extraServiceId) {
+        await api.put(`/admin/services/${selectedService.extraServiceId}`, payload)
+        openFeedbackModal('Service saved', 'Extra service details were saved successfully.')
+      } else {
+        const response = await api.post('/admin/services', payload)
+        setSelectedServiceId(response.data.extraServiceId)
+        openFeedbackModal('Service created', 'The new extra service was added successfully.')
+      }
+      await loadAdminServices()
+      await refreshAll?.()
+      setFieldNotice('Extra service saved.')
+    } catch (error) {
+      setFieldNotice(error.response?.data?.error || 'Could not save extra service.')
+    }
+  }
+
+  async function toggleServiceStatus(service) {
+    const nextStatus = service.status === 'active' ? 'inactive' : 'active'
+    await api.put(`/admin/services/${service.extraServiceId}`, {
+      ...service,
+      status: nextStatus
+    })
+    setFieldNotice(nextStatus === 'active' ? 'Extra service activated.' : 'Extra service deactivated.')
+    await loadAdminServices()
+    await refreshAll?.()
+  }
+
   return (
     <section id="admin" className="section adminSection">
       <WorkspaceHeader
@@ -252,12 +374,12 @@ export function AdminPage({
           { label: 'Revenue', value: formatMoney(reports?.totalRevenue) },
           { label: 'Bookings', value: reports?.bookingCount || 0 },
           { label: 'Fields', value: adminFields.length },
-          { label: 'Restricted', value: restrictedCustomers }
+          { label: 'Services', value: adminServices.length }
         ]}
       />
 
       <div className="roleGrid adminGrid">
-        <InfoPanel title="Football fields">
+        <InfoPanel title="Football fields" className="adminWidePanel">
           <div className="adminPanelHeader">
             <span>{fieldNotice || 'Create, edit, activate, or retire fields.'}</span>
             {selectedFieldId === 'new' && (
@@ -276,7 +398,7 @@ export function AdminPage({
               >
                 <span>
                   <strong>{field.fieldName}</strong>
-                  <small>{field.fieldType} · {field.location || 'No location'}</small>
+                  <small>{field.fieldType} - {field.location || 'No location'}</small>
                 </span>
                 <Badge color={statusColor(field.status)} variant="light">{field.status}</Badge>
               </button>
@@ -325,7 +447,7 @@ export function AdminPage({
           </div>
         </InfoPanel>
 
-        <InfoPanel title="Field pricing">
+        <InfoPanel title="Field pricing" className="adminWidePanel">
           <div className="adminPanelHeader">
             <span>{selectedField ? `Pricing rules for ${selectedField.fieldName}` : 'Select a field first.'}</span>
             {editingPriceId && <Button variant="subtle" onClick={startNewPriceRule}>Cancel edit</Button>}
@@ -376,6 +498,82 @@ export function AdminPage({
           </Button>
         </InfoPanel>
 
+        <InfoPanel title="Extra services" className="adminWidePanel">
+          <div className="adminPanelHeader">
+            <span>Manage rental, sale, and staff-supported services used during booking.</span>
+            {selectedServiceId === 'new' && (
+              <Button variant="subtle" size="xs" onClick={() => setSelectedServiceId(adminServices[0]?.extraServiceId || null)}>
+                Back to list
+              </Button>
+            )}
+          </div>
+          <div className="adminManagerLayout">
+            <div className="customerAdminList">
+              {adminServices.map(service => (
+                <button
+                  type="button"
+                  className={Number(service.extraServiceId) === Number(selectedService?.extraServiceId) ? 'customerAdminRow selected' : 'customerAdminRow'}
+                  key={service.extraServiceId}
+                  onClick={() => setSelectedServiceId(service.extraServiceId)}
+                >
+                  <span>
+                    <strong>{service.serviceName}</strong>
+                    <small>{service.serviceType?.replace(/_/g, ' ')} - {formatMoney(service.unitPrice)} / {service.unitName}</small>
+                  </span>
+                  <Badge color={statusColor(service.status)} variant="light">{service.status}</Badge>
+                </button>
+              ))}
+              <button type="button" className="addListButton" onClick={createNewService}>
+                <Plus size={18} />
+                <span>New extra service</span>
+              </button>
+            </div>
+            <div>
+              <div className="adminFormGrid">
+                <FieldControl label="Service name">
+                  <input value={serviceForm.serviceName} onChange={event => updateServiceForm('serviceName', event.target.value)} />
+                </FieldControl>
+                <FieldControl label="Service type">
+                  <select value={serviceForm.serviceType} onChange={event => updateServiceForm('serviceType', event.target.value)}>
+                    <option value="rental">Rental</option>
+                    <option value="sale">Sale</option>
+                    <option value="staff_service">Staff service</option>
+                  </select>
+                </FieldControl>
+                <FieldControl label="Unit">
+                  <input value={serviceForm.unitName} onChange={event => updateServiceForm('unitName', event.target.value)} />
+                </FieldControl>
+                <FieldControl label="Unit price">
+                  <input type="number" min="0" step="10000" value={serviceForm.unitPrice} onChange={event => updateServiceForm('unitPrice', event.target.value)} />
+                </FieldControl>
+                <FieldControl label="Stock quantity">
+                  <input type="number" min="0" value={serviceForm.stockQuantity} onChange={event => updateServiceForm('stockQuantity', event.target.value)} />
+                </FieldControl>
+                <FieldControl label="Max per booking">
+                  <input type="number" min="1" value={serviceForm.maxQuantityPerBooking} onChange={event => updateServiceForm('maxQuantityPerBooking', event.target.value)} />
+                </FieldControl>
+                <FieldControl label="Status">
+                  <select value={serviceForm.status} onChange={event => updateServiceForm('status', event.target.value)}>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </FieldControl>
+                <FieldControl label="Description">
+                  <textarea value={serviceForm.description} onChange={event => updateServiceForm('description', event.target.value)} />
+                </FieldControl>
+              </div>
+              <div className="buttonRow noMargin">
+                <Button color="green" onClick={saveService}>{selectedService?.extraServiceId ? 'Save service' : 'Create service'}</Button>
+                {selectedService?.extraServiceId && (
+                  <Button variant="light" color={selectedService.status === 'active' ? 'red' : 'green'} onClick={() => toggleServiceStatus(selectedService)}>
+                    {selectedService.status === 'active' ? 'Deactivate' : 'Activate'}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </InfoPanel>
+
         <InfoPanel title="Revenue report">
           <MetricGrid metrics={[
             ['Revenue', formatMoney(reports?.totalRevenue)],
@@ -411,13 +609,15 @@ export function AdminPage({
               <div className="customerAdminRow" key={customer.userId}>
                 <span>
                   <strong>{customer.fullName}</strong>
-                  <small>{customer.email} · {customer.phone || 'no phone'}</small>
+                  <small>{customer.email} - {customer.phone || 'no phone'}</small>
                   {customer.bookingRestricted && <small>{customer.restrictionReason || 'Booking restricted'}</small>}
                 </span>
                 <Button
                   variant={customer.bookingRestricted ? 'filled' : 'light'}
                   color={customer.bookingRestricted ? 'green' : 'red'}
-                  onClick={() => updateCustomerRestriction(customer, !customer.bookingRestricted)}
+                  onClick={() => customer.bookingRestricted
+                    ? updateCustomerRestriction(customer, false)
+                    : openRestrictionModal(customer)}
                 >
                   {customer.bookingRestricted ? 'Restore' : 'Restrict'}
                 </Button>
@@ -438,6 +638,30 @@ export function AdminPage({
             {feedbackModal.message}
           </Text>
           <Button onClick={closeFeedbackModal}>OK</Button>
+        </Stack>
+      </Modal>
+
+      <Modal
+        opened={restrictionModal.opened}
+        onClose={closeRestrictionModal}
+        centered
+        title={`Restrict ${restrictionModal.customer?.fullName || 'customer'}`}
+      >
+        <Stack gap="sm">
+          <Text size="sm" c="dimmed">
+            The customer will be blocked from signing in. They will receive an email with this reason.
+          </Text>
+          <FieldControl label="Restriction reason">
+            <textarea
+              value={restrictionModal.reason}
+              onChange={event => setRestrictionModal(modal => ({ ...modal, reason: event.target.value }))}
+              placeholder="Example: Repeated no-shows and unpaid booking balance."
+            />
+          </FieldControl>
+          <Group justify="flex-end">
+            <Button variant="light" color="gray" onClick={closeRestrictionModal}>Cancel</Button>
+            <Button color="red" onClick={confirmRestriction}>Restrict customer</Button>
+          </Group>
         </Stack>
       </Modal>
     </section>
