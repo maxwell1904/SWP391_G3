@@ -81,6 +81,37 @@ public class PromotionReportService {
                 .toList();
     }
 
+    public Map<String, Object> createMembershipLevel(ApiRequests.MembershipLevelUpsert request) {
+        MembershipLevel level = new MembershipLevel();
+        applyMembershipLevelFields(level, request, null);
+        return support.membershipLevelSummary(support.membershipLevelRepository.save(level));
+    }
+
+    public Map<String, Object> updateMembershipLevel(Long id, ApiRequests.MembershipLevelUpsert request) {
+        MembershipLevel level = support.membershipLevelRepository.findById(id)
+                .orElseThrow(() -> support.badRequest("Membership level not found"));
+        applyMembershipLevelFields(level, request, id);
+        return support.membershipLevelSummary(support.membershipLevelRepository.save(level));
+    }
+
+    private void applyMembershipLevelFields(MembershipLevel level, ApiRequests.MembershipLevelUpsert request, Long currentId) {
+        String name = support.clean(request.levelName());
+        support.requireText(name, "Level name is required");
+        support.membershipLevelRepository.findAll().stream()
+                .filter(existing -> existing.getLevelName().equalsIgnoreCase(name) && !existing.getMembershipLevelId().equals(currentId))
+                .findFirst()
+                .ifPresent(existing -> {
+                    throw support.badRequest("Level name already exists");
+                });
+
+        level.setLevelName(name);
+        level.setRequiredCompletedBookings(request.requiredCompletedBookings() != null ? request.requiredCompletedBookings() : 0);
+        level.setDiscountPercent(request.discountPercent() != null ? request.discountPercent() : BigDecimal.ZERO);
+        level.setBenefitDescription(support.clean(request.benefitDescription()));
+        level.setDisplayOrder(request.displayOrder() != null ? request.displayOrder() : 0);
+        level.setStatus(support.parseEnum(CommonStatus.class, request.status(), CommonStatus.active));
+    }
+
     @Transactional(readOnly = true)
     public Map<String, Object> reports() {
         List<Booking> bookings = support.bookingRepository.findAll();
@@ -141,6 +172,28 @@ public class PromotionReportService {
                 .toList();
     }
 
+    // Backlog owner: AnPTT - UC-57/58/59 Notification read/unread toggle.
+    public Map<String, Object> toggleNotificationRead(Long notificationId) {
+        com.swp391.backend.entity.Notification notification = support.notificationRepository.findById(notificationId)
+                .orElseThrow(() -> support.notFound("Notification not found"));
+        notification.setRead(!notification.isRead());
+        return support.notificationSummary(support.notificationRepository.save(notification));
+    }
+
+    // Backlog owner: AnPTT - UC-57/58/59 Mark all notifications as read.
+    public Map<String, Object> markAllNotificationsRead(Long userId) {
+        List<com.swp391.backend.entity.Notification> unread =
+                support.notificationRepository.findByUser_UserIdOrderByNotificationIdDesc(userId)
+                        .stream()
+                        .filter(n -> !n.isRead())
+                        .toList();
+        unread.forEach(n -> n.setRead(true));
+        support.notificationRepository.saveAll(unread);
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("markedCount", unread.size());
+        return result;
+    }
+
     private void applyPromotionFields(Promotion promotion, ApiRequests.PromotionUpsert request, Long currentId) {
         String code = support.clean(request.promotionCode());
         String name = support.clean(request.promotionName());
@@ -175,5 +228,26 @@ public class PromotionReportService {
         promotion.setStartDate(request.startDate());
         promotion.setEndDate(request.endDate());
         promotion.setStatus(support.parseEnum(CommonStatus.class, request.status(), CommonStatus.active));
+        
+        if (request.applicableFieldTypeId() != null) {
+            promotion.setApplicableFieldType(support.fieldTypeRepository.findById(request.applicableFieldTypeId())
+                    .orElseThrow(() -> support.badRequest("Invalid Field Type ID")));
+        } else {
+            promotion.setApplicableFieldType(null);
+        }
+        
+        if (request.applicableExtraServiceId() != null) {
+            promotion.setApplicableExtraService(support.extraServiceRepository.findById(request.applicableExtraServiceId())
+                    .orElseThrow(() -> support.badRequest("Invalid Extra Service ID")));
+        } else {
+            promotion.setApplicableExtraService(null);
+        }
+        
+        if (request.applicableMembershipLevelId() != null) {
+            promotion.setApplicableMembershipLevel(support.membershipLevelRepository.findById(request.applicableMembershipLevelId())
+                    .orElseThrow(() -> support.badRequest("Invalid Membership Level ID")));
+        } else {
+            promotion.setApplicableMembershipLevel(null);
+        }
     }
 }

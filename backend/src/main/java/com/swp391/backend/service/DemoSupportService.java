@@ -506,6 +506,9 @@ public class DemoSupportService {
         map.put("usageLimit", promotion.getUsageLimit());
         map.put("usedCount", promotion.getUsedCount());
         map.put("status", promotion.getStatus().name());
+        map.put("applicableFieldTypeId", promotion.getApplicableFieldType() != null ? promotion.getApplicableFieldType().getFieldTypeId() : null);
+        map.put("applicableExtraServiceId", promotion.getApplicableExtraService() != null ? promotion.getApplicableExtraService().getExtraServiceId() : null);
+        map.put("applicableMembershipLevelId", promotion.getApplicableMembershipLevel() != null ? promotion.getApplicableMembershipLevel().getMembershipLevelId() : null);
         return map;
     }
 

@@ -8,6 +8,8 @@ export const pageRoutes = {
   forgotPassword: '/forgot-password',
   resetPassword: '/reset-password',
   promotions: '/promotions',
+  'membership-rules': '/membership/rules',
+  'membership-benefits': '/membership/benefits',
   staff: '/staff',
   admin: '/admin'
 }
