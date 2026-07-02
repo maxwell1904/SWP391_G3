@@ -21,9 +21,39 @@ public class FieldOperationController {
         return fieldOperationService.fields();
     }
 
+    @GetMapping("/admin/fields")
+    public Object managedFields() {
+        return fieldOperationService.managedFields();
+    }
+
+    @PostMapping("/admin/fields")
+    public Object createField(@RequestBody ApiRequests.FieldUpsert request) {
+        return fieldOperationService.createField(request);
+    }
+
+    @PutMapping("/admin/fields/{fieldId}")
+    public Object updateField(@PathVariable Long fieldId, @RequestBody ApiRequests.FieldUpsert request) {
+        return fieldOperationService.updateField(fieldId, request);
+    }
+
     @GetMapping("/fields/{fieldId}")
     public Object fieldDetail(@PathVariable Long fieldId) {
         return fieldOperationService.fieldDetail(fieldId);
+    }
+
+    @GetMapping("/admin/fields/{fieldId}/prices")
+    public Object managedFieldPrices(@PathVariable Long fieldId) {
+        return fieldOperationService.managedFieldPrices(fieldId);
+    }
+
+    @PostMapping("/admin/fields/{fieldId}/prices")
+    public Object createFieldPrice(@PathVariable Long fieldId, @RequestBody ApiRequests.FieldPriceUpsert request) {
+        return fieldOperationService.createFieldPrice(fieldId, request);
+    }
+
+    @PutMapping("/admin/field-prices/{fieldPriceId}")
+    public Object updateFieldPrice(@PathVariable Long fieldPriceId, @RequestBody ApiRequests.FieldPriceUpsert request) {
+        return fieldOperationService.updateFieldPrice(fieldPriceId, request);
     }
 
     @GetMapping("/field-types")
@@ -47,6 +77,21 @@ public class FieldOperationController {
     @GetMapping("/services")
     public Object services() {
         return fieldOperationService.services();
+    }
+
+    @GetMapping("/admin/services")
+    public Object managedServices() {
+        return fieldOperationService.managedServices();
+    }
+
+    @PostMapping("/admin/services")
+    public Object createService(@RequestBody ApiRequests.ExtraServiceUpsert request) {
+        return fieldOperationService.createService(request);
+    }
+
+    @PutMapping("/admin/services/{serviceId}")
+    public Object updateService(@PathVariable Long serviceId, @RequestBody ApiRequests.ExtraServiceUpsert request) {
+        return fieldOperationService.updateService(serviceId, request);
     }
 
     @GetMapping("/issues")

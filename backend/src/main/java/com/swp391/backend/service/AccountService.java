@@ -4,7 +4,9 @@ import com.swp391.backend.dto.ApiRequests;
 import com.swp391.backend.entity.AppUser;
 import com.swp391.backend.entity.Role;
 import com.swp391.backend.enums.AccountStatus;
+import com.swp391.backend.security.JwtService;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,10 +31,14 @@ public class AccountService {
 
     private final DemoSupportService support;
     private final VerificationEmailService verificationEmailService;
+    private final BCryptPasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
-    public AccountService(DemoSupportService support, VerificationEmailService verificationEmailService) {
+    public AccountService(DemoSupportService support, VerificationEmailService verificationEmailService, BCryptPasswordEncoder passwordEncoder, JwtService jwtService) {
         this.support = support;
         this.verificationEmailService = verificationEmailService;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
     public Map<String, Object> register(ApiRequests.Register request) {
@@ -62,7 +68,7 @@ public class AccountService {
         user.setFullName(support.clean(request.fullName()));
         user.setEmail(email);
         user.setPhone(phone);
-        user.setPasswordHash(request.password());
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setEmailVerified(false);
         issueEmailVerification(user);
         user = support.userRepository.save(user);
@@ -70,6 +76,8 @@ public class AccountService {
         support.attachDefaultMembership(user);
 
         Map<String, Object> response = new LinkedHashMap<>();
+        String token = jwtService.generateToken(user.getEmail() != null ? user.getEmail() : user.getPhone());
+        response.put("token", token);
         response.put("user", support.userSummary(user));
         response.put("verificationRequired", !user.isEmailVerified());
         response.put("emailDeliveryStatus", delivery.status());
@@ -84,17 +92,21 @@ public class AccountService {
         AppUser user = support.userRepository.findByEmail(identity)
                 .or(() -> support.userRepository.findByPhone(identity))
                 .orElseThrow(() -> support.notFound("Account not found"));
-        if (!Objects.equals(user.getPasswordHash(), request.password())) {
+        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
         if (user.getStatus() != AccountStatus.active) {
             throw new ApiException(HttpStatus.FORBIDDEN, "Account is not active");
         }
+        if (user.isBookingRestricted()) {
+            String reason = support.nvl(user.getRestrictionReason(), "Your account has been restricted by admin");
+            throw new ApiException(HttpStatus.FORBIDDEN, "Account is restricted. Reason: " + reason);
+        }
         user.setLastLoginAt(LocalDateTime.now());
+        String token = jwtService.generateToken(user.getEmail() != null ? user.getEmail() : user.getPhone());
         return Map.of(
-                "token", "demo-token-" + user.getUserId(),
-                "user", support.userSummary(user),
-                "note", "Demo login only. Replace with JWT before production."
+                "token", token,
+                "user", support.userSummary(user)
         );
     }
 
@@ -201,7 +213,7 @@ public class AccountService {
             throw support.badRequest("Reset link has expired. Request a new one.");
         }
         validatePassword(request.newPassword(), request.confirmPassword());
-        user.setPasswordHash(request.newPassword());
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
         user.setPasswordResetToken(null);
         user.setPasswordResetSentAt(null);
         return Map.of("message", "Password reset successfully");
@@ -211,14 +223,14 @@ public class AccountService {
     public Map<String, Object> changePassword(Long userId, ApiRequests.PasswordChange request) {
         AppUser user = support.getUser(userId);
         support.requireText(request.currentPassword(), "Current password is required");
-        if (!Objects.equals(user.getPasswordHash(), request.currentPassword())) {
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "Current password is incorrect");
         }
         validatePassword(request.newPassword(), request.confirmPassword());
-        if (Objects.equals(user.getPasswordHash(), request.newPassword())) {
+        if (passwordEncoder.matches(request.newPassword(), user.getPasswordHash())) {
             throw support.badRequest("New password must be different from the current password");
         }
-        user.setPasswordHash(request.newPassword());
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
         return Map.of(
                 "user", support.userSummary(user),
                 "message", "Password changed successfully"
@@ -230,10 +242,27 @@ public class AccountService {
         if (!"Customer".equalsIgnoreCase(user.getRole().getRoleName())) {
             throw support.badRequest("Only customer accounts can be restricted for booking");
         }
+        VerificationEmailDelivery delivery = null;
         user.setBookingRestricted(request.bookingRestricted());
         String reason = support.clean(request.restrictionReason());
-        user.setRestrictionReason(request.bookingRestricted() ? (support.isBlank(reason) ? "Booking restricted by admin" : reason) : null);
-        return support.userSummary(user);
+        if (request.bookingRestricted()) {
+            support.requireText(reason, "Restriction reason is required");
+            user.setRestrictionReason(reason);
+            if (!support.isBlank(user.getEmail())) {
+                delivery = verificationEmailService.sendRestrictionEmail(user, reason);
+            }
+        } else {
+            user.setRestrictionReason(null);
+        }
+
+        Map<String, Object> response = new LinkedHashMap<>(support.userSummary(user));
+        if (delivery != null) {
+            response.put("emailDeliveryStatus", delivery.status());
+            response.put("message", delivery.message());
+        } else {
+            response.put("message", request.bookingRestricted() ? "Customer restricted." : "Customer booking access restored.");
+        }
+        return response;
     }
 
     @Transactional(readOnly = true)

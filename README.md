@@ -52,6 +52,18 @@ Backend:
 scripts/run-backend.sh
 ```
 
+On Windows PowerShell:
+
+```powershell
+.\scripts\run-backend.ps1
+```
+
+To force the local H2 database even when `.env.local` exists:
+
+```powershell
+.\scripts\run-backend.ps1 -Local
+```
+
 Frontend:
 
 ```bash

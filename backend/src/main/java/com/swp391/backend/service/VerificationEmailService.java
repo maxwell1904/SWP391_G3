@@ -88,6 +88,43 @@ public class VerificationEmailService {
         }
     }
 
+    public VerificationEmailDelivery sendRestrictionEmail(AppUser user, String reason) {
+        if (isBlank(smtpUsername) || isBlank(fromEmail)) {
+            return new VerificationEmailDelivery(
+                    false,
+                    "not_configured",
+                    "Restriction email was not sent because SMTP is not configured."
+            );
+        }
+
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setTo(user.getEmail());
+            helper.setFrom(senderAddress());
+            helper.setSubject("Your GoalZone account has been restricted");
+            helper.setText(restrictionPlainText(user, reason), restrictionHtmlText(user, reason));
+            mailSender.send(message);
+            return new VerificationEmailDelivery(
+                    true,
+                    "sent",
+                    "Restriction email sent. The customer has been notified."
+            );
+        } catch (MailException | AddressException | UnsupportedEncodingException exception) {
+            logMailFailure(exception);
+            throw new ApiException(
+                    org.springframework.http.HttpStatus.BAD_GATEWAY,
+                    "Could not send restriction email. Check SMTP settings and try again."
+            );
+        } catch (Exception exception) {
+            logMailFailure(exception);
+            throw new ApiException(
+                    org.springframework.http.HttpStatus.BAD_GATEWAY,
+                    "Could not send restriction email. Check SMTP settings and try again."
+            );
+        }
+    }
+
     public VerificationEmailDelivery sendVerificationEmail(AppUser user) {
         if (isBlank(smtpUsername) || isBlank(fromEmail)) {
             return new VerificationEmailDelivery(
@@ -170,6 +207,29 @@ public class VerificationEmailService {
                 + "<p>If the button does not work, copy this link into your browser:</p>"
                 + "<p><a href=\"" + safeLink + "\">" + safeLink + "</a></p>"
                 + "<p style=\"color:#607062;font-size:13px\">If you did not request this, ignore this email.</p>"
+                + "</div>";
+    }
+
+    private String restrictionPlainText(AppUser user, String reason) {
+        return "Hi " + user.getFullName() + ",\n\n"
+                + "Your GoalZone account has been restricted and you can no longer sign in.\n\n"
+                + "Reason:\n"
+                + reason + "\n\n"
+                + "Please contact GoalZone staff if you need support.";
+    }
+
+    private String restrictionHtmlText(AppUser user, String reason) {
+        String name = escapeHtml(user.getFullName());
+        String safeReason = escapeHtml(reason);
+        return "<div style=\"font-family:Arial,sans-serif;line-height:1.5;color:#17211b;max-width:560px\">"
+                + "<h2 style=\"margin:0 0 12px\">GoalZone account restricted</h2>"
+                + "<p>Hi " + name + ",</p>"
+                + "<p>Your GoalZone account has been restricted and you can no longer sign in.</p>"
+                + "<div style=\"border:1px solid #d8e2d8;background:#f7fbf7;border-radius:6px;padding:12px;margin:12px 0\">"
+                + "<strong>Reason</strong>"
+                + "<p style=\"margin:8px 0 0\">" + safeReason + "</p>"
+                + "</div>"
+                + "<p>Please contact GoalZone staff if you need support.</p>"
                 + "</div>";
     }
 
