@@ -58,6 +58,14 @@ public class AppUser extends AuditEntity {
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
 
+    /**
+     * Incremented whenever all active JWTs for this account must become invalid
+     * (logout, password reset/change, or an administrator lock).  This keeps
+     * the API stateless while still giving logout meaningful server-side effect.
+     */
+    @Column(name = "auth_version", nullable = false)
+    private long authVersion;
+
     @Column(name = "email_verified", nullable = false)
     private boolean emailVerified;
 

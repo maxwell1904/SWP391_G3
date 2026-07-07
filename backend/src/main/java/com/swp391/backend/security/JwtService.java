@@ -53,6 +53,18 @@ public class JwtService {
         return (extractedUsername.equals(username)) && !isTokenExpired(token);
     }
 
+    public boolean isTokenValid(String token, SecurityUser user) {
+        if (!isTokenValid(token, user.getUsername())) {
+            return false;
+        }
+        Number tokenAuthVersion = extractClaim(token, claims -> claims.get("authVersion", Number.class));
+        return tokenAuthVersion != null && tokenAuthVersion.longValue() == user.getAppUser().getAuthVersion();
+    }
+
+    public String generateToken(SecurityUser user) {
+        return generateToken(Map.of("authVersion", user.getAppUser().getAuthVersion()), user.getUsername());
+    }
+
     private boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
     }
