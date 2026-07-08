@@ -74,6 +74,18 @@ public final class ApiRequests {
     ) {
     }
 
+    public record AccountStatusUpdate(String status) {
+    }
+
+    public record StaffUpsert(
+            String fullName,
+            String email,
+            String phone,
+            String password,
+            String status
+    ) {
+    }
+
     public record ServiceSelection(
             Long serviceId,
             Integer quantity
@@ -93,6 +105,14 @@ public final class ApiRequests {
 
     public record BookingStatusUpdate(
             String status,
+            Long staffId,
+            String note
+    ) {
+    }
+
+    /** Moves an unstarted booking to another available slot. */
+    public record BookingReschedule(
+            Long newSlotId,
             Long staffId,
             String note
     ) {
@@ -145,6 +165,14 @@ public final class ApiRequests {
             BigDecimal refundAmount,
             String refundReason,
             boolean approveNow
+    ) {
+    }
+
+    /** Staff-only lifecycle action for a customer refund request. */
+    public record RefundStatusUpdate(
+            String status,
+            Long processedById,
+            String note
     ) {
     }
 
@@ -225,6 +253,9 @@ public final class ApiRequests {
             String blockNote,
             Long createdById
     ) {
+    }
+
+    public record BookingServicesUpdate(List<ServiceSelection> services) {
     }
 
     public record MembershipLevelUpsert(

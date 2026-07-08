@@ -3,6 +3,7 @@ package com.swp391.backend.controller;
 import com.swp391.backend.dto.ApiRequests;
 import com.swp391.backend.service.AccountService;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/account")
@@ -23,6 +24,11 @@ public class AccountController {
         return accountService.login(request);
     }
 
+    @PostMapping("/logout")
+    public Object logout() {
+        return accountService.logout();
+    }
+
     @PostMapping("/email/verify")
     public Object verifyEmail(@RequestBody ApiRequests.EmailVerification request) {
         return accountService.verifyEmail(request);
@@ -36,6 +42,12 @@ public class AccountController {
     @GetMapping("/users")
     public Object users(@RequestParam(required = false) String role) {
         return accountService.users(role);
+    }
+
+    /** A counter-safe customer directory for walk-in bookings; it is not the admin user-management API. */
+    @GetMapping("/customers")
+    public Object customers() {
+        return accountService.walkInCustomers();
     }
 
     @PutMapping("/users/{userId}/profile")
@@ -66,5 +78,30 @@ public class AccountController {
     @PutMapping("/users/{userId}/restriction")
     public Object updateRestriction(@PathVariable Long userId, @RequestBody ApiRequests.RestrictionUpdate request) {
         return accountService.updateRestriction(userId, request);
+    }
+
+    @PutMapping("/users/{userId}/status")
+    public Object updateStatus(@PathVariable Long userId, @RequestBody ApiRequests.AccountStatusUpdate request) {
+        return accountService.updateStatus(userId, request);
+    }
+
+    @GetMapping("/users/{userId}/activity")
+    public Object activity(@PathVariable Long userId) {
+        return accountService.activity(userId);
+    }
+
+    @GetMapping("/staff")
+    public Object staff() {
+        return accountService.staff();
+    }
+
+    @PostMapping("/staff")
+    public Object createStaff(@RequestBody ApiRequests.StaffUpsert request) {
+        return accountService.createStaff(request);
+    }
+
+    @PutMapping("/staff/{userId}")
+    public Object updateStaff(@PathVariable Long userId, @RequestBody ApiRequests.StaffUpsert request) {
+        return accountService.updateStaff(userId, request);
     }
 }
