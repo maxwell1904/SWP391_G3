@@ -74,6 +74,18 @@ public class FieldOperationController {
         return fieldOperationService.blockSlot(request);
     }
 
+    @PutMapping("/slots/{slotId}/unblock")
+    public Object unblockSlot(@PathVariable Long slotId) {
+        return fieldOperationService.unblockSlot(slotId);
+    }
+
+    @GetMapping("/operations/calendar")
+    public Object operationCalendar(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        return fieldOperationService.operationCalendar(date);
+    }
+
     @GetMapping("/services")
     public Object services() {
         return fieldOperationService.services();
