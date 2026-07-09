@@ -44,8 +44,18 @@ public class BookingController {
         return bookingWorkflowService.previewCancellation(bookingId);
     }
 
+    @PutMapping("/{bookingId}/reschedule")
+    public Object reschedule(@PathVariable Long bookingId, @RequestBody ApiRequests.BookingReschedule request) {
+        return bookingWorkflowService.reschedule(bookingId, request);
+    }
+
     @PutMapping("/{bookingId}/status")
     public Object updateStatus(@PathVariable Long bookingId, @RequestBody ApiRequests.BookingStatusUpdate request) {
         return bookingWorkflowService.updateBookingStatus(bookingId, request);
+    }
+
+    @PutMapping("/{bookingId}/services")
+    public Object updateServices(@PathVariable Long bookingId, @RequestBody ApiRequests.BookingServicesUpdate request) {
+        return bookingWorkflowService.updateBookingServices(bookingId, request);
     }
 }
