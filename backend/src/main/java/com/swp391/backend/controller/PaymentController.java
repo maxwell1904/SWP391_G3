@@ -59,4 +59,9 @@ public class PaymentController {
     public Object createRefund(@RequestBody ApiRequests.RefundCreate request) {
         return paymentWorkflowService.createRefund(request);
     }
+
+    @PutMapping("/refunds/{refundId}/status")
+    public Object updateRefundStatus(@PathVariable Long refundId, @RequestBody ApiRequests.RefundStatusUpdate request) {
+        return paymentWorkflowService.updateRefundStatus(refundId, request);
+    }
 }
