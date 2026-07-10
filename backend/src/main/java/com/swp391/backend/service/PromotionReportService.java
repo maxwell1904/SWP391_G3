@@ -6,10 +6,15 @@ import com.swp391.backend.enums.BookingStatus;
 import com.swp391.backend.enums.CommonStatus;
 import com.swp391.backend.enums.DiscountType;
 import com.swp391.backend.enums.PaymentStatus;
+import com.swp391.backend.security.SecurityUser;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,6 +60,7 @@ public class PromotionReportService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> membershipProgress(Long customerId) {
+        requireSelfOrAdmin(customerId);
         AppUser customer = support.getUser(customerId);
         CustomerMembership membership = support.customerMembershipRepository.findByCustomer_UserId(customerId)
                 .orElseThrow(() -> support.notFound("Membership not found"));
@@ -116,34 +122,75 @@ public class PromotionReportService {
     public Map<String, Object> reports() {
         List<Booking> bookings = support.bookingRepository.findAll();
         List<Payment> payments = support.paymentRepository.findAll();
-        BigDecimal revenue = payments.stream()
+        List<Refund> refunds = support.refundRepository.findAll();
+        BigDecimal grossRevenue = payments.stream()
                 .filter(payment -> payment.getStatus() == PaymentStatus.paid)
                 .map(Payment::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal completedRefunds = refunds.stream()
+                .filter(refund -> refund.getStatus() == com.swp391.backend.enums.RefundStatus.completed)
+                .map(Refund::getRefundAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         long completed = bookings.stream().filter(booking -> booking.getStatus() == BookingStatus.completed).count();
         long cancelled = bookings.stream().filter(booking -> booking.getStatus() == BookingStatus.cancelled).count();
         long noShow = bookings.stream().filter(booking -> booking.getStatus() == BookingStatus.no_show).count();
 
         Map<String, Long> byField = new LinkedHashMap<>();
+        Map<String, BigDecimal> bookedRevenueByField = new LinkedHashMap<>();
+        Map<String, Long> peakSlots = new LinkedHashMap<>();
+        Map<String, Long> bookingStatusCounts = new LinkedHashMap<>();
+        BigDecimal fieldValue = BigDecimal.ZERO;
+        BigDecimal serviceValue = BigDecimal.ZERO;
+        BigDecimal promotionDiscount = BigDecimal.ZERO;
+        BigDecimal membershipDiscount = BigDecimal.ZERO;
         for (Booking booking : bookings) {
             byField.merge(booking.getSlot().getField().getFieldName(), 1L, Long::sum);
+            peakSlots.merge(booking.getSlot().getStartTime().toString(), 1L, Long::sum);
+            bookingStatusCounts.merge(booking.getStatus().name(), 1L, Long::sum);
+            if (booking.getStatus() != BookingStatus.rejected && booking.getStatus() != BookingStatus.expired) {
+                fieldValue = fieldValue.add(booking.getFieldPriceAmount());
+                serviceValue = serviceValue.add(booking.getServiceTotalAmount());
+                promotionDiscount = promotionDiscount.add(booking.getPromotionDiscountAmount());
+                membershipDiscount = membershipDiscount.add(booking.getMembershipDiscountAmount());
+                bookedRevenueByField.merge(booking.getSlot().getField().getFieldName(), booking.getFieldPriceAmount(), BigDecimal::add);
+            }
         }
 
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("totalRevenue", support.money(revenue));
-        response.put("bookingCount", bookings.size());
-        response.put("completedCount", completed);
-        response.put("cancelledCount", cancelled);
-        response.put("noShowCount", noShow);
-        response.put("fieldUtilization", byField);
-        response.put("topCustomers", support.userRepository.findAll().stream()
+        List<Map<String, Object>> topCustomers = support.userRepository.findAll().stream()
                 .filter(user -> "Customer".equals(user.getRole().getRoleName()))
                 .map(user -> Map.<String, Object>of(
                         "customerId", user.getUserId(),
                         "fullName", user.getFullName(),
                         "bookingCount", support.bookingRepository.findByCustomer_UserIdOrderByBookingIdDesc(user.getUserId()).size()
                 ))
-                .toList());
+                .sorted(Comparator.<Map<String, Object>>comparingLong(item -> ((Number) item.get("bookingCount")).longValue()).reversed())
+                .toList();
+        long returningCustomers = topCustomers.stream()
+                .filter(customer -> ((Number) customer.get("bookingCount")).longValue() > 1)
+                .count();
+        Map<String, Long> membershipDistribution = new LinkedHashMap<>();
+        support.customerMembershipRepository.findAll().forEach(membership ->
+                membershipDistribution.merge(membership.getMembershipLevel().getLevelName(), 1L, Long::sum));
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("totalRevenue", support.money(grossRevenue.subtract(completedRefunds)));
+        response.put("grossRevenue", support.money(grossRevenue));
+        response.put("refundTotal", support.money(completedRefunds));
+        response.put("fieldRevenue", support.money(fieldValue));
+        response.put("serviceRevenue", support.money(serviceValue));
+        response.put("promotionDiscountTotal", support.money(promotionDiscount));
+        response.put("membershipDiscountTotal", support.money(membershipDiscount));
+        response.put("bookingCount", bookings.size());
+        response.put("completedCount", completed);
+        response.put("cancelledCount", cancelled);
+        response.put("noShowCount", noShow);
+        response.put("fieldUtilization", byField);
+        response.put("bookedRevenueByField", bookedRevenueByField);
+        response.put("bookingStatusCounts", bookingStatusCounts);
+        response.put("peakSlots", peakSlots);
+        response.put("topCustomers", topCustomers);
+        response.put("returningCustomerCount", returningCustomers);
+        response.put("membershipDistribution", membershipDistribution);
         return response;
     }
 
@@ -158,15 +205,35 @@ public class PromotionReportService {
     public Map<String, Object> updateSetting(String key, ApiRequests.SettingUpdate request) {
         SystemSetting setting = support.systemSettingRepository.findBySettingKey(key)
                 .orElseThrow(() -> support.notFound("Setting not found"));
-        setting.setSettingValue(request.settingValue());
+        String value = support.clean(request.settingValue());
+        support.requireText(value, "Setting value is required");
+        validatePolicySetting(key, value);
+        setting.setSettingValue(value);
         if (request.updatedById() != null) {
             setting.setUpdatedBy(support.getUser(request.updatedById()));
         }
         return support.settingSummary(setting);
     }
 
+    private void validatePolicySetting(String key, String value) {
+        try {
+            if (key.equals("deposit.default_percent") || key.startsWith("refund.")) {
+                BigDecimal percent = new BigDecimal(value);
+                if (percent.compareTo(BigDecimal.ZERO) < 0 || percent.compareTo(BigDecimal.valueOf(100)) > 0) {
+                    throw support.badRequest("Percentage policy values must be between 0 and 100");
+                }
+            }
+            if (key.equals("payment.pending_timeout_minutes") || key.equals("notification.booking_reminder_hours")) {
+                if (Integer.parseInt(value) < 1) throw support.badRequest("Time-based policy values must be at least 1");
+            }
+        } catch (NumberFormatException exception) {
+            throw support.badRequest("Policy value must be numeric");
+        }
+    }
+
     @Transactional(readOnly = true)
     public List<Map<String, Object>> notifications(Long userId) {
+        requireSelfOrAdmin(userId);
         return support.notificationRepository.findByUser_UserIdOrderByNotificationIdDesc(userId).stream()
                 .map(support::notificationSummary)
                 .toList();
@@ -176,12 +243,14 @@ public class PromotionReportService {
     public Map<String, Object> toggleNotificationRead(Long notificationId) {
         com.swp391.backend.entity.Notification notification = support.notificationRepository.findById(notificationId)
                 .orElseThrow(() -> support.notFound("Notification not found"));
+        requireSelfOrAdmin(notification.getUser().getUserId());
         notification.setRead(!notification.isRead());
         return support.notificationSummary(support.notificationRepository.save(notification));
     }
 
     // Backlog owner: AnPTT - UC-57/58/59 Mark all notifications as read.
     public Map<String, Object> markAllNotificationsRead(Long userId) {
+        requireSelfOrAdmin(userId);
         List<com.swp391.backend.entity.Notification> unread =
                 support.notificationRepository.findByUser_UserIdOrderByNotificationIdDesc(userId)
                         .stream()
@@ -192,6 +261,21 @@ public class PromotionReportService {
         Map<String, Object> result = new java.util.LinkedHashMap<>();
         result.put("markedCount", unread.size());
         return result;
+    }
+
+    private AppUser currentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof SecurityUser user)) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "Sign in is required");
+        }
+        return user.getAppUser();
+    }
+
+    private void requireSelfOrAdmin(Long userId) {
+        AppUser requester = currentUser();
+        if (!requester.getUserId().equals(userId) && !"Admin".equalsIgnoreCase(requester.getRole().getRoleName())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "You can only access your own account data");
+        }
     }
 
     private void applyPromotionFields(Promotion promotion, ApiRequests.PromotionUpsert request, Long currentId) {
