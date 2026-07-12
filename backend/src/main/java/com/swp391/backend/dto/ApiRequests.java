@@ -169,7 +169,10 @@ public final class ApiRequests {
             Integer usageLimit,
             LocalDate startDate,
             LocalDate endDate,
-            String status
+            String status,
+            Long applicableFieldTypeId,
+            Long applicableExtraServiceId,
+            Long applicableMembershipLevelId
     ) {
     }
 
@@ -221,6 +224,16 @@ public final class ApiRequests {
             String blockReason,
             String blockNote,
             Long createdById
+    ) {
+    }
+
+    public record MembershipLevelUpsert(
+            String levelName,
+            Integer requiredCompletedBookings,
+            BigDecimal discountPercent,
+            String benefitDescription,
+            Integer displayOrder,
+            String status
     ) {
     }
 }

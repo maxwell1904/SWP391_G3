@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { pageFromPath, pageRoutes } from './app/routes'
 import { loadStoredUser, saveStoredUser, saveStoredToken } from './app/session'
-import { AccessPanel, ActionPanel } from './components/common'
+import { AccessPanel, ActionPanel, NotificationBell } from './components/common'
 import { demoPassword, emailPattern, passwordIssues, phonePattern } from './features/auth/authRules'
 import {
   AccountPage,
@@ -17,6 +17,8 @@ import {
   FieldsPage,
   ForgotPasswordPage,
   HomePage,
+  MembershipRulesPage,
+  MembershipBenefitsPage,
   PromotionsPage,
   ResetPasswordPage,
   StaffPage,
@@ -50,6 +52,7 @@ function App() {
   const [membership, setMembership] = useState(null)
   const [reports, setReports] = useState(null)
   const [settings, setSettings] = useState([])
+  const [membershipLevels, setMembershipLevels] = useState([])
   const [notifications, setNotifications] = useState([])
 
   const [searchDate, setSearchDate] = useState(tomorrow())
@@ -264,8 +267,19 @@ function App() {
     if (currentUser?.role === 'Customer') {
       setSelectedCustomerId(currentUser.userId)
       loadMembership(currentUser.userId)
+    }
+    if (currentUser) {
       loadNotifications(currentUser.userId)
     }
+  }, [currentUser])
+
+  // Real-time polling: refresh notifications every 15 seconds for all logged-in users
+  useEffect(() => {
+    if (!currentUser) return undefined
+    const intervalId = setInterval(() => {
+      loadNotifications(currentUser.userId)
+    }, 15000)
+    return () => clearInterval(intervalId)
   }, [currentUser])
 
   useEffect(() => {
@@ -323,13 +337,15 @@ function App() {
         typeRes,
         serviceRes,
         promoRes,
-        settingRes
+        settingRes,
+        membershipLevelsRes
       ] = await Promise.all([
         api.get('/fields'),
         api.get('/field-types'),
         api.get('/services'),
-        api.get('/promotions'),
-        api.get('/settings')
+        api.get('/promotions' + (currentUser?.role === 'Admin' ? '?includeInactive=true' : '')),
+        api.get('/settings'),
+        api.get('/membership/levels')
       ])
       
       setFields(fieldRes.data)
@@ -337,6 +353,7 @@ function App() {
       setServices(serviceRes.data)
       setPromotions(promoRes.data)
       setSettings(settingRes.data)
+      setMembershipLevels(membershipLevelsRes.data)
 
       // 2. Load role-specific data conditionally
       const isStaffOrAdmin = currentUser?.role === 'Staff' || currentUser?.role === 'Admin'
@@ -435,9 +452,51 @@ function App() {
     setMembership(response.data)
   }
 
-  async function loadNotifications(customerId) {
-    const response = await api.get(`/notifications/${customerId}`)
-    setNotifications(response.data)
+  async function loadNotifications(userId) {
+    try {
+      const response = await api.get(`/notifications/${userId}`)
+      setNotifications(response.data)
+    } catch {
+      // silently fail for background polls
+    }
+  }
+
+  async function toggleNotificationRead(notificationId) {
+    try {
+      const response = await api.put(`/notifications/${notificationId}/toggle`)
+      setNotifications(prev => prev.map(n =>
+        n.notificationId === notificationId ? response.data : n
+      ))
+    } catch (error) {
+      setNotice(error.response?.data?.error || 'Could not update notification')
+    }
+  }
+
+  async function markAllNotificationsRead(userId) {
+    try {
+      await api.put(`/notifications/user/${userId}/read-all`)
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+    } catch (error) {
+      setNotice(error.response?.data?.error || 'Could not mark notifications')
+    }
+  }
+
+  async function createMembershipLevel(payload) {
+    await runAction(async () => api.post('/membership/levels', payload), 'Membership level created')
+  }
+
+  async function updateMembershipLevel(id, payload) {
+    await runAction(async () => api.put(`/membership/levels/${id}`, payload), 'Membership level updated')
+  }
+
+  async function createPromotion(payload) {
+    if (!isAdmin) return
+    await runAction(async () => api.post('/promotions', payload), 'Promotion created')
+  }
+
+  async function updatePromotion(promotionId, payload) {
+    if (!isAdmin) return
+    await runAction(async () => api.put(`/promotions/${promotionId}`, payload), 'Promotion updated')
   }
 
   async function runAction(action, successMessage) {
@@ -902,16 +961,30 @@ function App() {
               <button className={currentPage === 'booking' ? 'active' : ''} onClick={() => navigatePage('booking')}>Booking</button>
             </>
           )}
-          {(!currentUser || currentUser.role === 'Customer') && (
-            <button className={currentPage === 'promotions' ? 'active' : ''} onClick={() => navigatePage('promotions')}>Promotions</button>
+          {(!currentUser || currentUser.role === 'Customer' || currentUser.role === 'Admin') && (
+            <>
+              <button className={currentPage === 'promotions' ? 'active' : ''} onClick={() => navigatePage('promotions')}>Promotions</button>
+              <button className={currentPage === 'membership-benefits' ? 'active' : ''} onClick={() => navigatePage('membership-benefits')}>Membership</button>
+            </>
           )}
           {currentUser && <button className={currentPage === 'account' ? 'active' : ''} onClick={() => navigatePage('account')}>My account</button>}
           {canOperate && <button className={currentPage === 'staff' ? 'active' : ''} onClick={() => navigatePage('staff')}>Staff</button>}
-          {isAdmin && <button className={currentPage === 'admin' ? 'active' : ''} onClick={() => navigatePage('admin')}>Admin</button>}
+          {isAdmin && (
+            <>
+              <button className={currentPage === 'admin' ? 'active' : ''} onClick={() => navigatePage('admin')}>Admin</button>
+              <button className={currentPage === 'membership-rules' ? 'active' : ''} onClick={() => navigatePage('membership-rules')}>Membership Rules</button>
+            </>
+          )}
         </nav>
         <div className="headerActions">
           {currentUser ? (
             <>
+              <NotificationBell
+                currentUser={currentUser}
+                notifications={notifications}
+                onToggleRead={toggleNotificationRead}
+                onMarkAllRead={markAllNotificationsRead}
+              />
               <button
                 className="accountButton"
                 onClick={() => navigatePage('account')}
@@ -1076,7 +1149,35 @@ function App() {
         )}
 
         {(currentPage === 'home' || currentPage === 'promotions') && (
-          <PromotionsPage promotions={promotions} />
+          <PromotionsPage
+            promotions={promotions}
+            currentUser={currentUser}
+            createPromotion={createPromotion}
+            updatePromotion={updatePromotion}
+            fieldTypes={fieldTypes}
+            services={services}
+            membershipLevels={membershipLevels}
+          />
+        )}
+
+        {currentPage === 'membership-rules' && isAdmin && (
+          <MembershipRulesPage
+            membershipLevels={membershipLevels}
+            currentUser={currentUser}
+            createMembershipLevel={createMembershipLevel}
+            updateMembershipLevel={updateMembershipLevel}
+          />
+        )}
+
+        {currentPage === 'membership-rules' && !isAdmin && (
+          <AccessPanel title="Admin access" text="Login with an admin account to manage membership rules." onLogin={() => navigatePage('login')} />
+        )}
+
+        {currentPage === 'membership-benefits' && (
+          <MembershipBenefitsPage
+            membershipLevels={membershipLevels}
+            membership={membership}
+          />
         )}
 
         {currentPage === 'staff' && canOperate && (

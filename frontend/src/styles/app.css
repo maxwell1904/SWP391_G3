@@ -2282,3 +2282,558 @@ main.pageMain .section {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ============================
+   Promotions Admin Controls
+   ============================ */
+
+.adminControls {
+  margin-bottom: 2rem;
+}
+
+.promoForm {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 1.75rem;
+  box-shadow: var(--shadow);
+}
+
+.promoForm h3 {
+  margin: 0 0 1.25rem;
+  font-size: 1.15rem;
+  color: var(--ink);
+}
+
+.promoFormGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.promoFormGrid .fullWidth {
+  grid-column: 1 / -1;
+}
+
+.promoFormGrid textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.promoStatus {
+  font-size: 0.78rem;
+  font-weight: 820;
+  text-transform: uppercase;
+  color: var(--green);
+}
+
+.promoAdminActions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--line);
+  margin-top: 0.5rem;
+}
+
+/* ============================
+   Promo Card Grid + Pagination
+   ============================ */
+
+.promoSummaryLine {
+  margin: 0 0 1.25rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.promoCodeBadge {
+  background: var(--green-soft);
+  color: var(--green-dark);
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.promoStatusPill {
+  padding: 0.18rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 820;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.promoStatusPill.active {
+  background: var(--green-soft);
+  color: var(--green-dark);
+}
+
+.promoStatusPill.inactive {
+  background: rgba(212, 92, 45, 0.12);
+  color: #9a3c18;
+}
+
+.promoCardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1.25rem;
+}
+
+.promoCardFull {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.promoCardFull:hover {
+  border-color: rgba(23, 111, 70, 0.28);
+  box-shadow: 0 12px 32px rgba(24, 69, 42, 0.1);
+  transform: translateY(-2px);
+}
+
+.promoCardFull.inactive {
+  opacity: 0.68;
+  border-style: dashed;
+}
+
+.promoCardFullHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.promoCardFullTitle {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.promoCardFullTitle h3 {
+  margin: 0;
+  font-size: 1.08rem;
+  color: var(--ink);
+  line-height: 1.25;
+}
+
+.promoDiscountBig {
+  font-size: 1.12rem;
+  font-weight: 860;
+  color: var(--green);
+  white-space: nowrap;
+}
+
+.promoCardDesc {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.promoDetailGrid {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 1rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.875rem;
+}
+
+.promoDetailGrid div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.promoDetailGrid dt {
+  font-size: 0.72rem;
+  font-weight: 820;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.promoDetailGrid dd {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.promoCardActions {
+  border-top: 1px solid var(--line);
+  padding-top: 0.875rem;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.promoCardActions .ghostDarkButton {
+  min-height: 36px;
+  padding: 0 1rem;
+  font-size: 0.875rem;
+}
+
+/* Pagination */
+.promoPagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 2rem;
+}
+
+.promoPaginationBtn {
+  min-width: 38px;
+  min-height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--white);
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 760;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 180ms ease, background 180ms ease, color 180ms ease, transform 180ms ease;
+}
+
+.promoPaginationBtn:hover:not(:disabled) {
+  border-color: rgba(23, 111, 70, 0.35);
+  background: var(--faint);
+  color: var(--green-dark);
+}
+
+.promoPaginationBtn.active {
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--white);
+  font-weight: 820;
+}
+
+.promoPaginationBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+
+
+.promoListItem {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.promoListItem:hover {
+  border-color: rgba(23, 111, 70, 0.3);
+  box-shadow: 0 10px 28px rgba(24, 69, 42, 0.1);
+}
+
+.promoListItem.inactive {
+  opacity: 0.7;
+}
+
+.promoHeader {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+
+.promoHeaderMain {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.promoHeaderMain h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+
+.promoCodeBadge {
+  background: var(--green-soft);
+  color: var(--green-dark);
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.promoHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.promoHeaderRight strong {
+  font-size: 1.05rem;
+  color: var(--green);
+}
+
+.expandIcon {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.promoDetails {
+  padding: 1.25rem 1.5rem 1.5rem;
+  border-top: 1px solid var(--line);
+  animation: slideDown 0.22s ease-out forwards;
+}
+
+.promoDescription {
+  color: var(--muted);
+  margin: 0 0 1rem;
+  line-height: 1.55;
+}
+
+.promoRules {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.25rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.5rem;
+}
+
+.promoRules li {
+  color: var(--ink);
+  font-size: 0.9rem;
+  display: flex;
+  gap: 0.4rem;
+}
+
+.promoRules li strong {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================
+   Notification Bell Dropdown
+   ============================ */
+
+.notificationBellWrapper {
+  position: relative;
+}
+
+.notificationBellButton {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  color: var(--ink);
+  transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease, color 180ms ease;
+}
+
+.notificationBellButton:hover {
+  border-color: rgba(23, 111, 70, 0.3);
+  color: var(--green);
+  box-shadow: 0 10px 24px rgba(24, 69, 42, 0.11);
+}
+
+.notificationBadge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: #d45c2d;
+  color: #fff;
+  font-size: 0.63rem;
+  font-weight: 850;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  border: 2px solid #f6faf5;
+  pointer-events: none;
+}
+
+.notificationDropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 360px;
+  max-height: 480px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 22px 55px rgba(24, 69, 42, 0.14);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  z-index: 200;
+  animation: slideDown 0.2s ease-out;
+}
+
+.notificationDropdownHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+  background: #ffffff;
+}
+
+.notificationDropdownHeader h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 820;
+  color: var(--ink);
+}
+
+.markAllReadBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--green);
+  font-weight: 760;
+  padding: 0;
+  min-height: auto;
+  transition: opacity 180ms ease;
+}
+
+.markAllReadBtn:hover {
+  opacity: 0.7;
+}
+
+.notificationList {
+  overflow-y: auto;
+  flex: 1;
+  background: #ffffff;
+}
+
+.notificationItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.875rem 1.25rem;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid rgba(18, 32, 24, 0.07);
+  cursor: pointer;
+  background: #ffffff;
+  transition: background 180ms ease;
+  position: relative;
+  min-height: auto;
+  border-radius: 0;
+}
+
+.notificationItem:last-child {
+  border-bottom: none;
+}
+
+.notificationItem.unread {
+  background: #f4fbf6;
+}
+
+.notificationItem.unread:hover,
+.notificationItem.read:hover {
+  background: var(--faint);
+}
+
+.notificationTypeIcon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+  line-height: 1;
+}
+
+.notificationContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.notificationTitle {
+  font-size: 0.875rem;
+  font-weight: 820;
+  color: var(--ink);
+  margin: 0 0 0.2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notificationItem.read .notificationTitle {
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.notificationMessage {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0 0 0.3rem;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.notificationTime {
+  font-size: 0.73rem;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.unreadDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  flex-shrink: 0;
+  margin-top: 0.4rem;
+}
+
+.notificationEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1rem;
+  gap: 0.5rem;
+  color: var(--muted);
+  background: #ffffff;
+}
+
+.notificationEmpty span {
+  font-size: 2.5rem;
+}
+
+.notificationEmpty p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
