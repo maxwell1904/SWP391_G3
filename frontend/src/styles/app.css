@@ -36,23 +36,11 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 18% 0%, rgba(228, 168, 45, 0.13), transparent 24rem),
-    linear-gradient(180deg, #f7fbf5 0%, #eef6ef 100%);
+  background: #f4f7f4;
 }
 
 body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  opacity: 0.38;
-  background-image:
-    linear-gradient(rgba(18, 32, 24, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(18, 32, 24, 0.035) 1px, transparent 1px);
-  background-size: 44px 44px;
-  mask-image: linear-gradient(to bottom, transparent, black 12%, black 78%, transparent);
+  display: none;
 }
 
 button,
@@ -164,6 +152,7 @@ button:active {
 }
 
 .mainNav {
+  min-width: 0;
   justify-self: center;
   display: flex;
   align-items: center;
@@ -177,6 +166,7 @@ button:active {
   color: #475a4d;
   font-size: 0.93rem;
   font-weight: 750;
+  white-space: nowrap;
 }
 
 .mainNav button:hover {
@@ -205,8 +195,7 @@ button:active {
 .ghostDarkButton,
 .stripButton,
 .actionGrid button:not(.mantine-Button-root),
-.buttonRow button:not(.mantine-Button-root),
-.demoButtons button {
+.buttonRow button:not(.mantine-Button-root) {
   border: 0;
   border-radius: 10px;
   display: inline-flex;
@@ -545,6 +534,53 @@ main.pageMain .section {
   overflow-wrap: anywhere;
 }
 
+.workspaceTabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 20px;
+  padding: 5px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  scrollbar-width: thin;
+}
+
+.workspaceTabs button {
+  flex: 0 0 auto;
+  min-height: 38px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  padding: 0 14px;
+  font-size: 0.88rem;
+  font-weight: 820;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.workspaceTabs button:hover {
+  background: var(--green-soft);
+  color: var(--green-dark);
+}
+
+.workspaceTabs button.active {
+  background: var(--white);
+  color: var(--green-dark);
+  box-shadow: 0 4px 12px rgba(20, 61, 38, 0.1);
+}
+
+.workspaceTabs button:focus-visible {
+  outline: 3px solid rgba(23, 111, 70, 0.32);
+  outline-offset: 2px;
+}
+
+.workspacePanelHidden {
+  display: none !important;
+}
+
 .fieldSection {
   width: min(1210px, calc(100% - 36px));
 }
@@ -639,8 +675,7 @@ main.pageMain .section {
 .promoCard h3,
 .infoPanel h3,
 .serviceBlock h3,
-.checkoutPanel h3,
-.demoPanel h3 {
+.checkoutPanel h3 {
   margin: 0;
   font-size: 1.08rem;
   line-height: 1.22;
@@ -648,7 +683,6 @@ main.pageMain .section {
 
 .fieldCard p,
 .promoCard p,
-.demoPanel p,
 .hintText,
 .emptyText,
 .errorText {
@@ -965,7 +999,6 @@ main.pageMain .section {
 .bookingMain,
 .checkoutPanel,
 .authPanel,
-.demoPanel,
 .infoPanel,
 .promoCard {
   border: 1px solid rgba(255, 255, 255, 0.6);
@@ -977,7 +1010,6 @@ main.pageMain .section {
 .bookingMain,
 .checkoutPanel,
 .authPanel,
-.demoPanel,
 .infoPanel {
   padding: 18px;
 }
@@ -1291,15 +1323,6 @@ main.pageMain .section {
   text-align: center;
 }
 
-.paypalMockButton {
-  min-height: 46px;
-  border: 1px solid #dcae1d;
-  border-radius: 10px;
-  background: #ffc439;
-  color: #142c8e;
-  font-weight: 880;
-}
-
 .summaryLine {
   display: flex;
   align-items: center;
@@ -1402,6 +1425,33 @@ main.pageMain .section {
 .profileForm {
   display: grid;
   gap: 12px;
+}
+
+.cancellationReview {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(202, 73, 49, 0.24);
+  border-radius: 12px;
+  background: #fff8f6;
+  padding: 12px;
+}
+
+.cancellationReview > strong {
+  color: #8f321d;
+}
+
+.dangerButton {
+  min-height: 42px;
+  border: 0;
+  border-radius: 10px;
+  background: #b63f25;
+  color: var(--white);
+  padding: 0 14px;
+  font-weight: 820;
+}
+
+.dangerButton:hover {
+  background: #963019;
 }
 
 .changePasswordSection {
@@ -1525,27 +1575,6 @@ main.pageMain .section {
   text-decoration: none;
 }
 
-.demoPanel {
-  display: block;
-}
-
-.demoPanel summary {
-  cursor: pointer;
-  color: var(--ink);
-  font-weight: 850;
-}
-
-.demoPanel p {
-  margin: 12px 0;
-}
-
-.demoButtons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.demoButtons button,
 .actionGrid button:not(.mantine-Button-root),
 .buttonRow button:not(.mantine-Button-root) {
   min-height: 40px;
@@ -1554,7 +1583,6 @@ main.pageMain .section {
   color: var(--ink);
 }
 
-.demoButtons button:hover,
 .actionGrid button:not(.mantine-Button-root):hover,
 .buttonRow button:not(.mantine-Button-root):hover {
   border-color: rgba(23, 111, 70, 0.34);
@@ -1694,6 +1722,29 @@ main.pageMain .section {
   gap: 12px;
   padding: 11px 12px;
   text-align: left;
+}
+
+.dataList {
+  gap: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.dataRow {
+  min-height: 60px;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  padding: 10px 2px;
+}
+
+.dataRow:last-child {
+  border-bottom: 0;
+}
+
+.dataRow:hover {
+  background: #f7faf7;
 }
 
 .bookingItem:hover {
@@ -1924,7 +1975,7 @@ main.pageMain .section {
 }
 
 .adminGrid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .adminWidePanel {
@@ -1940,6 +1991,14 @@ main.pageMain .section {
 
 .adminWidePanel .customerAdminList {
   max-height: 420px;
+}
+
+.adminOverviewPrimary .metricGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.adminOverviewSecondary {
+  min-height: 0;
 }
 
 .siteFooter {
@@ -2176,12 +2235,20 @@ main.pageMain .section {
     grid-template-columns: 1fr;
   }
 
+  .adminOverviewPrimary .metricGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .stripButton {
     width: 100%;
   }
 
   .section {
     padding-top: 62px;
+  }
+
+  .workspaceTabs {
+    margin-bottom: 16px;
   }
 
   .slotList {
@@ -2836,4 +2903,3 @@ main.pageMain .section {
   margin: 0;
   font-size: 0.9rem;
 }
-
