@@ -24,8 +24,8 @@ export function PayPalCheckout({
   }, [onPrepareBooking, onPaymentComplete, onCancel, onError])
 
   useEffect(() => {
-    if (!config || disabled || config.mockMode) {
-      setStatus(config?.mockMode ? 'ready' : 'loading')
+    if (!config || disabled || !config.enabled) {
+      setStatus(config && !config.enabled ? 'unavailable' : 'loading')
       return undefined
     }
 
@@ -115,43 +115,15 @@ export function PayPalCheckout({
     }
   }, [config, disabled, paymentOption])
 
-  async function completeMockPayment() {
-    try {
-      setStatus('processing')
-      setError('')
-      const booking = bookingRef.current || await callbacksRef.current.onPrepareBooking()
-      bookingRef.current = booking
-      const orderResponse = await api.post(`/bookings/${booking.bookingId}/paypal/orders`, {
-        createdById: booking.customerId,
-        paymentOption
-      })
-      const captureResponse = await api.post(
-        `/bookings/${booking.bookingId}/paypal/orders/${orderResponse.data.orderId}/capture`,
-        { createdById: booking.customerId }
-      )
-      await callbacksRef.current.onPaymentComplete(captureResponse.data)
-      setStatus('complete')
-    } catch (checkoutError) {
-      const message = errorMessage(checkoutError)
-      setError(message)
-      setStatus('error')
-      callbacksRef.current.onError?.(message)
-    }
-  }
-
-  if (!config) return <p className="emptyText">Loading PayPal Sandbox...</p>
-  if (config.mockMode) {
-    return (
-      <button className="paypalMockButton" disabled={disabled || status === 'processing'} onClick={completeMockPayment}>
-        {status === 'processing' ? 'Processing PayPal simulation...' : 'Complete mock PayPal payment'}
-      </button>
-    )
+  if (!config) return <p className="emptyText">Loading PayPal...</p>
+  if (!config.enabled) {
+    return <p className="errorText">Online payment is currently unavailable. Please try again later.</p>
   }
 
   return (
     <div className="paypalCheckout">
       <div ref={containerRef} />
-      {status === 'loading' && <p className="emptyText">Loading PayPal Sandbox...</p>}
+      {status === 'loading' && <p className="emptyText">Loading PayPal...</p>}
       {status === 'processing' && <p className="paypalStatus">Processing secure payment...</p>}
       {error && <p className="errorText">{error}</p>}
     </div>
@@ -172,7 +144,7 @@ function loadPayPalSdk(config) {
     script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(config.clientId)}&currency=${encodeURIComponent(config.currency)}&intent=capture&components=buttons`
     script.async = true
     script.onload = () => resolve(window.paypal)
-    script.onerror = () => reject(new Error('Could not load the PayPal Sandbox SDK'))
+    script.onerror = () => reject(new Error('Could not load the PayPal SDK'))
     document.head.appendChild(script)
   })
   return paypalSdkPromise
