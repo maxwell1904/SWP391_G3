@@ -98,16 +98,16 @@ export function PromotionsPage({ promotions, currentUser, createPromotion, updat
                 <FieldControl label="Discount Type">
                   <select value={editForm.discountType} onChange={e => updateField('discountType', e.target.value)}>
                     <option value="percent">Percent (%)</option>
-                    <option value="fixed_amount">Fixed Amount (₫)</option>
+                    <option value="fixed_amount">Fixed Amount (USD)</option>
                   </select>
                 </FieldControl>
-                <FieldControl label={editForm.discountType === 'percent' ? 'Discount (%)' : 'Discount (₫)'}>
+                <FieldControl label={editForm.discountType === 'percent' ? 'Discount (%)' : 'Discount (USD)'}>
                   <input type="number" value={editForm.discountValue} onChange={e => updateField('discountValue', e.target.value)} min="0" />
                 </FieldControl>
-                <FieldControl label="Max Discount ₫ (optional)">
+                <FieldControl label="Max Discount USD (optional)">
                   <input type="number" value={editForm.maxDiscountAmount} onChange={e => updateField('maxDiscountAmount', e.target.value)} min="0" placeholder="Leave blank for no cap" />
                 </FieldControl>
-                <FieldControl label="Min Booking ₫ (optional)">
+                <FieldControl label="Min Booking USD (optional)">
                   <input type="number" value={editForm.minBookingAmount} onChange={e => updateField('minBookingAmount', e.target.value)} min="0" placeholder="Leave blank for any amount" />
                 </FieldControl>
                 <FieldControl label="Start Date">
