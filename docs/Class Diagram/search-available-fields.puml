@@ -1,0 +1,118 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class FieldOperationController <<controller>> {
+    -fieldOperationService : FieldOperationService
+
+    +searchSlots(@RequestParam LocalDate date, @RequestParam Long fieldTypeId) : Object
+}
+
+class FieldOperationService <<service>> {
+    -support : DemoSupportService
+
+    +searchSlots(date : LocalDate, fieldTypeId : Long) : List<Map<String, Object>>
+}
+
+class DemoSupportService <<service>> {
+    -slotRepository : SlotRepository
+    -fieldPriceRepository : FieldPriceRepository
+    -bookingRepository : BookingRepository
+
+    +calculateFieldPrice(slot : Slot) : BigDecimal
+}
+
+interface SlotRepository <<repository>> {
+    +findBySlotDate(date : LocalDate) : List<Slot>
+}
+
+interface FieldPriceRepository <<repository>> {
+    +findByField_FieldId(fieldId : Long) : List<FieldPrice>
+}
+
+interface BookingRepository <<repository>> {
+    +existsBySlotAndStatusIn(slot : Slot, statuses : Collection<BookingStatus>) : boolean
+}
+
+class AuditEntity <<entity>> {
+    -createdAt : LocalDateTime
+    -updatedAt : LocalDateTime
+}
+
+class Slot <<entity>> {
+    -slotId : Long
+    -field : FootballField
+    -slotDate : LocalDate
+    -startTime : LocalTime
+    -endTime : LocalTime
+    -status : SlotStatus
+    -blockReason : String
+    -blockNote : String
+    -createdBy : AppUser
+}
+
+class FootballField <<entity>> {
+    -fieldId : Long
+    -fieldType : FieldType
+    -fieldName : String
+    -description : String
+    -imageUrl : String
+    -location : String
+    -surfaceType : String
+    -status : CommonStatus
+}
+
+class FieldType <<entity>> {
+    -fieldTypeId : Long
+    -typeName : String
+    -playerCapacity : Integer
+    -description : String
+    -status : CommonStatus
+}
+
+class FieldPrice <<entity>> {
+    -fieldPriceId : Long
+    -field : FootballField
+    -dayType : String
+    -startTime : LocalTime
+    -endTime : LocalTime
+    -price : BigDecimal
+    -effectiveFrom : LocalDate
+    -effectiveTo : LocalDate
+    -status : CommonStatus
+}
+
+enum CommonStatus {
+    + active
+    + inactive
+}
+
+enum SlotStatus {
+    + available
+    + blocked
+}
+
+' Relationships
+FieldOperationController ..> FieldOperationService
+FieldOperationService ..> DemoSupportService
+DemoSupportService ..> SlotRepository
+DemoSupportService ..> BookingRepository
+DemoSupportService ..> FieldPriceRepository
+DemoSupportService ..> Slot
+DemoSupportService ..> FootballField
+DemoSupportService ..> FieldPrice
+SlotRepository --> Slot
+BookingRepository --> Booking
+FieldPriceRepository --> FieldPrice
+Slot --> FootballField
+FootballField --> FieldType
+FieldPrice --> FootballField
+FootballField --> CommonStatus
+Slot --> SlotStatus
+Slot -|> AuditEntity
+FootballField -|> AuditEntity
+FieldType -|> AuditEntity
+FieldPrice -|> AuditEntity
+
+@enduml

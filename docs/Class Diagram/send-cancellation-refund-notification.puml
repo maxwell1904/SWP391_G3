@@ -1,0 +1,89 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class BookingController <<controller>> {
+    -bookingWorkflowService : BookingWorkflowService
+
+    +updateStatus(@PathVariable Long bookingId, @RequestBody ApiRequests.BookingStatusUpdate request) : Object
+}
+
+class PaymentController <<controller>> {
+    -paymentWorkflowService : PaymentWorkflowService
+
+    +createRefund(@RequestBody ApiRequests.RefundCreate request) : Object
+}
+
+class BookingWorkflowService <<service>> {
+    -support : DemoSupportService
+
+    +updateBookingStatus(bookingId : Long, request : ApiRequests.BookingStatusUpdate) : Map<String, Object>
+}
+
+class PaymentWorkflowService <<service>> {
+    -support : DemoSupportService
+
+    +createRefund(request : ApiRequests.RefundCreate) : Map<String, Object>
+}
+
+class DemoSupportService <<service>> {
+    -notificationRepository : NotificationRepository
+
+    +notifyUser(user : AppUser, booking : Booking, type : NotificationType, title : String, message : String) : void
+}
+
+interface NotificationRepository <<repository>> {
+    +save(entity : Notification) : Notification
+}
+
+class Notification <<entity>> {
+    -notificationId : Long
+    -user : AppUser
+    -booking : Booking
+    -payment : Payment
+    -refund : Refund
+    -notificationType : NotificationType
+    -title : String
+    -message : String
+    -read : boolean
+    -sentAt : LocalDateTime
+    -createdAt : LocalDateTime
+}
+
+class AppUser <<entity>> {
+    -userId : Long
+    -fullName : String
+    -email : String
+}
+
+class Booking <<entity>> {
+    -bookingId : Long
+    -bookingCode : String
+}
+
+enum NotificationType {
+    + booking_confirmation
+    + booking_reminder
+    + cancellation
+    + refund
+    + payment
+    + issue
+    + system
+}
+
+' Relationships
+BookingController ..> BookingWorkflowService
+PaymentController ..> PaymentWorkflowService
+BookingWorkflowService ..> DemoSupportService
+PaymentWorkflowService ..> DemoSupportService
+DemoSupportService ..> NotificationRepository
+DemoSupportService ..> Notification
+DemoSupportService ..> AppUser
+DemoSupportService ..> Booking
+NotificationRepository --> Notification
+Notification --> AppUser
+Notification --> Booking
+Notification --> NotificationType
+
+@enduml

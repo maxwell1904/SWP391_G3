@@ -1,0 +1,100 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class PaymentController <<controller>> {
+    -paymentWorkflowService : PaymentWorkflowService
+
+    +payments() : Object
+}
+
+class PaymentWorkflowService <<service>> {
+    -support : DemoSupportService
+
+    +payments() : List<Map<String, Object>>
+}
+
+class DemoSupportService <<service>> {
+    -paymentRepository : PaymentRepository
+
+    +paymentSummary(payment : Payment) : Map<String, Object>
+}
+
+interface PaymentRepository <<repository>> {
+    +findAllByOrderByPaymentIdDesc() : List<Payment>
+    +findByBooking_BookingIdOrderByPaymentIdDesc(bookingId : Long) : List<Payment>
+    +findByProviderOrderId(providerOrderId : String) : Optional<Payment>
+    +findByProviderCaptureId(providerCaptureId : String) : Optional<Payment>
+}
+
+class Payment <<entity>> {
+    -paymentId : Long
+    -booking : Booking
+    -paymentCode : String
+    -paymentOption : PaymentOption
+    -paymentMethod : PaymentMethod
+    -amount : BigDecimal
+    -status : PaymentStatus
+    -transactionCode : String
+    -providerOrderId : String
+    -providerCaptureId : String
+    -providerStatus : String
+    -currency : String
+    -idempotencyKey : String
+    -gatewayMessage : String
+    -paidAt : LocalDateTime
+    -expiredAt : LocalDateTime
+    -createdBy : AppUser
+}
+
+class Booking <<entity>> {
+    -bookingId : Long
+    -bookingCode : String
+    -customer : AppUser
+    -status : BookingStatus
+    -totalAmount : BigDecimal
+    -paidAmount : BigDecimal
+    -remainingAmount : BigDecimal
+}
+
+class AuditEntity <<entity>> {
+    -createdAt : LocalDateTime
+    -updatedAt : LocalDateTime
+}
+
+enum PaymentOption {
+    + deposit
+    + full
+    + remaining
+}
+
+enum PaymentMethod {
+    + cash
+    + online_sandbox
+    + paypal_sandbox
+    + bank_transfer
+}
+
+enum PaymentStatus {
+    + pending
+    + paid
+    + failed
+    + expired
+    + refunded
+    + partially_refunded
+}
+
+' Relationships
+PaymentController ..> PaymentWorkflowService
+PaymentWorkflowService ..> DemoSupportService
+DemoSupportService ..> PaymentRepository
+DemoSupportService ..> Payment
+PaymentRepository --> Payment
+Payment --> Booking
+Payment -|> AuditEntity
+Payment --> PaymentOption
+Payment --> PaymentMethod
+Payment --> PaymentStatus
+
+@enduml

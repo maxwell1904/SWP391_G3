@@ -1,0 +1,237 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class BookingController <<controller>> {
+    -bookingWorkflowService : BookingWorkflowService
+
+    +bookingDetail(@PathVariable Long bookingId) : Object
+}
+
+class BookingWorkflowService <<service>> {
+    -support : DemoSupportService
+
+    +bookingDetail(bookingId : Long) : Map<String, Object>
+}
+
+class DemoSupportService <<service>> {
+    -bookingRepository : BookingRepository
+    -bookingServiceItemRepository : BookingServiceItemRepository
+    -paymentRepository : PaymentRepository
+    -bookingPromotionRepository : BookingPromotionRepository
+    -invoiceRepository : InvoiceRepository
+    -refundRepository : RefundRepository
+
+    +getBooking(bookingId : Long) : Booking
+    +bookingSummary(booking : Booking) : Map<String, Object>
+    +bookingServiceSummary(item : BookingServiceItem) : Map<String, Object>
+    +paymentSummary(payment : Payment) : Map<String, Object>
+    +bookingPromotionSummary(bp : BookingPromotion) : Map<String, Object>
+    +invoiceSummary(invoice : Invoice) : Map<String, Object>
+    +refundSummary(refund : Refund) : Map<String, Object>
+    +paymentStatus(booking : Booking) : String
+}
+
+interface BookingRepository <<repository>> {
+    +findById(id : Long) : Optional<Booking>
+}
+
+interface BookingServiceItemRepository <<repository>> {
+    +findByBooking_BookingId(bookingId : Long) : List<BookingServiceItem>
+}
+
+interface PaymentRepository <<repository>> {
+    +findByBooking_BookingIdOrderByPaymentIdDesc(bookingId : Long) : List<Payment>
+}
+
+interface BookingPromotionRepository <<repository>> {
+    +findByBooking_BookingId(bookingId : Long) : List<BookingPromotion>
+}
+
+interface InvoiceRepository <<repository>> {
+    +findByBooking_BookingId(bookingId : Long) : Optional<Invoice>
+}
+
+interface RefundRepository <<repository>> {
+    +findByBooking_BookingIdOrderByRefundIdDesc(bookingId : Long) : List<Refund>
+}
+
+class AuditEntity <<entity>> {
+    -createdAt : LocalDateTime
+    -updatedAt : LocalDateTime
+}
+
+class Booking <<entity>> {
+    -bookingId : Long
+    -customer : AppUser
+    -staff : AppUser
+    -slot : Slot
+    -bookingCode : String
+    -status : BookingStatus
+    -bookingSource : BookingSource
+    -fieldPriceAmount : BigDecimal
+    -serviceTotalAmount : BigDecimal
+    -promotionDiscountAmount : BigDecimal
+    -membershipDiscountAmount : BigDecimal
+    -totalAmount : BigDecimal
+    -depositAmount : BigDecimal
+    -paidAmount : BigDecimal
+    -remainingAmount : BigDecimal
+    -cancellationFeeAmount : BigDecimal
+    -refundableAmount : BigDecimal
+    -note : String
+    -confirmedAt : LocalDateTime
+    -checkedInAt : LocalDateTime
+    -completedAt : LocalDateTime
+    -cancelledAt : LocalDateTime
+    -expiredAt : LocalDateTime
+}
+
+class BookingServiceItem <<entity>> {
+    -bookingServiceId : Long
+    -booking : Booking
+    -extraService : ExtraService
+    -quantity : int
+    -unitPrice : BigDecimal
+    -lineTotal : BigDecimal
+}
+
+class Payment <<entity>> {
+    -paymentId : Long
+    -booking : Booking
+    -paymentCode : String
+    -paymentOption : PaymentOption
+    -paymentMethod : PaymentMethod
+    -amount : BigDecimal
+    -status : PaymentStatus
+    -transactionCode : String
+    -providerOrderId : String
+    -providerCaptureId : String
+    -providerStatus : String
+    -currency : String
+    -idempotencyKey : String
+    -gatewayMessage : String
+    -paidAt : LocalDateTime
+    -expiredAt : LocalDateTime
+    -createdBy : AppUser
+}
+
+class BookingPromotion <<entity>> {
+    -bookingPromotionId : Long
+    -booking : Booking
+    -promotion : Promotion
+    -promotionCodeSnapshot : String
+    -discountAmount : BigDecimal
+    -appliedAt : LocalDateTime
+}
+
+class Invoice <<entity>> {
+    -invoiceId : Long
+    -booking : Booking
+    -invoiceCode : String
+    -fieldAmount : BigDecimal
+    -serviceAmount : BigDecimal
+    -discountAmount : BigDecimal
+    -totalAmount : BigDecimal
+    -paidAmount : BigDecimal
+    -remainingAmount : BigDecimal
+    -refundAmount : BigDecimal
+    -issuedAt : LocalDateTime
+}
+
+class Refund <<entity>> {
+    -refundId : Long
+    -booking : Booking
+    -payment : Payment
+    -refundCode : String
+    -requestedBy : AppUser
+    -processedBy : AppUser
+    -refundAmount : BigDecimal
+    -refundReason : String
+    -status : RefundStatus
+    -transactionCode : String
+    -requestedAt : LocalDateTime
+    -processedAt : LocalDateTime
+}
+
+class ExtraService <<entity>> {
+    -extraServiceId : Long
+    -serviceName : String
+    -serviceType : ServiceType
+    -description : String
+    -unitName : String
+    -unitPrice : BigDecimal
+    -stockQuantity : Integer
+    -maxQuantityPerBooking : Integer
+    -status : CommonStatus
+}
+
+enum BookingStatus {
+    + pending
+    + confirmed
+    + checked_in
+    + completed
+    + cancelled
+    + no_show
+    + expired
+    + rejected
+}
+
+enum BookingSource {
+    + online
+    + walk_in
+}
+
+enum PaymentStatus {
+    + pending
+    + paid
+    + failed
+    + expired
+    + refunded
+    + partially_refunded
+}
+
+enum RefundStatus {
+    + requested
+    + approved
+    + rejected
+    + processing
+    + completed
+    + failed
+}
+
+' Relationships
+BookingController ..> BookingWorkflowService
+BookingWorkflowService ..> DemoSupportService
+DemoSupportService ..> BookingRepository
+DemoSupportService ..> BookingServiceItemRepository
+DemoSupportService ..> PaymentRepository
+DemoSupportService ..> BookingPromotionRepository
+DemoSupportService ..> InvoiceRepository
+DemoSupportService ..> RefundRepository
+BookingRepository --> Booking
+BookingServiceItemRepository --> BookingServiceItem
+PaymentRepository --> Payment
+BookingPromotionRepository --> BookingPromotion
+InvoiceRepository --> Invoice
+RefundRepository --> Refund
+BookingServiceItem --> Booking
+BookingServiceItem --> ExtraService
+BookingPromotion --> Booking
+Payment --> Booking
+Invoice --> Booking
+Refund --> Booking
+Refund --> Payment
+Booking -|> AuditEntity
+BookingServiceItem -|> AuditEntity
+Payment -|> AuditEntity
+Invoice -|> AuditEntity
+Refund -|> AuditEntity
+ExtraService -|> AuditEntity
+Booking --> BookingStatus
+Booking --> BookingSource
+Payment --> PaymentStatus
+Refund --> RefundStatus
+
+@enduml

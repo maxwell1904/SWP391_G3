@@ -1,0 +1,120 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class BookingController <<controller>> {
+    -bookingWorkflowService : BookingWorkflowService
+
+    +createBooking(@RequestBody ApiRequests.BookingCreate request) : Object
+}
+
+class BookingWorkflowService <<service>> {
+    -support : DemoSupportService
+
+    +createBooking(request : ApiRequests.BookingCreate) : Map<String, Object>
+}
+
+class DemoSupportService <<service>> {
+    -extraServiceRepository : ExtraServiceRepository
+    -bookingServiceItemRepository : BookingServiceItemRepository
+
+    +saveBookingServices(booking : Booking, selections : List<ApiRequests.ServiceSelection>) : void
+    +validateServiceQuantity(service : ExtraService, quantity : Integer) : int
+    +calculateServiceTotal(selections : List<ApiRequests.ServiceSelection>) : BigDecimal
+    +getExtraService(serviceId : Long) : ExtraService
+}
+
+class "ApiRequests.BookingCreate" as BookingCreateDTO <<dto>> {
+    -customerId : Long
+    -staffId : Long
+    -slotId : Long
+    -bookingSource : String
+    -promotionCode : String
+    -services : List<ServiceSelection>
+    -note : String
+}
+
+class "ApiRequests.ServiceSelection" as ServiceSelectionDTO <<dto>> {
+    -serviceId : Long
+    -quantity : Integer
+}
+
+interface BookingServiceItemRepository <<repository>> {
+    +save(entity : BookingServiceItem) : BookingServiceItem
+}
+
+interface ExtraServiceRepository <<repository>> {
+    +findById(id : Long) : Optional<ExtraService>
+}
+
+class AuditEntity <<entity>> {
+    -createdAt : LocalDateTime
+    -updatedAt : LocalDateTime
+}
+
+class Booking <<entity>> {
+    -bookingId : Long
+    -customer : AppUser
+    -staff : AppUser
+    -slot : Slot
+    -bookingCode : String
+    -status : BookingStatus
+    -bookingSource : BookingSource
+    -fieldPriceAmount : BigDecimal
+    -serviceTotalAmount : BigDecimal
+    -promotionDiscountAmount : BigDecimal
+    -membershipDiscountAmount : BigDecimal
+    -totalAmount : BigDecimal
+    -depositAmount : BigDecimal
+    -paidAmount : BigDecimal
+    -remainingAmount : BigDecimal
+    -cancellationFeeAmount : BigDecimal
+    -refundableAmount : BigDecimal
+    -note : String
+    -confirmedAt : LocalDateTime
+    -checkedInAt : LocalDateTime
+    -completedAt : LocalDateTime
+    -cancelledAt : LocalDateTime
+    -expiredAt : LocalDateTime
+}
+
+class BookingServiceItem <<entity>> {
+    -bookingServiceId : Long
+    -booking : Booking
+    -extraService : ExtraService
+    -quantity : int
+    -unitPrice : BigDecimal
+    -lineTotal : BigDecimal
+}
+
+class ExtraService <<entity>> {
+    -extraServiceId : Long
+    -serviceName : String
+    -serviceType : ServiceType
+    -description : String
+    -unitName : String
+    -unitPrice : BigDecimal
+    -stockQuantity : Integer
+    -maxQuantityPerBooking : Integer
+    -status : CommonStatus
+}
+
+' Relationships
+BookingController ..> BookingWorkflowService
+BookingController ..> BookingCreateDTO
+BookingWorkflowService ..> BookingCreateDTO
+BookingWorkflowService ..> DemoSupportService
+BookingWorkflowService ..> ServiceSelectionDTO
+DemoSupportService ..> ExtraServiceRepository
+DemoSupportService ..> BookingServiceItemRepository
+DemoSupportService ..> Booking
+ExtraServiceRepository --> ExtraService
+BookingServiceItemRepository --> BookingServiceItem
+BookingServiceItem --> Booking
+BookingServiceItem --> ExtraService
+Booking -|> AuditEntity
+BookingServiceItem -|> AuditEntity
+ExtraService -|> AuditEntity
+
+@enduml
