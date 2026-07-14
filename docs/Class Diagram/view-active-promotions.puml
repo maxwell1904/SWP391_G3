@@ -1,0 +1,72 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class PromotionReportController <<controller>> {
+    -promotionReportService : PromotionReportService
+
+    +promotions(@RequestParam(defaultValue = "false") boolean includeInactive) : Object
+}
+
+class PromotionReportService <<service>> {
+    -support : DemoSupportService
+
+    +promotions(includeInactive : boolean) : List<Map<String, Object>>
+}
+
+class DemoSupportService <<service>> {
+    -promotionRepository : PromotionRepository
+
+    +promotionSummary(promotion : Promotion) : Map<String, Object>
+}
+
+interface PromotionRepository <<repository>> {
+    +findByStatus(status : CommonStatus) : List<Promotion>
+    +findAll() : List<Promotion>
+}
+
+class Promotion <<entity>> {
+    -promotionId : Long
+    -promotionCode : String
+    -promotionName : String
+    -bannerUrl : String
+    -description : String
+    -discountType : DiscountType
+    -discountValue : BigDecimal
+    -maxDiscountAmount : BigDecimal
+    -minBookingAmount : BigDecimal
+    -usageLimit : Integer
+    -usedCount : int
+    -startDate : LocalDate
+    -endDate : LocalDate
+    -stackable : boolean
+    -status : CommonStatus
+}
+
+class AuditEntity <<entity>> {
+    -createdAt : LocalDateTime
+    -updatedAt : LocalDateTime
+}
+
+enum CommonStatus {
+    + active
+    + inactive
+}
+
+enum DiscountType {
+    + percent
+    + fixed_amount
+}
+
+' Relationships
+PromotionReportController ..> PromotionReportService
+PromotionReportService ..> DemoSupportService
+DemoSupportService ..> PromotionRepository
+DemoSupportService ..> Promotion
+PromotionRepository --> Promotion
+Promotion -|> AuditEntity
+Promotion --> DiscountType
+Promotion --> CommonStatus
+
+@enduml

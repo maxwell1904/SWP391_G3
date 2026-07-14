@@ -1,0 +1,57 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class PromotionReportController <<controller>> {
+    -promotionReportService : PromotionReportService
+
+    +membershipLevels() : Object
+}
+
+class PromotionReportService <<service>> {
+    -support : DemoSupportService
+
+    +membershipLevels() : List<Map<String, Object>>
+}
+
+class DemoSupportService <<service>> {
+    -membershipLevelRepository : MembershipLevelRepository
+
+    +membershipLevelSummary(level : MembershipLevel) : Map<String, Object>
+}
+
+interface MembershipLevelRepository <<repository>> {
+    +findAllByOrderByDisplayOrderAsc() : List<MembershipLevel>
+}
+
+class MembershipLevel <<entity>> {
+    -membershipLevelId : Long
+    -levelName : String
+    -requiredCompletedBookings : int
+    -discountPercent : BigDecimal
+    -benefitDescription : String
+    -displayOrder : int
+    -status : CommonStatus
+}
+
+class AuditEntity <<entity>> {
+    -createdAt : LocalDateTime
+    -updatedAt : LocalDateTime
+}
+
+enum CommonStatus {
+    + active
+    + inactive
+}
+
+' Relationships
+PromotionReportController ..> PromotionReportService
+PromotionReportService ..> DemoSupportService
+DemoSupportService ..> MembershipLevelRepository
+DemoSupportService ..> MembershipLevel
+MembershipLevelRepository --> MembershipLevel
+MembershipLevel -|> AuditEntity
+MembershipLevel --> CommonStatus
+
+@enduml

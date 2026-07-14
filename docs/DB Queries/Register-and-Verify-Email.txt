@@ -1,0 +1,55 @@
+== Register ==
+
+1. Find user by email (with role JOIN via @EntityGraph)
+SELECT u.*, r.*
+FROM app_user u
+LEFT JOIN role r ON u.role_id = r.role_id
+WHERE u.email = ?
+
+2. Find user by phone (with role JOIN via @EntityGraph)
+SELECT u.*, r.*
+FROM app_user u
+LEFT JOIN role r ON u.role_id = r.role_id
+WHERE u.phone = ?
+
+3. Find role by name
+SELECT *
+FROM role
+WHERE role_name = 'Customer'
+
+4. Insert new user
+INSERT INTO app_user
+  (role_id, full_name, email, phone, password_hash,
+   avatar_url, date_of_birth, address, status, booking_restricted,
+   restriction_reason, last_login_at, email_verified,
+   email_verification_token, email_verification_sent_at,
+   password_reset_token, password_reset_sent_at, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, 'active', false,
+        NULL, NULL, false, ?, ?, NULL, NULL, ?, ?)
+
+5. Find membership levels ordered by display order
+SELECT *
+FROM membership_level
+ORDER BY display_order ASC
+
+6. Insert customer membership
+INSERT INTO customer_membership
+  (customer_id, membership_level_id, completed_booking_count,
+   progress_note, effective_from, effective_to, created_at, updated_at)
+VALUES (?, ?, 0, 'Default membership', ?, NULL, ?, ?)
+
+
+== Email Verification (via link) ==
+
+7. Find user by ID
+SELECT *
+FROM app_user
+WHERE user_id = ?
+
+8. Update user email verified status
+UPDATE app_user
+SET email_verified = true,
+    email_verification_token = NULL,
+    email_verification_sent_at = NULL,
+    updated_at = ?
+WHERE user_id = ?

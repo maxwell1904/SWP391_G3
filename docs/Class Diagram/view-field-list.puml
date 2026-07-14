@@ -1,0 +1,68 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class FieldOperationController <<controller>> {
+    -fieldOperationService : FieldOperationService
+
+    +fields() : Object
+}
+
+class FieldOperationService <<service>> {
+    -support : DemoSupportService
+
+    +fields() : List<Map<String, Object>>
+}
+
+class DemoSupportService <<service>> {
+    -fieldRepository : FootballFieldRepository
+
+    +fieldSummary(field : FootballField) : Map<String, Object>
+}
+
+interface FootballFieldRepository <<repository>> {
+    +findByStatus(status : CommonStatus) : List<FootballField>
+}
+
+class AuditEntity <<entity>> {
+    -createdAt : LocalDateTime
+    -updatedAt : LocalDateTime
+}
+
+class FootballField <<entity>> {
+    -fieldId : Long
+    -fieldType : FieldType
+    -fieldName : String
+    -description : String
+    -imageUrl : String
+    -location : String
+    -surfaceType : String
+    -status : CommonStatus
+}
+
+class FieldType <<entity>> {
+    -fieldTypeId : Long
+    -typeName : String
+    -playerCapacity : Integer
+    -description : String
+    -status : CommonStatus
+}
+
+enum CommonStatus {
+    + active
+    + inactive
+}
+
+' Relationships
+FieldOperationController ..> FieldOperationService
+FieldOperationService ..> DemoSupportService
+DemoSupportService ..> FootballFieldRepository
+DemoSupportService ..> FootballField
+FootballFieldRepository --> FootballField
+FootballField --> FieldType
+FootballField --> CommonStatus
+FootballField -|> AuditEntity
+FieldType -|> AuditEntity
+
+@enduml

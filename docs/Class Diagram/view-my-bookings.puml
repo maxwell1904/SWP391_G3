@@ -1,0 +1,85 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class BookingController <<controller>> {
+    -bookingWorkflowService : BookingWorkflowService
+
+    +bookings(@RequestParam(required = false) Long customerId, @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) : Object
+}
+
+class BookingWorkflowService <<service>> {
+    -support : DemoSupportService
+
+    +bookings(customerId : Long, date : LocalDate) : List<Map<String, Object>>
+}
+
+class DemoSupportService <<service>> {
+    -bookingRepository : BookingRepository
+
+    +bookingSummary(booking : Booking) : Map<String, Object>
+}
+
+interface BookingRepository <<repository>> {
+    +findByCustomer_UserIdOrderByBookingIdDesc(customerId : Long) : List<Booking>
+}
+
+class AuditEntity <<entity>> {
+    -createdAt : LocalDateTime
+    -updatedAt : LocalDateTime
+}
+
+class Booking <<entity>> {
+    -bookingId : Long
+    -customer : AppUser
+    -staff : AppUser
+    -slot : Slot
+    -bookingCode : String
+    -status : BookingStatus
+    -bookingSource : BookingSource
+    -fieldPriceAmount : BigDecimal
+    -serviceTotalAmount : BigDecimal
+    -promotionDiscountAmount : BigDecimal
+    -membershipDiscountAmount : BigDecimal
+    -totalAmount : BigDecimal
+    -depositAmount : BigDecimal
+    -paidAmount : BigDecimal
+    -remainingAmount : BigDecimal
+    -cancellationFeeAmount : BigDecimal
+    -refundableAmount : BigDecimal
+    -note : String
+    -confirmedAt : LocalDateTime
+    -checkedInAt : LocalDateTime
+    -completedAt : LocalDateTime
+    -cancelledAt : LocalDateTime
+    -expiredAt : LocalDateTime
+}
+
+enum BookingStatus {
+    + pending
+    + confirmed
+    + checked_in
+    + completed
+    + cancelled
+    + no_show
+    + expired
+    + rejected
+}
+
+enum BookingSource {
+    + online
+    + walk_in
+}
+
+' Relationships
+BookingController ..> BookingWorkflowService
+BookingWorkflowService ..> DemoSupportService
+DemoSupportService ..> BookingRepository
+DemoSupportService ..> Booking
+BookingRepository --> Booking
+Booking -|> AuditEntity
+Booking --> BookingStatus
+Booking --> BookingSource
+
+@enduml

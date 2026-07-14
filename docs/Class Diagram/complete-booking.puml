@@ -1,0 +1,186 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class BookingController <<controller>> {
+    -bookingWorkflowService : BookingWorkflowService
+
+    +updateStatus(@PathVariable Long bookingId, @RequestBody ApiRequests.BookingStatusUpdate request) : Object
+}
+
+class BookingWorkflowService <<service>> {
+    -support : DemoSupportService
+
+    +updateBookingStatus(bookingId : Long, request : ApiRequests.BookingStatusUpdate) : Map<String, Object>
+}
+
+class DemoSupportService <<service>> {
+    -bookingRepository : BookingRepository
+    -userRepository : AppUserRepository
+    -customerMembershipRepository : CustomerMembershipRepository
+    -membershipLevelRepository : MembershipLevelRepository
+    -invoiceRepository : InvoiceRepository
+
+    +getBooking(bookingId : Long) : Booking
+    +getUser(userId : Long) : AppUser
+    +parseEnum(enumType : Class<T>, value : String, fallback : T) : T
+    +requireCurrentStatus(booking : Booking, status : BookingStatus) : void
+    +updateMembershipProgress(customer : AppUser) : void
+    +generateInvoice(booking : Booking) : void
+    +attachDefaultMembership(customer : AppUser) : CustomerMembership
+    +isBlank(value : String) : boolean
+}
+
+class "ApiRequests.BookingStatusUpdate" as BookingStatusUpdateDTO <<dto>> {
+    -status : String
+    -staffId : Long
+    -note : String
+}
+
+interface BookingRepository <<repository>> {
+    +findById(id : Long) : Optional<Booking>
+    +findByCustomer_UserIdOrderByBookingIdDesc(customerId : Long) : List<Booking>
+}
+
+interface AppUserRepository <<repository>> {
+    +findById(id : Long) : Optional<AppUser>
+}
+
+interface CustomerMembershipRepository <<repository>> {
+    +findByCustomer_UserId(customerId : Long) : Optional<CustomerMembership>
+    +save(entity : CustomerMembership) : CustomerMembership
+}
+
+interface MembershipLevelRepository <<repository>> {
+    +findAllByOrderByDisplayOrderAsc() : List<MembershipLevel>
+}
+
+interface InvoiceRepository <<repository>> {
+    +findByBooking_BookingId(bookingId : Long) : Optional<Invoice>
+    +save(entity : Invoice) : Invoice
+}
+
+class AuditEntity <<entity>> {
+    -createdAt : LocalDateTime
+    -updatedAt : LocalDateTime
+}
+
+class Booking <<entity>> {
+    -bookingId : Long
+    -customer : AppUser
+    -staff : AppUser
+    -slot : Slot
+    -bookingCode : String
+    -status : BookingStatus
+    -bookingSource : BookingSource
+    -fieldPriceAmount : BigDecimal
+    -serviceTotalAmount : BigDecimal
+    -promotionDiscountAmount : BigDecimal
+    -membershipDiscountAmount : BigDecimal
+    -totalAmount : BigDecimal
+    -depositAmount : BigDecimal
+    -paidAmount : BigDecimal
+    -remainingAmount : BigDecimal
+    -cancellationFeeAmount : BigDecimal
+    -refundableAmount : BigDecimal
+    -note : String
+    -confirmedAt : LocalDateTime
+    -checkedInAt : LocalDateTime
+    -completedAt : LocalDateTime
+    -cancelledAt : LocalDateTime
+    -expiredAt : LocalDateTime
+}
+
+class AppUser <<entity>> {
+    -userId : Long
+    -role : Role
+    -fullName : String
+    -email : String
+    -phone : String
+    -passwordHash : String
+    -avatarUrl : String
+    -dateOfBirth : LocalDate
+    -address : String
+    -status : AccountStatus
+    -bookingRestricted : boolean
+    -restrictionReason : String
+    -lastLoginAt : LocalDateTime
+    -emailVerified : boolean
+    -emailVerificationToken : String
+    -emailVerificationSentAt : LocalDateTime
+    -passwordResetToken : String
+    -passwordResetSentAt : LocalDateTime
+}
+
+class Invoice <<entity>> {
+    -invoiceId : Long
+    -booking : Booking
+    -invoiceCode : String
+    -fieldAmount : BigDecimal
+    -serviceAmount : BigDecimal
+    -discountAmount : BigDecimal
+    -totalAmount : BigDecimal
+    -paidAmount : BigDecimal
+    -remainingAmount : BigDecimal
+    -refundAmount : BigDecimal
+    -issuedAt : LocalDateTime
+}
+
+class CustomerMembership <<entity>> {
+    -customerMembershipId : Long
+    -customer : AppUser
+    -membershipLevel : MembershipLevel
+    -completedBookingCount : int
+    -progressNote : String
+    -effectiveFrom : LocalDate
+    -effectiveTo : LocalDate
+}
+
+class MembershipLevel <<entity>> {
+    -membershipLevelId : Long
+    -levelName : String
+    -requiredCompletedBookings : int
+    -discountPercent : BigDecimal
+    -benefitDescription : String
+    -displayOrder : int
+    -status : CommonStatus
+}
+
+enum BookingStatus {
+    + pending
+    + confirmed
+    + checked_in
+    + completed
+    + cancelled
+    + no_show
+    + expired
+    + rejected
+}
+
+' Relationships
+BookingController ..> BookingWorkflowService
+BookingController ..> BookingStatusUpdateDTO
+BookingWorkflowService ..> DemoSupportService
+BookingWorkflowService ..> BookingStatusUpdateDTO
+DemoSupportService ..> BookingRepository
+DemoSupportService ..> AppUserRepository
+DemoSupportService ..> CustomerMembershipRepository
+DemoSupportService ..> MembershipLevelRepository
+DemoSupportService ..> InvoiceRepository
+BookingRepository --> Booking
+AppUserRepository --> AppUser
+CustomerMembershipRepository --> CustomerMembership
+MembershipLevelRepository --> MembershipLevel
+InvoiceRepository --> Invoice
+Invoice --> Booking
+CustomerMembership --> AppUser
+CustomerMembership --> MembershipLevel
+Booking -|> AuditEntity
+AppUser -|> AuditEntity
+Invoice -|> AuditEntity
+CustomerMembership -|> AuditEntity
+MembershipLevel -|> AuditEntity
+Booking --> BookingStatus
+
+@enduml

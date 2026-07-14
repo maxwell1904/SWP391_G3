@@ -1,0 +1,68 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class FieldOperationController <<controller>> {
+    -fieldOperationService : FieldOperationService
+
+    +services() : Object
+}
+
+class FieldOperationService <<service>> {
+    -support : DemoSupportService
+
+    +services() : List<Map<String, Object>>
+}
+
+class DemoSupportService <<service>> {
+    -extraServiceRepository : ExtraServiceRepository
+
+    +serviceSummary(service : ExtraService) : Map<String, Object>
+    +validateServiceQuantity(service : ExtraService, quantity : Integer) : int
+}
+
+interface ExtraServiceRepository <<repository>> {
+    +findByStatus(status : CommonStatus) : List<ExtraService>
+    +findById(id : Long) : Optional<ExtraService>
+}
+
+class AuditEntity <<entity>> {
+    -createdAt : LocalDateTime
+    -updatedAt : LocalDateTime
+}
+
+class ExtraService <<entity>> {
+    -extraServiceId : Long
+    -serviceName : String
+    -serviceType : ServiceType
+    -description : String
+    -unitName : String
+    -unitPrice : BigDecimal
+    -stockQuantity : Integer
+    -maxQuantityPerBooking : Integer
+    -status : CommonStatus
+}
+
+enum CommonStatus {
+    + active
+    + inactive
+}
+
+enum ServiceType {
+    + rental
+    + sale
+    + staff_service
+}
+
+' Relationships
+FieldOperationController ..> FieldOperationService
+FieldOperationService ..> DemoSupportService
+DemoSupportService ..> ExtraServiceRepository
+DemoSupportService ..> ExtraService
+ExtraServiceRepository --> ExtraService
+ExtraService --> CommonStatus
+ExtraService --> ServiceType
+ExtraService -|> AuditEntity
+
+@enduml
