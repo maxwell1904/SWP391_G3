@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Badge, Button, Group, Modal, Stack, Text } from '@mantine/core'
 import { Plus } from 'lucide-react'
-import { FieldControl, InfoPanel, WorkspaceHeader } from '../components/common'
+import { FieldControl, InfoPanel, WorkspaceHeader, WorkspaceTabs } from '../components/common'
 import { DataList, MetricGrid } from '../components/data'
 import api from '../services/api'
 import { formatMoney, formatTimeRange } from '../utils/format'
@@ -37,6 +37,14 @@ const emptyServiceForm = {
   status: 'active'
 }
 
+const emptyStaffForm = {
+  fullName: '',
+  email: '',
+  phone: '',
+  password: '',
+  status: 'active'
+}
+
 const statusColor = status => status === 'active' ? 'green' : 'gray'
 
 export function AdminPage({
@@ -44,6 +52,7 @@ export function AdminPage({
   settings,
   fieldTypes,
   updateDepositSetting,
+  updatePolicySetting,
   customers,
   updateCustomerRestriction,
   refreshAll
@@ -61,6 +70,19 @@ export function AdminPage({
   const [fieldNotice, setFieldNotice] = useState('')
   const [feedbackModal, setFeedbackModal] = useState({ opened: false, title: '', message: '' })
   const [restrictionModal, setRestrictionModal] = useState({ opened: false, customer: null, reason: '' })
+  const [staffAccounts, setStaffAccounts] = useState([])
+  const [selectedStaffId, setSelectedStaffId] = useState('new')
+  const [staffForm, setStaffForm] = useState(emptyStaffForm)
+  const [customerEditor, setCustomerEditor] = useState({ opened: false, customer: null })
+  const [customerActivity, setCustomerActivity] = useState(null)
+  const [policyValues, setPolicyValues] = useState({})
+  const [activePanel, setActivePanel] = useState('overview')
+
+  const panelClass = panel => activePanel === panel ? '' : 'workspacePanelHidden'
+
+  useEffect(() => {
+    setPolicyValues(Object.fromEntries(settings.map(setting => [setting.settingKey, setting.settingValue])))
+  }, [settings])
 
   const selectedField = useMemo(() => (
     selectedFieldId === 'new' ? null : adminFields.find(field => Number(field.fieldId) === Number(selectedFieldId))
@@ -73,7 +95,15 @@ export function AdminPage({
   useEffect(() => {
     loadAdminFields()
     loadAdminServices()
+    loadStaff()
   }, [])
+
+  useEffect(() => {
+    const staff = staffAccounts.find(account => Number(account.userId) === Number(selectedStaffId))
+    setStaffForm(staff ? {
+      fullName: staff.fullName || '', email: staff.email || '', phone: staff.phone || '', password: '', status: staff.status || 'active'
+    } : emptyStaffForm)
+  }, [selectedStaffId, staffAccounts])
 
   useEffect(() => {
     if (!adminFields.length) {
@@ -142,6 +172,11 @@ export function AdminPage({
   async function loadAdminServices() {
     const response = await api.get('/admin/services')
     setAdminServices(response.data)
+  }
+
+  async function loadStaff() {
+    const response = await api.get('/account/staff')
+    setStaffAccounts(response.data)
   }
 
   function updateFieldForm(name, value) {
@@ -359,6 +394,52 @@ export function AdminPage({
     await refreshAll?.()
   }
 
+  async function saveStaff() {
+    try {
+      const staff = staffAccounts.find(account => Number(account.userId) === Number(selectedStaffId))
+      if (staff) await api.put(`/account/staff/${staff.userId}`, staffForm)
+      else await api.post('/account/staff', staffForm)
+      await loadStaff()
+      await refreshAll?.()
+      setFieldNotice(staff ? 'Staff account updated.' : 'Staff account created.')
+    } catch (error) {
+      setFieldNotice(error.response?.data?.error || 'Could not save staff account.')
+    }
+  }
+
+  async function updateCustomerStatus(customer) {
+    const status = customer.status === 'active' ? 'inactive' : 'active'
+    try {
+      await api.put(`/account/users/${customer.userId}/status`, { status })
+      await refreshAll?.()
+      setFieldNotice(status === 'active' ? 'Customer account unlocked.' : 'Customer account locked.')
+    } catch (error) {
+      setFieldNotice(error.response?.data?.error || 'Could not update customer account.')
+    }
+  }
+
+  async function saveCustomerProfile() {
+    const customer = customerEditor.customer
+    if (!customer) return
+    try {
+      await api.put(`/account/users/${customer.userId}/profile`, customer)
+      setCustomerEditor({ opened: false, customer: null })
+      await refreshAll?.()
+      setFieldNotice('Customer profile updated.')
+    } catch (error) {
+      setFieldNotice(error.response?.data?.error || 'Could not update customer profile.')
+    }
+  }
+
+  async function viewCustomerActivity(customer) {
+    try {
+      const response = await api.get(`/account/users/${customer.userId}/activity`)
+      setCustomerActivity(response.data)
+    } catch (error) {
+      setFieldNotice(error.response?.data?.error || 'Could not load customer activity.')
+    }
+  }
+
   return (
     <section id="admin" className="section adminSection">
       <WorkspaceHeader
@@ -367,7 +448,7 @@ export function AdminPage({
         text="Review revenue, booking utilization, field setup, pricing, customer access, and lightweight deposit configuration."
         status={{
           label: 'Scope',
-          value: 'Demo admin',
+          value: 'Operations',
           tone: 'success'
         }}
         metrics={[
@@ -378,8 +459,21 @@ export function AdminPage({
         ]}
       />
 
+      <WorkspaceTabs
+        value={activePanel}
+        onChange={setActivePanel}
+        ariaLabel="Admin workspace sections"
+        items={[
+          { value: 'overview', label: 'Overview' },
+          { value: 'venues', label: 'Fields & pricing' },
+          { value: 'services', label: 'Services' },
+          { value: 'access', label: 'People & access' },
+          { value: 'policies', label: 'Policies' }
+        ]}
+      />
+
       <div className="roleGrid adminGrid">
-        <InfoPanel title="Football fields" className="adminWidePanel">
+        <InfoPanel title="Football fields" className={`adminWidePanel ${panelClass('venues')}`}>
           <div className="adminPanelHeader">
             <span>{fieldNotice || 'Create, edit, activate, or retire fields.'}</span>
             {selectedFieldId === 'new' && (
@@ -447,7 +541,7 @@ export function AdminPage({
           </div>
         </InfoPanel>
 
-        <InfoPanel title="Field pricing" className="adminWidePanel">
+        <InfoPanel title="Field pricing" className={`adminWidePanel ${panelClass('venues')}`}>
           <div className="adminPanelHeader">
             <span>{selectedField ? `Pricing rules for ${selectedField.fieldName}` : 'Select a field first.'}</span>
             {editingPriceId && <Button variant="subtle" onClick={startNewPriceRule}>Cancel edit</Button>}
@@ -478,7 +572,7 @@ export function AdminPage({
               <input type="time" value={priceForm.endTime} onChange={event => updatePriceForm('endTime', event.target.value)} />
             </FieldControl>
             <FieldControl label="Price">
-              <input type="number" min="0" step="10000" value={priceForm.price} onChange={event => updatePriceForm('price', event.target.value)} />
+              <input type="number" min="0" step="0.01" value={priceForm.price} onChange={event => updatePriceForm('price', event.target.value)} />
             </FieldControl>
             <FieldControl label="Effective from">
               <input type="date" value={priceForm.effectiveFrom} onChange={event => updatePriceForm('effectiveFrom', event.target.value)} />
@@ -498,7 +592,7 @@ export function AdminPage({
           </Button>
         </InfoPanel>
 
-        <InfoPanel title="Extra services" className="adminWidePanel">
+        <InfoPanel title="Extra services" className={`adminWidePanel ${panelClass('services')}`}>
           <div className="adminPanelHeader">
             <span>Manage rental, sale, and staff-supported services used during booking.</span>
             {selectedServiceId === 'new' && (
@@ -544,7 +638,7 @@ export function AdminPage({
                   <input value={serviceForm.unitName} onChange={event => updateServiceForm('unitName', event.target.value)} />
                 </FieldControl>
                 <FieldControl label="Unit price">
-                  <input type="number" min="0" step="10000" value={serviceForm.unitPrice} onChange={event => updateServiceForm('unitPrice', event.target.value)} />
+                  <input type="number" min="0" step="0.01" value={serviceForm.unitPrice} onChange={event => updateServiceForm('unitPrice', event.target.value)} />
                 </FieldControl>
                 <FieldControl label="Stock quantity">
                   <input type="number" min="0" value={serviceForm.stockQuantity} onChange={event => updateServiceForm('stockQuantity', event.target.value)} />
@@ -574,16 +668,24 @@ export function AdminPage({
           </div>
         </InfoPanel>
 
-        <InfoPanel title="Revenue report">
+        <InfoPanel title="Revenue report" className={`adminWidePanel adminOverviewPrimary ${panelClass('overview')}`}>
           <MetricGrid metrics={[
-            ['Revenue', formatMoney(reports?.totalRevenue)],
+            ['Net revenue', formatMoney(reports?.totalRevenue)],
+            ['Gross collected', formatMoney(reports?.grossRevenue)],
+            ['Refunded', formatMoney(reports?.refundTotal)],
             ['Bookings', reports?.bookingCount || 0],
             ['Completed', reports?.completedCount || 0],
             ['Cancelled', reports?.cancelledCount || 0]
           ]} />
+          <DataList items={[
+            ['Field value', formatMoney(reports?.fieldRevenue)],
+            ['Service value', formatMoney(reports?.serviceRevenue)],
+            ['Promotion discounts', formatMoney(reports?.promotionDiscountTotal)],
+            ['Membership discounts', formatMoney(reports?.membershipDiscountTotal)]
+          ].map(([title, value]) => ({ title, meta: 'Booking portfolio', value }))} />
         </InfoPanel>
 
-        <InfoPanel title="Field utilization">
+        <InfoPanel title="Field utilization" className={`adminOverviewSecondary ${panelClass('overview')}`}>
           <DataList items={Object.entries(reports?.fieldUtilization || {}).map(([field, count]) => ({
             title: field,
             meta: 'Bookings',
@@ -591,7 +693,37 @@ export function AdminPage({
           }))} />
         </InfoPanel>
 
-        <InfoPanel title="Deposit rule">
+        <InfoPanel title="Booking trends" className={`adminOverviewSecondary ${panelClass('overview')}`}>
+          <DataList items={Object.entries(reports?.bookingStatusCounts || {}).map(([status, count]) => ({
+            title: status.replace(/_/g, ' '),
+            meta: 'Bookings by lifecycle status',
+            value: count
+          }))} />
+          <DataList items={Object.entries(reports?.peakSlots || {}).map(([time, count]) => ({
+            title: `${time} start`,
+            meta: 'Peak start-time demand',
+            value: count
+          }))} />
+        </InfoPanel>
+
+        <InfoPanel title="Customer activity" className={`adminWidePanel ${panelClass('overview')}`}>
+          <MetricGrid metrics={[
+            ['Returning customers', reports?.returningCustomerCount || 0],
+            ['Tracked customers', (reports?.topCustomers || []).length]
+          ]} />
+          <DataList items={(reports?.topCustomers || []).slice(0, 5).map(customer => ({
+            title: customer.fullName,
+            meta: 'Bookings made',
+            value: customer.bookingCount
+          }))} />
+          <DataList items={Object.entries(reports?.membershipDistribution || {}).map(([level, count]) => ({
+            title: level,
+            meta: 'Membership distribution',
+            value: count
+          }))} />
+        </InfoPanel>
+
+        <InfoPanel title="Booking, cancellation and notification policies" className={`adminWidePanel ${panelClass('policies')}`}>
           <DataList items={settings.map(setting => ({
             title: setting.settingKey,
             meta: setting.description,
@@ -601,9 +733,19 @@ export function AdminPage({
             <Button variant="light" onClick={() => updateDepositSetting(30)}>Set 30%</Button>
             <Button variant="light" onClick={() => updateDepositSetting(50)}>Set 50%</Button>
           </div>
+          <div className="profileForm">
+            {settings.map(setting => (
+              <FieldControl key={setting.settingKey} label={setting.description || setting.settingKey}>
+                <div className="buttonRow noMargin">
+                  <input type="number" min="0" value={policyValues[setting.settingKey] ?? ''} onChange={event => setPolicyValues(values => ({ ...values, [setting.settingKey]: event.target.value }))} />
+                  <Button size="xs" onClick={() => updatePolicySetting(setting.settingKey, policyValues[setting.settingKey])}>Save</Button>
+                </div>
+              </FieldControl>
+            ))}
+          </div>
         </InfoPanel>
 
-        <InfoPanel title="Customer booking access">
+        <InfoPanel title="Customer booking access" className={panelClass('access')}>
           <div className="customerAdminList">
             {customers.map(customer => (
               <div className="customerAdminRow" key={customer.userId}>
@@ -621,9 +763,39 @@ export function AdminPage({
                 >
                   {customer.bookingRestricted ? 'Restore' : 'Restrict'}
                 </Button>
+                <Button size="xs" variant="subtle" onClick={() => setCustomerEditor({ opened: true, customer: { ...customer } })}>Edit</Button>
+                <Button size="xs" variant="subtle" onClick={() => viewCustomerActivity(customer)}>Activity</Button>
+                <Button
+                  size="xs"
+                  variant="light"
+                  color={customer.status === 'active' ? 'red' : 'green'}
+                  onClick={() => updateCustomerStatus(customer)}
+                >{customer.status === 'active' ? 'Lock' : 'Unlock'}</Button>
               </div>
             ))}
           </div>
+        </InfoPanel>
+
+        <InfoPanel title="Staff accounts" className={panelClass('access')}>
+          <div className="customerAdminList">
+            <button type="button" className={selectedStaffId === 'new' ? 'customerAdminRow selected' : 'customerAdminRow'} onClick={() => setSelectedStaffId('new')}>
+              <span><strong>New staff account</strong><small>Create a staff login and set its access status.</small></span>
+            </button>
+            {staffAccounts.map(account => (
+              <button type="button" className={Number(selectedStaffId) === Number(account.userId) ? 'customerAdminRow selected' : 'customerAdminRow'} key={account.userId} onClick={() => setSelectedStaffId(account.userId)}>
+                <span><strong>{account.fullName}</strong><small>{account.email} · {account.phone}</small></span>
+                <Badge color={statusColor(account.status)} variant="light">{account.status}</Badge>
+              </button>
+            ))}
+          </div>
+          <div className="adminFormGrid compact">
+            <FieldControl label="Full name"><input value={staffForm.fullName} onChange={event => setStaffForm(form => ({ ...form, fullName: event.target.value }))} /></FieldControl>
+            <FieldControl label="Email"><input type="email" value={staffForm.email} onChange={event => setStaffForm(form => ({ ...form, email: event.target.value }))} /></FieldControl>
+            <FieldControl label="Phone"><input value={staffForm.phone} onChange={event => setStaffForm(form => ({ ...form, phone: event.target.value }))} /></FieldControl>
+            <FieldControl label={selectedStaffId === 'new' ? 'Initial password' : 'New password (optional)'}><input type="password" value={staffForm.password} onChange={event => setStaffForm(form => ({ ...form, password: event.target.value }))} /></FieldControl>
+            <FieldControl label="Status"><select value={staffForm.status} onChange={event => setStaffForm(form => ({ ...form, status: event.target.value }))}><option value="active">Active</option><option value="inactive">Inactive</option></select></FieldControl>
+          </div>
+          <Button color="green" onClick={saveStaff}>{selectedStaffId === 'new' ? 'Create staff account' : 'Save staff account'}</Button>
         </InfoPanel>
       </div>
 
@@ -638,6 +810,23 @@ export function AdminPage({
             {feedbackModal.message}
           </Text>
           <Button onClick={closeFeedbackModal}>OK</Button>
+        </Stack>
+      </Modal>
+
+      <Modal opened={customerEditor.opened} onClose={() => setCustomerEditor({ opened: false, customer: null })} centered title="Edit customer profile">
+        <Stack gap="sm">
+          <FieldControl label="Full name"><input value={customerEditor.customer?.fullName || ''} onChange={event => setCustomerEditor(editor => ({ ...editor, customer: { ...editor.customer, fullName: event.target.value } }))} /></FieldControl>
+          <FieldControl label="Phone"><input value={customerEditor.customer?.phone || ''} onChange={event => setCustomerEditor(editor => ({ ...editor, customer: { ...editor.customer, phone: event.target.value } }))} /></FieldControl>
+          <FieldControl label="Address"><textarea value={customerEditor.customer?.address || ''} onChange={event => setCustomerEditor(editor => ({ ...editor, customer: { ...editor.customer, address: event.target.value } }))} /></FieldControl>
+          <Button onClick={saveCustomerProfile}>Save customer profile</Button>
+        </Stack>
+      </Modal>
+
+      <Modal opened={Boolean(customerActivity)} onClose={() => setCustomerActivity(null)} centered title={`${customerActivity?.user?.fullName || 'Customer'} activity`}>
+        <Stack gap="sm">
+          <Text size="sm">Completed bookings: {customerActivity?.completedBookingCount || 0}</Text>
+          <DataList items={(customerActivity?.bookings || []).map(booking => ({ title: booking.bookingCode, meta: `${booking.fieldName} · ${booking.slotDate}`, value: booking.status }))} />
+          <DataList items={(customerActivity?.issues || []).map(issue => ({ title: issue.title, meta: issue.resolutionNote || 'No resolution note', value: issue.status }))} />
         </Stack>
       </Modal>
 

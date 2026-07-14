@@ -8,7 +8,7 @@ import {
 import { pageFromPath, pageRoutes } from './app/routes'
 import { loadStoredUser, saveStoredUser, saveStoredToken } from './app/session'
 import { AccessPanel, ActionPanel, NotificationBell } from './components/common'
-import { demoPassword, emailPattern, passwordIssues, phonePattern } from './features/auth/authRules'
+import { emailPattern, passwordIssues, phonePattern } from './features/auth/authRules'
 import {
   AccountPage,
   AdminPage,
@@ -70,6 +70,7 @@ function App() {
   const [paypalConfig, setPaypalConfig] = useState(null)
   const [paypalConfigError, setPaypalConfigError] = useState('')
   const [selectedBookingDetail, setSelectedBookingDetail] = useState(null)
+  const [cancellationPreview, setCancellationPreview] = useState(null)
   const [billingLoading, setBillingLoading] = useState(false)
   const [billingError, setBillingError] = useState('')
   const [verifyResult, setVerifyResult] = useState({ status: 'idle', message: '' })
@@ -89,7 +90,7 @@ function App() {
   const [resetPasswordToken, setResetPasswordToken] = useState(null)
   const [resetTokenChecking, setResetTokenChecking] = useState(true)
 
-  const [loginForm, setLoginForm] = useState({ emailOrPhone: 'customer@goalzone.local', password: demoPassword })
+  const [loginForm, setLoginForm] = useState({ emailOrPhone: '', password: '' })
   const [registerForm, setRegisterForm] = useState({
     fullName: '',
     email: '',
@@ -129,7 +130,7 @@ function App() {
       })
       .catch(error => {
         if (!cancelled) {
-          setPaypalConfigError(error.response?.data?.error || 'PayPal Sandbox is not available')
+          setPaypalConfigError(error.response?.data?.error || 'PayPal is not available')
         }
       })
     return () => {
@@ -328,7 +329,7 @@ function App() {
     }
   }, [bookings, currentUser?.role, currentUser?.userId, selectedBookingId])
 
-  async function refreshAll() {
+  async function refreshAll(viewer = currentUser) {
     setLoading(true)
     try {
       // 1. Load public/common data accessible to everyone (Guests, Customers, Staff, Admins)
@@ -343,7 +344,7 @@ function App() {
         api.get('/fields'),
         api.get('/field-types'),
         api.get('/services'),
-        api.get('/promotions' + (currentUser?.role === 'Admin' ? '?includeInactive=true' : '')),
+        api.get('/promotions' + (viewer?.role === 'Admin' ? '?includeInactive=true' : '')),
         api.get('/settings'),
         api.get('/membership/levels')
       ])
@@ -356,11 +357,12 @@ function App() {
       setMembershipLevels(membershipLevelsRes.data)
 
       // 2. Load role-specific data conditionally
-      const isStaffOrAdmin = currentUser?.role === 'Staff' || currentUser?.role === 'Admin'
-      const isCustomer = currentUser?.role === 'Customer'
+      const isAdminViewer = viewer?.role === 'Admin'
+      const isStaffViewer = viewer?.role === 'Staff'
+      const isCustomer = viewer?.role === 'Customer'
 
-      if (isStaffOrAdmin) {
-        // Staff and Admin can view all users, bookings, payments, refunds, issues, and reports
+      if (isAdminViewer) {
+        // Admin owns user management and report data in addition to all operating data.
         const [
           userRes,
           bookingRes,
@@ -384,8 +386,8 @@ function App() {
         setIssues(issueRes.data)
         setReports(reportRes.data)
 
-        if (currentUser) {
-          const freshUser = userRes.data.find(u => u.userId === currentUser.userId)
+        if (viewer) {
+          const freshUser = userRes.data.find(u => u.userId === viewer.userId)
           if (freshUser) {
             setCurrentUser(freshUser)
           }
@@ -394,20 +396,46 @@ function App() {
         setSelectedBookingId(current => bookingRes.data.some(booking => booking.bookingId === Number(current))
           ? current
           : bookingRes.data[0]?.bookingId || null)
+
+      } else if (isStaffViewer) {
+        // Staff cannot access Admin-only customer management. Loading it in the same
+        // Promise.all caused a 403 that discarded the otherwise valid booking list.
+        const [customerRes, bookingRes, paymentRes, refundRes, issueRes] = await Promise.all([
+          api.get('/account/customers'),
+          api.get('/bookings'),
+          api.get('/payments'),
+          api.get('/refunds'),
+          api.get('/issues')
+        ])
+        setUsers(customerRes.data)
+        setSelectedCustomerId(current => customerRes.data.some(customer => customer.userId === Number(current))
+          ? current
+          : customerRes.data[0]?.userId || null)
+        setBookings(bookingRes.data)
+        setPayments(paymentRes.data)
+        setRefunds(refundRes.data)
+        setIssues(issueRes.data)
+        setReports(null)
+        setSelectedBookingId(current => bookingRes.data.some(booking => booking.bookingId === Number(current))
+          ? current
+          : bookingRes.data[0]?.bookingId || null)
           
       } else if (isCustomer) {
         // Customers can view their own bookings, and their own membership/notifications
         const [
           bookingRes,
+          paymentRes,
           membershipRes,
           notificationRes
         ] = await Promise.all([
-          api.get('/bookings', { params: { customerId: currentUser.userId } }),
-          api.get(`/membership/${currentUser.userId}/progress`),
-          api.get(`/notifications/${currentUser.userId}`)
+          api.get('/bookings', { params: { customerId: viewer.userId } }),
+          api.get('/payments'),
+          api.get(`/membership/${viewer.userId}/progress`),
+          api.get(`/notifications/${viewer.userId}`)
         ])
         
         setBookings(bookingRes.data)
+        setPayments(paymentRes.data)
         setMembership(membershipRes.data)
         setNotifications(notificationRes.data)
         
@@ -625,21 +653,19 @@ function App() {
       password: loginForm.password
     }), 'Signed in')
     if (response?.data?.user) {
-      const user = response.data.user
-      const token = response.data.token
-      saveStoredToken(token)
-      setCurrentUser(user)
-      setLoginForm({ emailOrPhone: '', password: '' })
-      setLoginErrors({})
-      setAuthMode('login')
-      if (user.role === 'Admin') {
-        navigatePage('admin')
-      } else if (user.role === 'Staff') {
-        navigatePage('staff')
-      } else {
-        navigatePage('account')
-      }
+      await completeSignIn(response.data)
     }
+  }
+
+  async function completeSignIn(data) {
+    const user = data.user
+    saveStoredToken(data.token)
+    setCurrentUser(user)
+    setLoginForm({ emailOrPhone: '', password: '' })
+    setLoginErrors({})
+    setAuthMode('login')
+    await refreshAll(user)
+    navigatePage(user.role === 'Admin' ? 'admin' : user.role === 'Staff' ? 'staff' : 'account')
   }
 
   async function register() {
@@ -672,6 +698,7 @@ function App() {
         if (response.data.verificationRequired) {
           setNotice(response.data.message || 'Account created. Check your inbox to verify email before online booking.')
         }
+        await refreshAll(user)
         navigatePage('account')
       }
     } finally {
@@ -762,6 +789,9 @@ function App() {
   }
 
   function logout() {
+    api.post('/account/logout').catch(() => {
+      // Clearing the local session is still safe if an expired token cannot reach the API.
+    })
     setCurrentUser(null)
     setMembership(null)
     setNotifications([])
@@ -780,6 +810,22 @@ function App() {
       setAuthMode('login')
       navigatePage('login')
       setNotice('Sign in or create an account before booking')
+      return
+    }
+    if (source === 'walk_in' && !canOperate) {
+      setActionPanel({
+        kind: 'error',
+        title: 'Walk-in booking unavailable',
+        message: 'Only Staff accounts can create a walk-in booking and record a cash payment.'
+      })
+      return
+    }
+    if (source === 'online' && currentUser.role !== 'Customer') {
+      setActionPanel({
+        kind: 'error',
+        title: 'Online checkout unavailable',
+        message: 'Online payment is available only to the customer who owns the booking.'
+      })
       return
     }
     if (currentUser.role === 'Customer' && !currentUser.emailVerified) {
@@ -822,6 +868,9 @@ function App() {
       navigatePage('login')
       throw new Error('Sign in before starting PayPal checkout')
     }
+    if (currentUser.role !== 'Customer') {
+      throw new Error('Online payment is available only to customers.')
+    }
     if (currentUser.role === 'Customer' && !currentUser.emailVerified) {
       navigatePage('account')
       throw new Error('Verify your email before online booking')
@@ -836,11 +885,11 @@ function App() {
         bookingSource: 'online',
         promotionCode,
         services: serviceSelections(),
-        note: 'Created for PayPal Sandbox checkout'
+        note: 'Created for PayPal checkout'
       })
       setSelectedBookingId(response.data.bookingId)
       setSelectedBookingDetail(response.data)
-      setNotice('Booking reserved. Complete approval in PayPal Sandbox.')
+      setNotice('Booking reserved. Complete payment in PayPal.')
       return response.data
     } finally {
       setLoading(false)
@@ -852,7 +901,7 @@ function App() {
     setSelectedBookingDetail(detail)
     setSelectedServices({})
     setPromotionCode('')
-    setNotice('PayPal Sandbox payment completed')
+    setNotice('PayPal payment completed')
     setActionPanel({
       kind: 'success',
       title: 'PayPal payment completed',
@@ -891,13 +940,61 @@ function App() {
     }), `Booking updated to ${status}`)
   }
 
+  async function updateBookingServices(services) {
+    if (!selectedBooking) return
+    const response = await runAction(
+      async () => api.put(`/bookings/${selectedBooking.bookingId}/services`, { services }),
+      'Booking services updated'
+    )
+    if (response?.data) setSelectedBookingDetail(response.data)
+  }
+
+  async function updateIssue(issueId, status, resolutionNote) {
+    await runAction(async () => api.put(`/issues/${issueId}/status`, {
+      status,
+      resolutionNote,
+      assignedStaffId: currentUser?.role === 'Staff' ? currentUser.userId : Number(selectedStaffId)
+    }), 'Issue updated')
+  }
+
+  async function previewCancellation() {
+    if (!selectedBooking) return
+    setBillingLoading(true)
+    try {
+      const response = await api.get(`/bookings/${selectedBooking.bookingId}/cancellation-preview`)
+      setCancellationPreview(response.data)
+    } catch (error) {
+      setActionPanel({ kind: 'error', title: 'Cancellation preview unavailable', message: error.response?.data?.error || 'Could not calculate cancellation terms.' })
+    } finally {
+      setBillingLoading(false)
+    }
+  }
+
+  async function cancelCustomerBooking() {
+    if (!selectedBooking) return
+    await runAction(async () => api.put(`/bookings/${selectedBooking.bookingId}/status`, {
+      status: 'cancelled',
+      staffId: null,
+      note: 'Cancelled by customer from account page'
+    }), 'Booking cancelled')
+  }
+
+  async function rescheduleBooking(newSlotId) {
+    if (!selectedBooking || !newSlotId) return
+    await runAction(async () => api.put(`/bookings/${selectedBooking.bookingId}/reschedule`, {
+      newSlotId: Number(newSlotId),
+      staffId: currentUser?.role === 'Staff' ? currentUser.userId : null,
+      note: currentUser?.role === 'Customer' ? 'Rescheduled by customer' : 'Rescheduled by staff'
+    }), 'Booking rescheduled')
+  }
+
   async function capturePayment(option = 'deposit') {
     if (!selectedBooking) return
     await runAction(async () => api.post('/payments/capture', {
       bookingId: selectedBooking.bookingId,
       createdById: currentUser?.userId || bookingCustomerId(),
       paymentOption: option,
-      paymentMethod: option === 'remaining' ? 'cash' : 'online_sandbox',
+      paymentMethod: 'cash',
       amount: option === 'full' ? selectedBooking.remainingAmount || selectedBooking.totalAmount : null,
       success: true
     }), 'Payment captured')
@@ -908,11 +1005,19 @@ function App() {
     await runAction(async () => api.post('/refunds', {
       bookingId: selectedBooking.bookingId,
       requestedById: selectedBooking.customerId,
-      processedById: Number(selectedStaffId),
-      refundAmount: selectedBooking.refundableAmount || selectedBooking.depositAmount || 0,
-      refundReason: 'Support-approved refund',
-      approveNow: true
-    }), 'Refund processed')
+      processedById: null,
+      refundAmount: selectedBooking.refundableAmount || cancellationPreview?.refundableAmount || 0,
+      refundReason: 'Customer cancellation refund request',
+      approveNow: false
+    }), 'Refund requested')
+  }
+
+  async function updateRefund(refund, status) {
+    await runAction(async () => api.put(`/refunds/${refund.refundId}/status`, {
+      status,
+      processedById: currentUser?.userId || Number(selectedStaffId),
+      note: status === 'rejected' ? 'Reviewed and rejected by staff' : 'Reviewed by staff'
+    }), `Refund ${status}`)
   }
 
   async function createIssue() {
@@ -939,6 +1044,13 @@ function App() {
     }), 'Deposit rule updated')
   }
 
+  async function updatePolicySetting(key, value) {
+    await runAction(async () => api.put(`/settings/${key}`, {
+      settingValue: String(value),
+      updatedById: currentUser?.userId || 4
+    }), 'Booking policy updated')
+  }
+
   async function updateCustomerRestriction(customer, bookingRestricted, restrictionReason = '') {
     await runAction(async () => api.put(`/account/users/${customer.userId}/restriction`, {
       bookingRestricted,
@@ -955,26 +1067,11 @@ function App() {
           <span>GoalZone</span>
         </button>
         <nav className={mobileOpen ? 'mainNav open' : 'mainNav'} aria-label="Primary navigation">
-          {(!currentUser || currentUser.role !== 'Admin') && (
-            <>
-              <button className={currentPage === 'fields' ? 'active' : ''} onClick={() => navigatePage('fields')}>Fields</button>
-              <button className={currentPage === 'booking' ? 'active' : ''} onClick={() => navigatePage('booking')}>Booking</button>
-            </>
-          )}
-          {(!currentUser || currentUser.role === 'Customer' || currentUser.role === 'Admin') && (
-            <>
-              <button className={currentPage === 'promotions' ? 'active' : ''} onClick={() => navigatePage('promotions')}>Promotions</button>
-              <button className={currentPage === 'membership-benefits' ? 'active' : ''} onClick={() => navigatePage('membership-benefits')}>Membership</button>
-            </>
-          )}
-          {currentUser && <button className={currentPage === 'account' ? 'active' : ''} onClick={() => navigatePage('account')}>My account</button>}
-          {canOperate && <button className={currentPage === 'staff' ? 'active' : ''} onClick={() => navigatePage('staff')}>Staff</button>}
-          {isAdmin && (
-            <>
-              <button className={currentPage === 'admin' ? 'active' : ''} onClick={() => navigatePage('admin')}>Admin</button>
-              <button className={currentPage === 'membership-rules' ? 'active' : ''} onClick={() => navigatePage('membership-rules')}>Membership Rules</button>
-            </>
-          )}
+          <button className={currentPage === 'fields' ? 'active' : ''} onClick={() => navigatePage('fields')}>Fields</button>
+          {!isAdmin && <button className={currentPage === 'booking' ? 'active' : ''} onClick={() => navigatePage('booking')}>Book</button>}
+          {currentUser?.role === 'Customer' && <button className={currentPage === 'account' ? 'active' : ''} onClick={() => navigatePage('account')}>My bookings</button>}
+          {canOperate && <button className={currentPage === 'staff' ? 'active' : ''} onClick={() => navigatePage('staff')}>Staff workspace</button>}
+          {isAdmin && <button className={currentPage === 'admin' ? 'active' : ''} onClick={() => navigatePage('admin')}>Admin console</button>}
         </nav>
         <div className="headerActions">
           {currentUser ? (
@@ -1103,11 +1200,17 @@ function App() {
             selectedBookingId={selectedBookingId}
             setSelectedBookingId={setSelectedBookingId}
             selectedBookingDetail={selectedBookingDetail}
+            cancellationPreview={cancellationPreview}
             billingLoading={billingLoading}
             billingError={billingError}
             resendVerification={resendVerification}
             onSaveProfile={saveProfile}
             onChangePassword={changePassword}
+            onPreviewCancellation={previewCancellation}
+            onCancelBooking={cancelCustomerBooking}
+            onRequestRefund={createRefund}
+            onReschedule={rescheduleBooking}
+            availableSlots={slots.filter(slot => slot.available)}
           />
         )}
 
@@ -1190,13 +1293,23 @@ function App() {
             billingLoading={billingLoading}
             billingError={billingError}
             updateBooking={updateBooking}
+            rescheduleBooking={rescheduleBooking}
+            availableSlots={slots.filter(slot => slot.available)}
             capturePayment={capturePayment}
             issueDraft={issueDraft}
             setIssueDraft={setIssueDraft}
             createIssue={createIssue}
             issues={issues}
             createRefund={createRefund}
+            updateRefund={updateRefund}
             refunds={refunds}
+            services={services}
+            fields={fields}
+            currentUser={currentUser}
+            refreshAll={refreshAll}
+            loadSlots={loadSlots}
+            updateBookingServices={updateBookingServices}
+            updateIssue={updateIssue}
           />
         )}
 
@@ -1210,6 +1323,7 @@ function App() {
             settings={settings}
             fieldTypes={fieldTypes}
             updateDepositSetting={updateDepositSetting}
+            updatePolicySetting={updatePolicySetting}
             customers={customers}
             updateCustomerRestriction={updateCustomerRestriction}
             refreshAll={refreshAll}
@@ -1249,7 +1363,13 @@ function App() {
       {actionPanel && (
         <ActionPanel
           panel={actionPanel}
-          onClose={() => setActionPanel(null)}
+          onClose={() => {
+            // The action panel already communicates the result. Clearing the
+            // matching notice prevents a second, persistent toast from
+            // covering workspace controls after the panel is dismissed.
+            setActionPanel(null)
+            setNotice('')
+          }}
         />
       )}
     </div>

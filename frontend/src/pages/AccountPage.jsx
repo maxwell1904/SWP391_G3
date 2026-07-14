@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { FieldControl, InfoPanel, PasswordField, WorkspaceHeader } from '../components/common'
+import { FieldControl, InfoPanel, PasswordField, WorkspaceHeader, WorkspaceTabs } from '../components/common'
 import { DataList, MetricGrid } from '../components/data'
 import { EmailVerificationPanel } from '../features/account/components'
 import { BookingList } from '../features/operations/components'
@@ -18,11 +18,18 @@ export function AccountPage({
   selectedBookingDetail,
   billingLoading,
   billingError,
+  cancellationPreview,
   resendVerification,
   onSaveProfile,
-  onChangePassword
+  onChangePassword,
+  onPreviewCancellation,
+  onCancelBooking,
+  onRequestRefund,
+  onReschedule,
+  availableSlots
 }) {
   const [profileForm, setProfileForm] = useState(() => profileFromUser(currentUser))
+  const [activePanel, setActivePanel] = useState('bookings')
 
   useEffect(() => {
     setProfileForm(profileFromUser(currentUser))
@@ -76,8 +83,20 @@ export function AccountPage({
               </div>
             </div>
           )}
+          <WorkspaceTabs
+            value={activePanel}
+            onChange={setActivePanel}
+            ariaLabel="Customer account sections"
+            items={[
+              { value: 'bookings', label: 'Bookings' },
+              { value: 'payments', label: 'Payments' },
+              { value: 'membership', label: 'Membership' },
+              { value: 'profile', label: 'Profile' },
+              { value: 'messages', label: 'Messages' }
+            ]}
+          />
           <div className="roleGrid accountGrid">
-            <InfoPanel title="Personal profile">
+            <InfoPanel title="Personal profile" className={activePanel === 'profile' ? '' : 'workspacePanelHidden'}>
               <div className="profileForm">
                 <FieldControl label="Full name">
                   <input
@@ -102,13 +121,22 @@ export function AccountPage({
               </div>
               <ChangePasswordForm onChangePassword={onChangePassword} />
             </InfoPanel>
-            <InfoPanel title="My bookings">
+            <InfoPanel title="My bookings" className={activePanel === 'bookings' ? '' : 'workspacePanelHidden'}>
               <BookingList bookings={userBookings} selectedBookingId={selectedBookingId} onSelect={setSelectedBookingId} />
             </InfoPanel>
-            <InfoPanel title="Invoice and payment status">
+            <InfoPanel title="Invoice and payment status" className={activePanel === 'bookings' ? '' : 'workspacePanelHidden'}>
               <BillingDetails detail={selectedBookingDetail} loading={billingLoading} error={billingError} />
+              <BookingChangeActions
+                booking={selectedBookingDetail}
+                preview={cancellationPreview}
+                availableSlots={availableSlots}
+                onPreview={onPreviewCancellation}
+                onCancel={onCancelBooking}
+                onRefund={onRequestRefund}
+                onReschedule={onReschedule}
+              />
             </InfoPanel>
-            <InfoPanel title="Payment history">
+            <InfoPanel title="Payment history" className={activePanel === 'payments' ? '' : 'workspacePanelHidden'}>
               <DataList items={accountPayments
                 .map(payment => ({
                   title: payment.paymentCode,
@@ -117,7 +145,7 @@ export function AccountPage({
                 }))}
               />
             </InfoPanel>
-            <InfoPanel title="Membership">
+            <InfoPanel title="Membership" className={activePanel === 'membership' ? '' : 'workspacePanelHidden'}>
               {membership ? (
                 <MetricGrid metrics={[
                   ['Level', membership.currentLevel],
@@ -127,7 +155,7 @@ export function AccountPage({
                 ]} />
               ) : <p className="emptyText">Login as customer to view membership.</p>}
             </InfoPanel>
-            <InfoPanel title="Notifications">
+            <InfoPanel title="Notifications" className={activePanel === 'messages' ? '' : 'workspacePanelHidden'}>
               <DataList items={notifications.map(item => ({
                 title: item.title,
                 meta: item.message,
@@ -203,6 +231,46 @@ export function AccountPage({
         </>
       )}
     </section>
+  )
+}
+
+function BookingChangeActions({ booking, preview, availableSlots, onPreview, onCancel, onRefund, onReschedule }) {
+  const [slotId, setSlotId] = useState('')
+  if (!booking || !['pending', 'confirmed', 'cancelled'].includes(booking.status)) return null
+  const cancellable = booking.status === 'pending' || booking.status === 'confirmed'
+  const cancellationReviewed = preview?.bookingId === booking.bookingId
+  return (
+    <div className="profileForm" style={{ marginTop: '1rem' }}>
+      {cancellable && (
+        <>
+          {!cancellationReviewed && (
+            <button className="secondaryButton" onClick={onPreview}>Review cancellation terms</button>
+          )}
+          {cancellationReviewed && (
+            <div className="cancellationReview">
+              <strong>Cancellation terms</strong>
+              <p className="hintText">{preview.policy}: refund {formatMoney(preview.refundableAmount)}, fee {formatMoney(preview.cancellationFeeAmount)}.</p>
+              <div className="buttonRow noMargin">
+                <button className="ghostDarkButton" onClick={onPreview}>Refresh terms</button>
+                <button className="dangerButton" onClick={onCancel}>Cancel booking</button>
+              </div>
+            </div>
+          )}
+          <FieldControl label="Reschedule to available slot">
+            <select value={slotId} onChange={event => setSlotId(event.target.value)}>
+              <option value="">Choose a new slot</option>
+              {availableSlots.map(slot => <option key={slot.slotId} value={slot.slotId}>{slot.fieldName} · {slot.slotDate} · {slot.startTime}</option>)}
+            </select>
+          </FieldControl>
+          <button className="secondaryButton" disabled={!slotId} onClick={() => onReschedule(slotId)}>Reschedule booking</button>
+        </>
+      )}
+      {Number(booking.refundableAmount) > 0 && (
+        <button className="primaryButton" onClick={onRefund}>
+          {booking.status === 'cancelled' ? 'Request cancellation refund' : 'Request reschedule refund'} ({formatMoney(booking.refundableAmount)})
+        </button>
+      )}
+    </div>
   )
 }
 
