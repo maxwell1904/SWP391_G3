@@ -34,6 +34,25 @@ public final class ApiRequests {
     ) {
     }
 
+    public record ForgotPassword(
+            String email
+    ) {
+    }
+
+    public record ResetPassword(
+            Long userId,
+            String token,
+            String newPassword,
+            String confirmPassword
+    ) {
+    }
+
+    public record ValidateResetToken(
+            Long userId,
+            String token
+    ) {
+    }
+
     public record ProfileUpdate(
             String fullName,
             String phone,
@@ -42,9 +61,28 @@ public final class ApiRequests {
     ) {
     }
 
+    public record PasswordChange(
+            String currentPassword,
+            String newPassword,
+            String confirmPassword
+    ) {
+    }
+
     public record RestrictionUpdate(
             boolean bookingRestricted,
             String restrictionReason
+    ) {
+    }
+
+    public record AccountStatusUpdate(String status) {
+    }
+
+    public record StaffUpsert(
+            String fullName,
+            String email,
+            String phone,
+            String password,
+            String status
     ) {
     }
 
@@ -72,6 +110,14 @@ public final class ApiRequests {
     ) {
     }
 
+    /** Moves an unstarted booking to another available slot. */
+    public record BookingReschedule(
+            Long newSlotId,
+            Long staffId,
+            String note
+    ) {
+    }
+
     public record IssueCreate(
             Long reporterId,
             Long bookingId,
@@ -83,6 +129,13 @@ public final class ApiRequests {
     ) {
     }
 
+    public record IssueStatusUpdate(
+            String status,
+            String resolutionNote,
+            Long assignedStaffId
+    ) {
+    }
+
     public record PaymentCapture(
             Long bookingId,
             Long createdById,
@@ -90,6 +143,17 @@ public final class ApiRequests {
             String paymentMethod,
             BigDecimal amount,
             boolean success
+    ) {
+    }
+
+    public record PayPalOrderCreate(
+            Long createdById,
+            String paymentOption
+    ) {
+    }
+
+    public record PayPalOrderCapture(
+            Long createdById
     ) {
     }
 
@@ -104,6 +168,14 @@ public final class ApiRequests {
     ) {
     }
 
+    /** Staff-only lifecycle action for a customer refund request. */
+    public record RefundStatusUpdate(
+            String status,
+            Long processedById,
+            String note
+    ) {
+    }
+
     public record PromotionApply(
             Long customerId,
             Long slotId,
@@ -113,9 +185,62 @@ public final class ApiRequests {
     ) {
     }
 
+    public record PromotionUpsert(
+            String promotionCode,
+            String promotionName,
+            String description,
+            String bannerUrl,
+            String discountType,
+            BigDecimal discountValue,
+            BigDecimal maxDiscountAmount,
+            BigDecimal minBookingAmount,
+            Integer usageLimit,
+            LocalDate startDate,
+            LocalDate endDate,
+            String status,
+            Long applicableFieldTypeId,
+            Long applicableExtraServiceId,
+            Long applicableMembershipLevelId
+    ) {
+    }
+
     public record SettingUpdate(
             String settingValue,
             Long updatedById
+    ) {
+    }
+
+    public record FieldUpsert(
+            Long fieldTypeId,
+            String fieldName,
+            String description,
+            String imageUrl,
+            String location,
+            String surfaceType,
+            String status
+    ) {
+    }
+
+    public record FieldPriceUpsert(
+            String dayType,
+            String startTime,
+            String endTime,
+            BigDecimal price,
+            LocalDate effectiveFrom,
+            LocalDate effectiveTo,
+            String status
+    ) {
+    }
+
+    public record ExtraServiceUpsert(
+            String serviceName,
+            String serviceType,
+            String description,
+            String unitName,
+            BigDecimal unitPrice,
+            Integer stockQuantity,
+            Integer maxQuantityPerBooking,
+            String status
     ) {
     }
 
@@ -127,6 +252,19 @@ public final class ApiRequests {
             String blockReason,
             String blockNote,
             Long createdById
+    ) {
+    }
+
+    public record BookingServicesUpdate(List<ServiceSelection> services) {
+    }
+
+    public record MembershipLevelUpsert(
+            String levelName,
+            Integer requiredCompletedBookings,
+            BigDecimal discountPercent,
+            String benefitDescription,
+            Integer displayOrder,
+            String status
     ) {
     }
 }

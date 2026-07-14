@@ -56,6 +56,7 @@ Enum payment_status {
 Enum payment_method {
   cash
   online_sandbox
+  paypal_sandbox
   bank_transfer
 }
 
@@ -103,7 +104,7 @@ Enum notification_type {
 }
 
 Table role {
-  role_id int [pk, increment]
+  role_id bigint [pk, increment]
   role_name varchar(30) [not null, unique]
   description varchar(255)
   status common_status [not null, default: 'active']
@@ -114,8 +115,8 @@ Table role {
 }
 
 Table app_user {
-  user_id int [pk, increment]
-  role_id int [not null]
+  user_id bigint [pk, increment]
+  role_id bigint [not null]
   full_name varchar(100) [not null]
   email varchar(120) [unique]
   phone varchar(20) [unique]
@@ -127,14 +128,20 @@ Table app_user {
   booking_restricted boolean [not null, default: false]
   restriction_reason varchar(255)
   last_login_at timestamp
+  auth_version bigint [not null, default: 0, note: "Increment to revoke existing JWTs after logout, password change, or administrative lock."]
+  email_verified boolean [not null, default: false]
+  email_verification_token varchar(16)
+  email_verification_sent_at timestamp
+  password_reset_token varchar(16)
+  password_reset_sent_at timestamp
   created_at timestamp
   updated_at timestamp
 
-  Note: "Stores Customer, Staff, and Admin accounts. Guest is unauthenticated. Email or phone should be unique."
+  Note: "Stores Customer, Staff, and Admin accounts. Guest is unauthenticated. Email or phone should be unique. Verification and reset tokens support the account recovery flow."
 }
 
 Table membership_level {
-  membership_level_id int [pk, increment]
+  membership_level_id bigint [pk, increment]
   level_name varchar(50) [not null, unique]
   required_completed_bookings int [not null, default: 0]
   discount_percent decimal(5,2) [not null, default: 0]
@@ -146,9 +153,9 @@ Table membership_level {
 }
 
 Table customer_membership {
-  customer_membership_id int [pk, increment]
-  customer_id int [not null]
-  membership_level_id int [not null]
+  customer_membership_id bigint [pk, increment]
+  customer_id bigint [not null, unique]
+  membership_level_id bigint [not null]
   completed_booking_count int [not null, default: 0]
   progress_note varchar(255)
   effective_from date
@@ -156,15 +163,11 @@ Table customer_membership {
   created_at timestamp
   updated_at timestamp
 
-  indexes {
-    (customer_id, membership_level_id)
-  }
-
-  Note: "Only completed bookings count toward membership progress."
+  Note: "One mutable current membership row per customer. Add a separate membership_history table before supporting membership history."
 }
 
 Table field_type {
-  field_type_id int [pk, increment]
+  field_type_id bigint [pk, increment]
   type_name varchar(50) [not null, unique]
   player_capacity int
   description varchar(255)
@@ -174,8 +177,8 @@ Table field_type {
 }
 
 Table field {
-  field_id int [pk, increment]
-  field_type_id int [not null]
+  field_id bigint [pk, increment]
+  field_type_id bigint [not null]
   field_name varchar(100) [not null]
   description text
   image_url varchar(255)
@@ -189,8 +192,8 @@ Table field {
 }
 
 Table field_price {
-  field_price_id int [pk, increment]
-  field_id int [not null]
+  field_price_id bigint [pk, increment]
+  field_id bigint [not null]
   day_type varchar(30) [not null, note: "weekday, weekend, holiday, or all"]
   start_time time [not null]
   end_time time [not null]
@@ -207,15 +210,15 @@ Table field_price {
 }
 
 Table slot {
-  slot_id int [pk, increment]
-  field_id int [not null]
+  slot_id bigint [pk, increment]
+  field_id bigint [not null]
   slot_date date [not null]
   start_time time [not null]
   end_time time [not null]
   status slot_status [not null, default: 'available']
   block_reason varchar(100)
   block_note varchar(255)
-  created_by int
+  created_by bigint
   created_at timestamp
   updated_at timestamp
 
@@ -223,14 +226,14 @@ Table slot {
     (field_id, slot_date, start_time, end_time) [unique]
   }
 
-  Note: "A slot can be bookable or blocked. Block reasons include maintenance, weather, private event, internal use, or other."
+  Note: "A slot can be bookable or blocked. PostgreSQL additionally prevents time-range overlap for the same field/date. Block reasons include maintenance, weather, private event, internal use, or other."
 }
 
 Table booking {
-  booking_id int [pk, increment]
-  customer_id int [not null]
-  staff_id int
-  slot_id int [not null]
+  booking_id bigint [pk, increment]
+  customer_id bigint [not null]
+  staff_id bigint
+  slot_id bigint [not null]
   booking_code varchar(30) [not null, unique]
   status booking_status [not null, default: 'pending']
   booking_source varchar(20) [not null, default: 'online', note: "online or walk_in"]
@@ -262,7 +265,7 @@ Table booking {
 }
 
 Table extra_service {
-  extra_service_id int [pk, increment]
+  extra_service_id bigint [pk, increment]
   service_name varchar(100) [not null]
   service_type service_type [not null, default: 'rental']
   description varchar(255)
@@ -278,9 +281,9 @@ Table extra_service {
 }
 
 Table booking_service {
-  booking_service_id int [pk, increment]
-  booking_id int [not null]
-  extra_service_id int [not null]
+  booking_service_id bigint [pk, increment]
+  booking_id bigint [not null]
+  extra_service_id bigint [not null]
   quantity int [not null, default: 1]
   unit_price decimal(12,2) [not null]
   line_total decimal(12,2) [not null]
@@ -295,12 +298,12 @@ Table booking_service {
 }
 
 Table issue {
-  issue_id int [pk, increment]
-  reporter_id int [not null]
-  booking_id int
-  field_id int
-  extra_service_id int
-  assigned_staff_id int
+  issue_id bigint [pk, increment]
+  reporter_id bigint [not null]
+  booking_id bigint
+  field_id bigint
+  extra_service_id bigint
+  assigned_staff_id bigint
   title varchar(150) [not null]
   description text
   status issue_status [not null, default: 'open']
@@ -313,7 +316,7 @@ Table issue {
 }
 
 Table promotion {
-  promotion_id int [pk, increment]
+  promotion_id bigint [pk, increment]
   promotion_code varchar(50) [not null, unique]
   promotion_name varchar(120) [not null]
   banner_url varchar(255)
@@ -326,9 +329,9 @@ Table promotion {
   used_count int [not null, default: 0]
   start_date date [not null]
   end_date date [not null]
-  applicable_field_type_id int
-  applicable_membership_level_id int
-  applicable_extra_service_id int
+  applicable_field_type_id bigint
+  applicable_membership_level_id bigint
+  applicable_extra_service_id bigint
   applicable_day_type varchar(30)
   applicable_start_time time
   applicable_end_time time
@@ -341,9 +344,9 @@ Table promotion {
 }
 
 Table booking_promotion {
-  booking_promotion_id int [pk, increment]
-  booking_id int [not null]
-  promotion_id int [not null]
+  booking_promotion_id bigint [pk, increment]
+  booking_id bigint [not null]
+  promotion_id bigint [not null]
   promotion_code_snapshot varchar(50) [not null]
   discount_amount decimal(12,2) [not null]
   applied_at timestamp
@@ -354,27 +357,32 @@ Table booking_promotion {
 }
 
 Table payment {
-  payment_id int [pk, increment]
-  booking_id int [not null]
+  payment_id bigint [pk, increment]
+  booking_id bigint [not null]
   payment_code varchar(50) [not null, unique]
   payment_option payment_option [not null]
   payment_method payment_method [not null]
   amount decimal(12,2) [not null]
   status payment_status [not null, default: 'pending']
   transaction_code varchar(100)
+  provider_order_id varchar(120)
+  provider_capture_id varchar(120)
+  provider_status varchar(50)
+  currency varchar(10)
+  idempotency_key varchar(120)
   gateway_message varchar(255)
   paid_at timestamp
   expired_at timestamp
-  created_by int
+  created_by bigint
   created_at timestamp
   updated_at timestamp
 
-  Note: "Supports sandbox online payment and manual/on-site payment for walk-in or remaining balance."
+  Note: "Supports sandbox online payment and manual/on-site payment. Provider fields retain PayPal/sandbox order and capture references."
 }
 
 Table invoice {
-  invoice_id int [pk, increment]
-  booking_id int [not null, unique]
+  invoice_id bigint [pk, increment]
+  booking_id bigint [not null, unique]
   invoice_code varchar(50) [not null, unique]
   field_amount decimal(12,2) [not null, default: 0]
   service_amount decimal(12,2) [not null, default: 0]
@@ -389,12 +397,12 @@ Table invoice {
 }
 
 Table refund {
-  refund_id int [pk, increment]
-  booking_id int [not null]
-  payment_id int
+  refund_id bigint [pk, increment]
+  booking_id bigint [not null]
+  payment_id bigint
   refund_code varchar(50) [not null, unique]
-  requested_by int
-  processed_by int
+  requested_by bigint
+  processed_by bigint
   refund_amount decimal(12,2) [not null]
   refund_reason varchar(255)
   status refund_status [not null, default: 'requested']
@@ -404,15 +412,15 @@ Table refund {
   created_at timestamp
   updated_at timestamp
 
-  Note: "Refund can be created after cancellation or special support cases such as field/service issue."
+  Note: "Refund can be created after cancellation or special support cases. Payment-linked refunds must point to a payment of the same booking; approved/processing/completed refunds cannot exceed the booking paid amount."
 }
 
 Table notification {
-  notification_id int [pk, increment]
-  user_id int [not null]
-  booking_id int
-  payment_id int
-  refund_id int
+  notification_id bigint [pk, increment]
+  user_id bigint [not null]
+  booking_id bigint
+  payment_id bigint
+  refund_id bigint
   notification_type notification_type [not null]
   title varchar(150) [not null]
   message text [not null]
@@ -422,13 +430,13 @@ Table notification {
 }
 
 Table system_setting {
-  setting_id int [pk, increment]
+  setting_id bigint [pk, increment]
   setting_key varchar(100) [not null, unique]
   setting_value varchar(255) [not null]
   setting_group varchar(50) [not null, note: "deposit, refund, booking, payment, notification"]
   description varchar(255)
   status common_status [not null, default: 'active']
-  updated_by int
+  updated_by bigint
   created_at timestamp
   updated_at timestamp
 

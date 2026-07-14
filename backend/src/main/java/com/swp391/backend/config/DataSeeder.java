@@ -1,13 +1,12 @@
 package com.swp391.backend.config;
 
-import com.swp391.backend.dto.ApiRequests;
 import com.swp391.backend.entity.*;
 import com.swp391.backend.enums.*;
 import com.swp391.backend.repository.*;
-import com.swp391.backend.service.MvpDemoService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -30,7 +29,7 @@ public class DataSeeder {
             ExtraServiceRepository extraServiceRepository,
             PromotionRepository promotionRepository,
             SystemSettingRepository systemSettingRepository,
-            MvpDemoService demoService
+            BCryptPasswordEncoder passwordEncoder
     ) {
         return args -> {
             if (roleRepository.count() > 0) {
@@ -41,10 +40,10 @@ public class DataSeeder {
             Role staffRole = roleRepository.save(new Role("Staff", "Venue operation staff"));
             Role adminRole = roleRepository.save(new Role("Admin", "System administrator"));
 
-            AppUser customer = user("Nguyen Van Customer", "customer@goalzone.local", "0900000001", customerRole);
-            AppUser secondCustomer = user("Le Thi Member", "member@goalzone.local", "0900000002", customerRole);
-            AppUser staff = user("Staff Operator", "staff@goalzone.local", "0900000003", staffRole);
-            AppUser admin = user("Admin Manager", "admin@goalzone.local", "0900000004", adminRole);
+            AppUser customer = user("Nguyen Van Customer", "customer@goalzone.local", "0900000001", customerRole, passwordEncoder);
+            AppUser secondCustomer = user("Le Thi Member", "member@goalzone.local", "0900000002", customerRole, passwordEncoder);
+            AppUser staff = user("Staff Operator", "staff@goalzone.local", "0900000003", staffRole, passwordEncoder);
+            AppUser admin = user("Admin Manager", "admin@goalzone.local", "0900000004", adminRole, passwordEncoder);
             userRepository.saveAll(List.of(customer, secondCustomer, staff, admin));
 
             MembershipLevel bronze = membership("Bronze", 0, "0", "Default tier with standard booking rules", 1);
@@ -64,63 +63,42 @@ public class DataSeeder {
             fieldRepository.saveAll(List.of(fieldA, fieldB, fieldC));
 
             fieldPriceRepository.saveAll(List.of(
-                    price(fieldA, "weekday", "06:00", "17:00", "280000"),
-                    price(fieldA, "weekday", "17:00", "22:00", "420000"),
-                    price(fieldA, "weekend", "06:00", "22:00", "450000"),
-                    price(fieldB, "weekday", "06:00", "17:00", "420000"),
-                    price(fieldB, "weekday", "17:00", "22:00", "620000"),
-                    price(fieldB, "weekend", "06:00", "22:00", "680000"),
-                    price(fieldC, "all", "06:00", "22:00", "360000")
+                    price(fieldA, "weekday", "06:00", "17:00", "11.20"),
+                    price(fieldA, "weekday", "17:00", "22:00", "16.80"),
+                    price(fieldA, "weekend", "06:00", "22:00", "18.00"),
+                    price(fieldB, "weekday", "06:00", "17:00", "16.80"),
+                    price(fieldB, "weekday", "17:00", "22:00", "24.80"),
+                    price(fieldB, "weekend", "06:00", "22:00", "27.20"),
+                    price(fieldC, "all", "06:00", "22:00", "14.40")
             ));
 
             seedSlots(slotRepository, fieldA, fieldB, fieldC, staff);
 
-            ExtraService ball = extraService("Ball rental", ServiceType.rental, "ball", "50000", 30, 2);
-            ExtraService bibs = extraService("Bibs set", ServiceType.rental, "set", "70000", 12, 2);
-            ExtraService water = extraService("Water box", ServiceType.sale, "box", "90000", 50, 5);
-            ExtraService referee = extraService("Referee service", ServiceType.staff_service, "match", "250000", 4, 1);
+            ExtraService ball = extraService("Ball rental", ServiceType.rental, "ball", "2.00", 30, 2);
+            ExtraService bibs = extraService("Bibs set", ServiceType.rental, "set", "2.80", 12, 2);
+            ExtraService water = extraService("Water box", ServiceType.sale, "box", "3.60", 50, 5);
+            ExtraService referee = extraService("Referee service", ServiceType.staff_service, "match", "10.00", 4, 1);
             extraServiceRepository.saveAll(List.of(ball, bibs, water, referee));
 
-            promotionRepository.save(promotion("WELCOME10", "Welcome 10%", DiscountType.percent, "10", "80000", "200000", null, null, "First checkout discount for new customers"));
-            Promotion servicePromo = promotion("WATER30K", "Water add-on deal", DiscountType.fixed_amount, "30000", null, "300000", null, water, "Discount when booking includes water box");
+            promotionRepository.save(promotion("WELCOME10", "Welcome 10%", DiscountType.percent, "10", "3.20", "8.00", null, null, "First checkout discount for new customers"));
+            Promotion servicePromo = promotion("WATER120", "Water add-on deal", DiscountType.fixed_amount, "1.20", null, "12.00", null, water, "Discount when booking includes water box");
             promotionRepository.save(servicePromo);
 
             systemSettingRepository.save(setting("deposit.default_percent", "30", "deposit", "Default online booking deposit percent", admin));
             systemSettingRepository.save(setting("payment.pending_timeout_minutes", "15", "payment", "Pending payment timeout before booking expiration", admin));
             systemSettingRepository.save(setting("refund.before_24h_percent", "100", "refund", "Refund percent when cancellation is before 24 hours", admin));
             systemSettingRepository.save(setting("refund.same_day_percent", "80", "refund", "Refund percent for same-day cancellation before check-in", admin));
+            systemSettingRepository.save(setting("notification.booking_reminder_hours", "24", "notification", "Hours before a booking to send one reminder", admin));
 
-            Slot firstAvailableSlot = slotRepository.findBySlotDate(LocalDate.now().plusDays(1)).stream()
-                    .filter(slot -> slot.getStatus() == SlotStatus.available)
-                    .findFirst()
-                    .orElseThrow();
-            ApiRequests.BookingCreate bookingCreate = new ApiRequests.BookingCreate(
-                    customer.getUserId(),
-                    null,
-                    firstAvailableSlot.getSlotId(),
-                    "online",
-                    "WELCOME10",
-                    List.of(new ApiRequests.ServiceSelection(ball.getExtraServiceId(), 1), new ApiRequests.ServiceSelection(water.getExtraServiceId(), 1)),
-                    "Seeded online booking"
-            );
-            Long bookingId = ((Number) demoService.createBooking(bookingCreate).get("bookingId")).longValue();
-            demoService.capturePayment(new ApiRequests.PaymentCapture(
-                    bookingId,
-                    customer.getUserId(),
-                    "deposit",
-                    "online_sandbox",
-                    null,
-                    true
-            ));
         };
     }
 
-    private AppUser user(String fullName, String email, String phone, Role role) {
+    private AppUser user(String fullName, String email, String phone, Role role, BCryptPasswordEncoder passwordEncoder) {
         AppUser user = new AppUser();
         user.setFullName(fullName);
         user.setEmail(email);
         user.setPhone(phone);
-        user.setPasswordHash("GoalZone@123");
+        user.setPasswordHash(passwordEncoder.encode("GoalZone@123"));
         user.setRole(role);
         user.setEmailVerified(true);
         return user;

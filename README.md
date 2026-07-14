@@ -6,6 +6,7 @@ Football Field Booking & Venue Operation System
 - Backend: Spring Boot
 - Frontend: React + Vite
 - Database: H2 for local demo, Supabase PostgreSQL ready through env vars
+- Email: Spring Boot Mail SMTP for account verification links
 - Authentication: Demo login now, JWT dependency kept for the next security pass
 
 ## Project Structure
@@ -51,6 +52,18 @@ Backend:
 scripts/run-backend.sh
 ```
 
+On Windows PowerShell:
+
+```powershell
+.\scripts\run-backend.ps1
+```
+
+To force the local H2 database even when `.env.local` exists:
+
+```powershell
+.\scripts\run-backend.ps1 -Local
+```
+
 Frontend:
 
 ```bash
@@ -68,8 +81,8 @@ Default demo accounts all use password `GoalZone@123`:
 
 Registration passwords must be 8-72 characters with uppercase, lowercase, number, special character, and no spaces.
 
-Local dev runs with an in-memory H2 database and seed data. To use Supabase PostgreSQL, copy `.env.example` to a local `.env.local`, fill the password locally, then run `scripts/check-supabase.sh` and `scripts/run-backend.sh`. The backend script automatically loads `.env` and `.env.local`. Do not commit real database passwords.
+Local dev runs with an in-memory H2 database and seed data. To use Supabase PostgreSQL and SMTP verification email, copy `.env.example` to a local `.env.local`, fill the secrets locally (including `JWT_SECRET`), and keep `SPRING_PROFILES_ACTIVE=postgres`. Run `scripts/check-supabase.sh`, the read-only `database/supabase/preflight.sql` for a legacy schema, then `scripts/run-backend.sh`; Flyway owns PostgreSQL schema changes and Hibernate validates them. Finally run `scripts/verify-supabase-schema.sh`. The backend script automatically loads `.env` and `.env.local`. Do not commit database, email, or JWT secrets.
 
 ## Implemented MVP Slice
 
-See `docs/IMPLEMENTED_USE_CASES.md` for implemented UC ownership, `docs/IMPLEMENTATION_SCOPE.md` for backlog coverage and intentional exclusions, `docs/RDS_RULE_ALIGNMENT.md` for business rule alignment, and `docs/SUPABASE_CONNECTION.md` for Supabase connection notes.
+See `docs/IMPLEMENTED_USE_CASES.md` for backlog-aligned UC coverage, `docs/BACKLOG_RDS_CODE_GAP_ANALYSIS.md` for current RDS/backlog/code mismatches, `docs/IMPLEMENTATION_SCOPE.md` for intentional exclusions, `docs/RDS_RULE_ALIGNMENT.md` for business rule alignment, and `docs/SUPABASE_CONNECTION.md` for Supabase connection notes.

@@ -1,0 +1,170 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class PaymentController <<controller>> {
+    -paymentWorkflowService : PaymentWorkflowService
+
+    +createRefund(@RequestBody ApiRequests.RefundCreate request) : Object
+    +refunds() : Object
+}
+
+class "ApiRequests.RefundCreate" as RefundCreateDTO <<dto>> {
+    -bookingId : Long
+    -paymentId : Long
+    -requestedById : Long
+    -processedById : Long
+    -refundAmount : BigDecimal
+    -refundReason : String
+    -approveNow : boolean
+}
+
+class PaymentWorkflowService <<service>> {
+    -support : DemoSupportService
+
+    +createRefund(request : ApiRequests.RefundCreate) : Map<String, Object>
+    +refunds() : List<Map<String, Object>>
+}
+
+class DemoSupportService <<service>> {
+    -bookingRepository : BookingRepository
+    -userRepository : AppUserRepository
+    -paymentRepository : PaymentRepository
+    -refundRepository : RefundRepository
+    -invoiceRepository : InvoiceRepository
+    -notificationRepository : NotificationRepository
+
+    +getBooking(bookingId : Long) : Booking
+    +getUser(userId : Long) : AppUser
+    +notifyUser(user : AppUser, booking : Booking, type : NotificationType, title : String, message : String) : void
+    +refundSummary(refund : Refund) : Map<String, Object>
+    +money(value : BigDecimal) : BigDecimal
+}
+
+interface BookingRepository <<repository>> {
+    +findById(id : Long) : Optional<Booking>
+}
+
+interface AppUserRepository <<repository>> {
+    +findById(id : Long) : Optional<AppUser>
+}
+
+interface PaymentRepository <<repository>> {
+    +findById(id : Long) : Optional<Payment>
+}
+
+interface RefundRepository <<repository>> {
+    +save(entity : Refund) : Refund
+    +findAllByOrderByRefundIdDesc() : List<Refund>
+}
+
+interface InvoiceRepository <<repository>> {
+    +findByBooking_BookingId(bookingId : Long) : Optional<Invoice>
+}
+
+interface NotificationRepository <<repository>> {
+    +save(entity : Notification) : Notification
+}
+
+class Refund <<entity>> {
+    -refundId : Long
+    -booking : Booking
+    -payment : Payment
+    -refundCode : String
+    -requestedBy : AppUser
+    -processedBy : AppUser
+    -refundAmount : BigDecimal
+    -refundReason : String
+    -status : RefundStatus
+    -transactionCode : String
+    -requestedAt : LocalDateTime
+    -processedAt : LocalDateTime
+}
+
+class Invoice <<entity>> {
+    -invoiceId : Long
+    -booking : Booking
+    -refundAmount : BigDecimal
+}
+
+class Notification <<entity>> {
+    -notificationId : Long
+    -user : AppUser
+    -booking : Booking
+    -notificationType : NotificationType
+    -title : String
+    -message : String
+    -sentAt : LocalDateTime
+}
+
+class Booking <<entity>> {
+    -bookingId : Long
+    -bookingCode : String
+    -customer : AppUser
+    -refundableAmount : BigDecimal
+}
+
+class Payment <<entity>> {
+    -paymentId : Long
+    -booking : Booking
+}
+
+class AppUser <<entity>> {
+    -userId : Long
+    -fullName : String
+    -email : String
+}
+
+enum RefundStatus {
+    + requested
+    + approved
+    + rejected
+    + processing
+    + completed
+    + failed
+}
+
+enum NotificationType {
+    + booking_confirmation
+    + booking_reminder
+    + cancellation
+    + refund
+    + payment
+    + issue
+    + system
+}
+
+' Relationships
+PaymentController ..> PaymentWorkflowService
+PaymentController ..> RefundCreateDTO
+PaymentWorkflowService ..> DemoSupportService
+PaymentWorkflowService ..> RefundCreateDTO
+DemoSupportService ..> BookingRepository
+DemoSupportService ..> AppUserRepository
+DemoSupportService ..> PaymentRepository
+DemoSupportService ..> RefundRepository
+DemoSupportService ..> InvoiceRepository
+DemoSupportService ..> NotificationRepository
+DemoSupportService ..> Booking
+DemoSupportService ..> AppUser
+DemoSupportService ..> Payment
+DemoSupportService ..> Refund
+BookingRepository --> Booking
+AppUserRepository --> AppUser
+PaymentRepository --> Payment
+RefundRepository --> Refund
+InvoiceRepository --> Invoice
+NotificationRepository --> Notification
+Refund --> Booking
+Refund --> Payment
+Refund --> AppUser
+Notification --> Booking
+Notification --> AppUser
+Invoice --> Booking
+Payment --> Booking
+Booking --> AppUser
+Refund --> RefundStatus
+Notification --> NotificationType
+
+@enduml

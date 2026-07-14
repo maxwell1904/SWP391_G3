@@ -1,0 +1,158 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor Guest
+participant "AuthPage" as UI
+participant "App.jsx" as App
+participant "AccountController" as Controller
+participant "AccountService" as Service
+participant "DemoSupportService" as Support
+participant "AppUserRepository" as UserRepo
+database "Database" as DB
+
+== Login ==
+
+Guest -> UI : 1. Fill form & click "Login"
+activate Guest
+activate UI
+
+UI -> App : 2. login()
+activate App
+
+App -> App : 3. validateLoginForm()
+activate App
+deactivate App
+
+opt Validation fails
+  App --> UI : 3.1 Show error toast
+  UI --> Guest : 3.2 Error message
+end
+
+App -> Controller : 4. POST /api/account/login\n{emailOrPhone, password}
+activate Controller
+
+Controller -> Service : 5. login(request)
+activate Service
+
+Service -> Support : 6. requireText(emailOrPhone)\nrequireText(password)\nclean(emailOrPhone)
+activate Support
+Support --> Service : 7. trimmed identity
+deactivate Support
+
+Service -> Support : 8. userRepository.findByEmail(identity)
+activate Support
+
+Support -> UserRepo : 9. findByEmail(identity)
+activate UserRepo
+
+UserRepo -> DB : 10. SELECT * FROM app_user\nWHERE email = ?
+activate DB
+DB --> UserRepo : 11. user row (or empty)
+deactivate DB
+
+UserRepo --> Support : 12. Optional<AppUser>
+deactivate UserRepo
+
+Support --> Service : 13. Optional<AppUser>
+deactivate Support
+
+opt User not found by email
+  Service -> Support : 14. userRepository.findByPhone(identity)
+  activate Support
+
+  Support -> UserRepo : 15. findByPhone(identity)
+  activate UserRepo
+
+  UserRepo -> DB : 16. SELECT * FROM app_user\nWHERE phone = ?
+  activate DB
+  DB --> UserRepo : 17. user row (or empty)
+  deactivate DB
+
+  UserRepo --> Support : 18. Optional<AppUser>
+  deactivate UserRepo
+
+  Support --> Service : 19. Optional<AppUser>
+  deactivate Support
+end
+
+opt Account not found
+  Service --> Controller : 20.1 Throw NOT_FOUND\n"Account not found"
+  Controller --> App : 20.2 HTTP 404
+  App --> UI : 20.3 Show error toast
+end
+
+Service -> Service : 22. passwordEncoder.matches\n(password, user.passwordHash)
+activate Service
+deactivate Service
+
+opt Password incorrect
+  Service --> Controller : 23.1 Throw UNAUTHORIZED\n"Invalid credentials"
+  Controller --> App : 23.2 HTTP 401
+  App --> UI : 23.3 Show error toast
+end
+
+Service -> Service : 24. Check status != active
+activate Service
+deactivate Service
+
+opt Account not active
+  Service --> Controller : 25.1 Throw FORBIDDEN\n"Account is not active"
+  Controller --> App : 25.2 HTTP 403
+  App --> UI : 25.3 Show error toast
+end
+
+Service -> Service : 26. Check bookingRestricted
+activate Service
+deactivate Service
+
+opt Account restricted
+  Service --> Controller : 27.1 Throw FORBIDDEN\n"Account is restricted"
+  Controller --> App : 27.2 HTTP 403
+  App --> UI : 27.3 Show error toast
+end
+
+Service -> Service : 28. Set lastLoginAt
+activate Service
+deactivate Service
+
+Service -> Service : 29. Generate JWT token
+activate Service
+deactivate Service
+
+Service -> Support : 30. userSummary(user)
+activate Support
+Support --> Service : 31. {userId, fullName, role, ...}
+deactivate Support
+
+Service --> Controller : 32. {token, user}
+deactivate Service
+
+Controller --> App : 33. HTTP 200
+deactivate Controller
+
+App -> App : 34. saveStoredToken(token)\nsetCurrentUser(user)\nClear login form
+activate App
+deactivate App
+
+App -> App : 35. navigatePage(page)\nby role
+activate App
+deactivate App
+
+App --> UI : 36. Render role-based page
+deactivate App
+
+UI --> Guest : 37. Navigate base on role
+deactivate UI
+deactivate Guest
+
+@enduml

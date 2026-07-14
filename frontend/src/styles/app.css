@@ -1,22 +1,27 @@
 :root {
-  --ink: #122018;
-  --muted: #647267;
-  --faint: #eef4ee;
-  --paper: #fbfdf9;
-  --line: rgba(18, 32, 24, 0.12);
-  --line-strong: rgba(18, 32, 24, 0.22);
-  --green: #176f46;
-  --green-dark: #0f3f2a;
-  --green-soft: #dff1e5;
-  --amber: #e4a82d;
-  --orange: #d45c2d;
+  --ink: #0a120d;
+  --muted: #4e5c52;
+  --faint: #f0f6f2;
+  --paper: #ffffff;
+  --line: rgba(10, 18, 13, 0.08);
+  --line-strong: rgba(10, 18, 13, 0.16);
+  --green: #107c41;
+  --green-dark: #094a27;
+  --green-soft: #eaf6ee;
+  --amber: #ca8a04;
+  --orange: #dc2626;
   --white: #ffffff;
-  --shadow: 0 22px 55px rgba(24, 69, 42, 0.14);
+  --shadow: 0 20px 40px -15px rgba(10, 30, 20, 0.08), 0 1px 3px rgba(10, 30, 20, 0.02);
   color: var(--ink);
   background: #f6faf5;
-  font-family: Aptos, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, h5, h6, .brandButton, .brandMark, .workspaceMetric strong, .slotFieldName {
+  font-family: 'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-weight: 700;
 }
 
 * {
@@ -31,23 +36,11 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 18% 0%, rgba(228, 168, 45, 0.13), transparent 24rem),
-    linear-gradient(180deg, #f7fbf5 0%, #eef6ef 100%);
+  background: #f4f7f4;
 }
 
 body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  opacity: 0.38;
-  background-image:
-    linear-gradient(rgba(18, 32, 24, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(18, 32, 24, 0.035) 1px, transparent 1px);
-  background-size: 44px 44px;
-  mask-image: linear-gradient(to bottom, transparent, black 12%, black 78%, transparent);
+  display: none;
 }
 
 button,
@@ -159,6 +152,7 @@ button:active {
 }
 
 .mainNav {
+  min-width: 0;
   justify-self: center;
   display: flex;
   align-items: center;
@@ -172,6 +166,7 @@ button:active {
   color: #475a4d;
   font-size: 0.93rem;
   font-weight: 750;
+  white-space: nowrap;
 }
 
 .mainNav button:hover {
@@ -199,9 +194,8 @@ button:active {
 .ghostButton,
 .ghostDarkButton,
 .stripButton,
-.actionGrid button,
-.buttonRow button,
-.demoButtons button {
+.actionGrid button:not(.mantine-Button-root),
+.buttonRow button:not(.mantine-Button-root) {
   border: 0;
   border-radius: 10px;
   display: inline-flex;
@@ -295,7 +289,8 @@ main.pageMain .section {
 
 .venueLabel,
 .sectionIntro span,
-.fieldCard span,
+.workspaceIntro > span,
+.fieldCard .fieldEyebrow,
 .promoCard span,
 .toast span {
   display: inline-flex;
@@ -444,41 +439,243 @@ main.pageMain .section {
   text-wrap: pretty;
 }
 
+.workspaceHeader {
+  margin-bottom: 22px;
+  padding: clamp(18px, 3vw, 26px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.82fr);
+  align-items: stretch;
+  gap: 18px;
+  border-color: rgba(255, 255, 255, 0.64) !important;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(247, 252, 246, 0.82)),
+    var(--white);
+  box-shadow: var(--shadow);
+}
+
+.workspaceIntro {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 8px;
+}
+
+.workspaceIntro > span {
+  color: var(--green);
+}
+
+.workspaceIntro h2 {
+  margin: 0;
+  max-width: 740px;
+  font-size: clamp(2rem, 4vw, 3.6rem);
+  line-height: 0.98;
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+.workspaceIntro p {
+  max-width: 64ch;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.workspaceSummary {
+  min-width: 0;
+  display: grid;
+  align-content: space-between;
+  gap: 14px;
+}
+
+.workspaceStatus {
+  width: max-content;
+  max-width: 100%;
+  justify-self: end;
+  border: 1px solid rgba(23, 111, 70, 0.18);
+  background: rgba(23, 111, 70, 0.1) !important;
+  color: var(--green-dark) !important;
+}
+
+.workspaceStatus.warning {
+  border-color: rgba(228, 168, 45, 0.26);
+  background: rgba(228, 168, 45, 0.13) !important;
+  color: #7a5205 !important;
+}
+
+.workspaceStatus.success {
+  border-color: rgba(23, 111, 70, 0.2);
+}
+
+.workspaceMetricStrip {
+  min-width: 0;
+}
+
+.workspaceMetric {
+  min-height: 74px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.76);
+  padding: 12px;
+  display: grid;
+  align-content: space-between;
+}
+
+.workspaceMetric span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.workspaceMetric strong {
+  color: var(--ink);
+  font-size: clamp(1.08rem, 2vw, 1.34rem);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.workspaceTabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 20px;
+  padding: 5px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  scrollbar-width: thin;
+}
+
+.workspaceTabs button {
+  flex: 0 0 auto;
+  min-height: 38px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  padding: 0 14px;
+  font-size: 0.88rem;
+  font-weight: 820;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.workspaceTabs button:hover {
+  background: var(--green-soft);
+  color: var(--green-dark);
+}
+
+.workspaceTabs button.active {
+  background: var(--white);
+  color: var(--green-dark);
+  box-shadow: 0 4px 12px rgba(20, 61, 38, 0.1);
+}
+
+.workspaceTabs button:focus-visible {
+  outline: 3px solid rgba(23, 111, 70, 0.32);
+  outline-offset: 2px;
+}
+
+.workspacePanelHidden {
+  display: none !important;
+}
+
+.fieldSection {
+  width: min(1210px, calc(100% - 36px));
+}
+
+.fieldBrowserLayout {
+  display: grid;
+  grid-template-columns: minmax(360px, 0.92fr) minmax(0, 1.28fr);
+  align-items: start;
+  gap: 18px;
+}
+
 .fieldGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
 }
 
+.fieldRail {
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.fieldGridCards {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.fieldGridCards .fieldCardButton {
+  grid-template-columns: 1fr;
+}
+
+.fieldGridCards .fieldCard img {
+  height: 190px;
+  min-height: 190px;
+}
+
 .fieldCard {
   min-width: 0;
   overflow: hidden;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.86);
+  background: rgba(255, 255, 255, 0.88);
   box-shadow: var(--shadow);
+}
+
+.fieldCardButton {
+  width: 100%;
+  min-height: 206px;
+  border: 1px solid var(--line);
+  padding: 0;
+  display: grid;
+  grid-template-columns: 156px minmax(0, 1fr);
+  color: var(--ink);
+  text-align: left;
+  box-shadow: none;
+}
+
+.fieldCardButton:hover {
+  border-color: rgba(23, 111, 70, 0.32);
+  box-shadow: 0 18px 42px rgba(24, 69, 42, 0.12);
+  transform: translateY(-2px);
+}
+
+.fieldCardButton.selected {
+  border-color: rgba(23, 111, 70, 0.56);
+  background: linear-gradient(180deg, var(--white), #f3fbf4);
+  box-shadow: inset 0 0 0 2px rgba(23, 111, 70, 0.12), 0 18px 42px rgba(24, 69, 42, 0.11);
 }
 
 .fieldCard img {
   width: 100%;
-  aspect-ratio: 1.25;
+  height: 100%;
+  min-height: 206px;
   object-fit: cover;
   display: block;
 }
 
-.fieldCard div {
-  padding: 18px;
+.fieldCardBody {
+  padding: 16px;
+  display: grid;
+  align-content: start;
+  gap: 11px;
 }
 
-.fieldCard span {
-  color: var(--orange);
+.fieldCapacity {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 820;
 }
 
 .fieldCard h3,
 .promoCard h3,
 .infoPanel h3,
 .serviceBlock h3,
-.checkoutPanel h3,
-.demoPanel h3 {
+.checkoutPanel h3 {
   margin: 0;
   font-size: 1.08rem;
   line-height: 1.22;
@@ -486,7 +683,6 @@ main.pageMain .section {
 
 .fieldCard p,
 .promoCard p,
-.demoPanel p,
 .hintText,
 .emptyText,
 .errorText {
@@ -500,8 +696,12 @@ main.pageMain .section {
   font-weight: 760;
 }
 
+.fieldCard p {
+  margin: 7px 0 0;
+}
+
 .fieldCard dl {
-  margin: 14px 0 0;
+  margin: 0;
   display: grid;
   gap: 8px;
 }
@@ -530,6 +730,261 @@ main.pageMain .section {
   text-align: right;
 }
 
+.fieldCardFooter {
+  margin-top: 2px;
+  padding-top: 11px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.fieldCardFooter span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 760;
+}
+
+.fieldCardFooter strong {
+  color: var(--green);
+  font-size: 0.84rem;
+}
+
+.fieldDetailPanel {
+  position: sticky;
+  top: 98px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.fieldDetailModal {
+  position: static;
+  top: auto;
+  box-shadow: none;
+}
+
+.fieldDetailHero {
+  display: grid;
+  grid-template-columns: minmax(230px, 0.95fr) minmax(0, 1.08fr);
+  min-height: 292px;
+}
+
+.fieldDetailImage {
+  width: 100%;
+  height: 100%;
+}
+
+.fieldDetailImage img {
+  height: 100%;
+  min-height: 292px;
+  object-fit: cover;
+}
+
+.fieldDetailContent {
+  padding: 22px;
+  display: grid;
+  align-content: start;
+  gap: 15px;
+}
+
+.fieldDetailContent h2 {
+  margin: 8px 0 0;
+  color: var(--ink);
+  font-size: clamp(1.45rem, 3vw, 2.2rem);
+  line-height: 1.08;
+}
+
+.detailStatGrid {
+  margin-top: 2px;
+}
+
+.detailStat {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(247, 251, 245, 0.86);
+  padding: 12px;
+  display: grid;
+  gap: 5px;
+}
+
+.detailStat svg {
+  color: var(--green);
+}
+
+.detailStat span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 820;
+  text-transform: uppercase;
+}
+
+.detailStat strong {
+  min-width: 0;
+  color: var(--ink);
+  font-size: 0.92rem;
+  overflow-wrap: anywhere;
+}
+
+.fieldDetailBody {
+  border-top: 1px solid var(--line);
+  padding: 18px;
+  display: grid;
+  gap: 16px;
+}
+
+.fieldDetailToolbar {
+  gap: 12px;
+}
+
+.fieldDetailToolbar .fieldControl {
+  width: min(210px, 100%);
+}
+
+.miniSlotList,
+.priceRows {
+  display: grid;
+  gap: 9px;
+}
+
+.miniSlotItem,
+.priceRow {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--white);
+  padding: 12px;
+}
+
+.miniSlotItem {
+  display: grid;
+  grid-template-columns: auto minmax(90px, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  text-align: left;
+}
+
+.miniSlotItem:hover {
+  border-color: rgba(23, 111, 70, 0.34);
+  box-shadow: 0 10px 24px rgba(24, 69, 42, 0.09);
+}
+
+.miniSlotItem svg {
+  color: var(--green);
+}
+
+.miniSlotItem span {
+  font-weight: 850;
+}
+
+.miniSlotItem strong {
+  color: var(--green);
+  font-size: 0.94rem;
+}
+
+.miniSlotItem.unavailable {
+  color: var(--muted);
+  background: #f2f5f1;
+  box-shadow: none;
+}
+
+.miniSlotItem.unavailable strong,
+.miniSlotItem.unavailable svg {
+  color: var(--muted);
+}
+
+.priceRow {
+  display: grid;
+  grid-template-columns: minmax(80px, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.priceRow span,
+.priceRow strong,
+.priceRow em {
+  min-width: 0;
+}
+
+.priceRow span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 840;
+  text-transform: capitalize;
+}
+
+.priceRow strong {
+  color: var(--ink);
+  font-size: 0.92rem;
+}
+
+.priceRow em {
+  color: var(--green);
+  font-style: normal;
+  font-weight: 880;
+  text-align: right;
+}
+
+.fieldDetailActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.fieldServiceList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.fieldServiceItem,
+.fieldReviewSummary {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--white);
+  padding: 12px;
+}
+
+.fieldServiceItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.fieldServiceItem svg,
+.fieldReviewSummary svg {
+  color: var(--green);
+}
+
+.fieldServiceItem span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.fieldServiceItem strong {
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+
+.fieldServiceItem small,
+.fieldReviewSummary span {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.fieldReviewSummary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .bookingSection {
   width: min(1210px, calc(100% - 36px));
 }
@@ -544,7 +999,6 @@ main.pageMain .section {
 .bookingMain,
 .checkoutPanel,
 .authPanel,
-.demoPanel,
 .infoPanel,
 .promoCard {
   border: 1px solid rgba(255, 255, 255, 0.6);
@@ -556,7 +1010,6 @@ main.pageMain .section {
 .bookingMain,
 .checkoutPanel,
 .authPanel,
-.demoPanel,
 .infoPanel {
   padding: 18px;
 }
@@ -564,8 +1017,21 @@ main.pageMain .section {
 .checkoutPanel {
   position: sticky;
   top: 98px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
   display: grid;
   gap: 15px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(10, 18, 13, 0.2) transparent;
+}
+
+.checkoutPanel::-webkit-scrollbar {
+  width: 4px;
+}
+
+.checkoutPanel::-webkit-scrollbar-thumb {
+  background: rgba(10, 18, 13, 0.15);
+  border-radius: 4px;
 }
 
 .filterRow {
@@ -632,20 +1098,20 @@ main.pageMain .section {
 
 .slotList {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(166px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
 }
 
 .slotItem {
-  min-height: 132px;
+  min-height: 154px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--white);
   color: var(--ink);
-  padding: 13px;
+  padding: 14px;
   display: grid;
   align-content: start;
-  gap: 7px;
+  gap: 11px;
   text-align: left;
 }
 
@@ -668,25 +1134,44 @@ main.pageMain .section {
   transform: none;
 }
 
-.slotItem span,
+.slotFieldName,
 .bookingItem strong,
 .dataRow strong {
   font-weight: 850;
 }
 
-.slotItem strong {
-  font-size: 1rem;
+.slotFieldName {
+  font-size: 1.02rem;
+  line-height: 1.25;
 }
 
-.slotItem em,
-.slotItem small {
-  font-style: normal;
+.slotTimeLine,
+.slotMetaLine {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   color: var(--muted);
+  font-size: 0.9rem;
 }
 
-.slotItem em {
+.slotTimeLine svg,
+.slotMetaLine svg {
   color: var(--green);
-  font-weight: 850;
+  flex: 0 0 auto;
+}
+
+.slotPrice {
+  color: var(--green);
+  font-size: 0.88rem;
+  font-weight: 880;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.slotItem:disabled .slotPrice,
+.slotItem:disabled .slotTimeLine svg,
+.slotItem:disabled .slotMetaLine svg {
+  color: var(--muted);
 }
 
 .serviceBlock {
@@ -759,6 +1244,83 @@ main.pageMain .section {
   gap: 6px;
   border-top: 1px solid var(--line);
   padding-top: 12px;
+}
+
+.paymentChoice {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.paymentChoice legend {
+  margin-bottom: 8px;
+  color: #485b4d;
+  font-size: 0.78rem;
+  font-weight: 830;
+}
+
+.paymentChoiceGrid {
+  display: grid;
+  gap: 8px;
+}
+
+.paymentOption {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--white);
+  padding: 11px;
+  cursor: pointer;
+}
+
+.paymentOption.selected {
+  border-color: rgba(23, 111, 70, 0.5);
+  background: var(--green-soft);
+  box-shadow: 0 0 0 2px rgba(23, 111, 70, 0.08);
+}
+
+.paymentOption input {
+  accent-color: var(--green);
+}
+
+.paymentOption span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.paymentOption small {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.paymentOption em {
+  color: var(--green-dark);
+  font-style: normal;
+  font-weight: 880;
+  white-space: nowrap;
+}
+
+.paypalCheckout {
+  min-height: 44px;
+  display: grid;
+  gap: 8px;
+}
+
+.paypalCheckout iframe {
+  border-radius: 10px;
+}
+
+.paypalStatus {
+  margin: 0;
+  color: var(--green-dark);
+  font-size: 0.86rem;
+  font-weight: 760;
+  text-align: center;
 }
 
 .summaryLine {
@@ -837,6 +1399,76 @@ main.pageMain .section {
 .formStack {
   display: grid;
   gap: 12px;
+}
+
+.forgotPasswordRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -4px;
+}
+
+.forgotPasswordLink {
+  background: none;
+  border: none;
+  color: #1d6fb0;
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+}
+
+.forgotPasswordLink:hover {
+  text-decoration: underline;
+  color: #155a8a;
+}
+
+.profileForm {
+  display: grid;
+  gap: 12px;
+}
+
+.cancellationReview {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(202, 73, 49, 0.24);
+  border-radius: 12px;
+  background: #fff8f6;
+  padding: 12px;
+}
+
+.cancellationReview > strong {
+  color: #8f321d;
+}
+
+.dangerButton {
+  min-height: 42px;
+  border: 0;
+  border-radius: 10px;
+  background: #b63f25;
+  color: var(--white);
+  padding: 0 14px;
+  font-weight: 820;
+}
+
+.dangerButton:hover {
+  background: #963019;
+}
+
+.changePasswordSection {
+  margin-top: 20px;
+}
+
+.sectionDivider {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 0 0 16px 0;
+}
+
+.sectionSubtitle {
+  margin: 0 0 12px 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink);
 }
 
 .passwordInput {
@@ -943,38 +1575,16 @@ main.pageMain .section {
   text-decoration: none;
 }
 
-.demoPanel {
-  display: block;
-}
-
-.demoPanel summary {
-  cursor: pointer;
-  color: var(--ink);
-  font-weight: 850;
-}
-
-.demoPanel p {
-  margin: 12px 0;
-}
-
-.demoButtons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.demoButtons button,
-.actionGrid button,
-.buttonRow button {
+.actionGrid button:not(.mantine-Button-root),
+.buttonRow button:not(.mantine-Button-root) {
   min-height: 40px;
   border: 1px solid var(--line);
   background: var(--white);
   color: var(--ink);
 }
 
-.demoButtons button:hover,
-.actionGrid button:hover,
-.buttonRow button:hover {
+.actionGrid button:not(.mantine-Button-root):hover,
+.buttonRow button:not(.mantine-Button-root):hover {
   border-color: rgba(23, 111, 70, 0.34);
   background: var(--green-soft);
 }
@@ -983,15 +1593,113 @@ main.pageMain .section {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.roleGrid {
+  align-items: start;
+}
+
 .infoPanel {
   min-width: 0;
   display: grid;
   align-content: start;
   gap: 12px;
+  border-color: rgba(255, 255, 255, 0.62) !important;
+  background: rgba(255, 255, 255, 0.86) !important;
+}
+
+.billingDetails {
+  display: grid;
+  gap: 15px;
+}
+
+.billingHeading,
+.billingHeading > span,
+.paymentRecord {
+  display: flex;
+  align-items: center;
+}
+
+.billingHeading {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.billingHeading > span {
+  min-width: 0;
+  gap: 10px;
+}
+
+.billingHeading > span > span,
+.paymentRecord > span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.billingHeading small,
+.paymentRecord small {
+  color: var(--muted);
+  text-transform: capitalize;
+}
+
+.invoiceAmounts {
+  display: grid;
+  gap: 3px;
+  border-block: 1px solid var(--line);
+  padding: 9px 0;
+}
+
+.invoiceAmount {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.invoiceAmount strong {
+  color: var(--ink);
+}
+
+.invoiceAmount.strong {
+  margin-top: 3px;
+  border-top: 1px dashed var(--line);
+  padding-top: 7px;
+  color: var(--ink);
+  font-size: 1.04rem;
+}
+
+.paymentTimeline {
+  display: grid;
+  gap: 8px;
+}
+
+.paymentTimeline h4 {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.paymentRecord {
+  gap: 9px;
+  border-radius: 10px;
+  background: #f4f7f4;
+  padding: 10px;
+}
+
+.paymentRecordValue {
+  margin-left: auto;
+  text-align: right;
+}
+
+.paymentRecordValue strong {
+  color: var(--green-dark);
+  white-space: nowrap;
 }
 
 .bookingList,
-.dataList {
+.dataList,
+.customerAdminList {
   display: grid;
   gap: 8px;
   max-height: 360px;
@@ -1000,7 +1708,8 @@ main.pageMain .section {
 }
 
 .bookingItem,
-.dataRow {
+.dataRow,
+.customerAdminRow {
   width: 100%;
   min-height: 66px;
   border: 1px solid var(--line);
@@ -1015,8 +1724,42 @@ main.pageMain .section {
   text-align: left;
 }
 
+.dataList {
+  gap: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.dataRow {
+  min-height: 60px;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  padding: 10px 2px;
+}
+
+.dataRow:last-child {
+  border-bottom: 0;
+}
+
+.dataRow:hover {
+  background: #f7faf7;
+}
+
 .bookingItem:hover {
   border-color: rgba(23, 111, 70, 0.34);
+}
+
+.customerAdminRow button {
+  min-width: 92px;
+  min-height: 38px;
+  padding: 0 12px;
+}
+
+.customerAdminRow.selected {
+  border-color: var(--green);
+  background: var(--green-soft);
 }
 
 .bookingItem.selected {
@@ -1025,14 +1768,16 @@ main.pageMain .section {
 }
 
 .bookingItem span,
-.dataRow span {
+.dataRow span,
+.customerAdminRow span {
   min-width: 0;
   display: grid;
   gap: 4px;
 }
 
 .bookingItem small,
-.dataRow small {
+.dataRow small,
+.customerAdminRow small {
   color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1046,6 +1791,107 @@ main.pageMain .section {
   font-size: 0.78rem;
   font-weight: 900;
   text-align: right;
+  white-space: nowrap;
+}
+
+.listBadge {
+  flex: 0 0 auto;
+  max-width: min(180px, 42%);
+  text-transform: none;
+}
+
+.adminPanelHeader {
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.adminPanelHeader span {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.adminFormGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.adminFormGrid.compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.adminFormGrid .fieldControl:last-child {
+  grid-column: 1 / -1;
+}
+
+.addListButton {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 20px;
+  background: transparent;
+  border: 2px dashed var(--mantine-color-gray-3);
+  border-radius: 8px;
+  color: var(--mantine-color-gray-6);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 8px;
+  font-weight: 500;
+  justify-content: center;
+}
+
+.addListButton:hover:not(:disabled) {
+  background: var(--mantine-color-gray-0);
+  border-color: var(--mantine-color-blue-3);
+  color: var(--mantine-color-blue-7);
+}
+
+.addListButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.adminPriceRow {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(90px, 0.95fr) minmax(110px, 1.05fr) minmax(96px, 0.8fr);
+  align-items: center;
+  column-gap: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.adminPriceRow .priceRowLabel {
+  min-width: 0;
+  font-weight: 850;
+  text-transform: capitalize;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adminPriceRow .priceRowRange {
+  min-width: 0;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adminPriceRow .priceRowAmount {
+  min-width: 0;
+  color: var(--green);
+  font-style: normal;
+  font-weight: 850;
+  justify-self: end;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -1114,6 +1960,10 @@ main.pageMain .section {
   gap: 9px;
 }
 
+.actionGrid .wideAction {
+  grid-column: 1 / -1;
+}
+
 .buttonRow {
   display: flex;
   flex-wrap: wrap;
@@ -1125,7 +1975,30 @@ main.pageMain .section {
 }
 
 .adminGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.adminWidePanel {
+  grid-column: 1 / -1;
+}
+
+.adminManagerLayout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.78fr) minmax(0, 1.22fr);
+  align-items: start;
+  gap: 14px;
+}
+
+.adminWidePanel .customerAdminList {
+  max-height: 420px;
+}
+
+.adminOverviewPrimary .metricGrid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.adminOverviewSecondary {
+  min-height: 0;
 }
 
 .siteFooter {
@@ -1208,8 +2081,8 @@ main.pageMain .section {
   padding: clamp(24px, 6vw, 64px);
 }
 
-.accessPanel span,
-.actionPanel span {
+.accessPanel > span,
+.actionPanel > span {
   color: var(--green);
   font-size: 0.78rem;
   font-weight: 850;
@@ -1310,10 +2183,14 @@ main.pageMain .section {
   }
 
   .sectionIntro,
+  .workspaceHeader,
+  .fieldBrowserLayout,
+  .fieldDetailHero,
   .bookingLayout,
   .authGrid,
   .operationGrid,
-  .adminGrid {
+  .adminGrid,
+  .adminManagerLayout {
     grid-template-columns: 1fr;
   }
 
@@ -1323,6 +2200,7 @@ main.pageMain .section {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .fieldDetailPanel,
   .checkoutPanel {
     position: static;
   }
@@ -1352,8 +2230,13 @@ main.pageMain .section {
   .promoGrid,
   .accountGrid,
   .serviceGrid,
-  .metricGrid {
+  .metricGrid,
+  .workspaceMetricStrip {
     grid-template-columns: 1fr;
+  }
+
+  .adminOverviewPrimary .metricGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .stripButton {
@@ -1364,11 +2247,49 @@ main.pageMain .section {
     padding-top: 62px;
   }
 
+  .workspaceTabs {
+    margin-bottom: 16px;
+  }
+
   .slotList {
     grid-template-columns: 1fr;
   }
 
+  .fieldCardButton {
+    grid-template-columns: 1fr;
+  }
+
+  .fieldCard img,
+  .fieldDetailImage img {
+    min-height: 220px;
+  }
+
+  .fieldDetailToolbar {
+    align-items: stretch;
+  }
+
+  .fieldDetailToolbar .fieldControl {
+    width: 100%;
+  }
+
+  .fieldServiceList,
+  .adminFormGrid,
+  .adminFormGrid.compact {
+    grid-template-columns: 1fr;
+  }
+
+  .miniSlotItem,
+  .priceRow {
+    grid-template-columns: 1fr;
+  }
+
+  .miniSlotItem {
+    align-items: start;
+  }
+
   .serviceOption,
+  .paymentOption,
+  .paymentRecord,
   .bookingItem,
   .dataRow,
   .siteFooter {
@@ -1380,9 +2301,24 @@ main.pageMain .section {
     width: 100%;
   }
 
+  .paymentOption {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .paymentOption em,
+  .paymentRecordValue {
+    grid-column: 2;
+    margin-left: 0;
+    text-align: left;
+  }
+
   .bookingItem em,
   .dataRow em {
     text-align: left;
+  }
+
+  .listBadge {
+    max-width: 100%;
   }
 
   .actionGrid {
@@ -1396,6 +2332,15 @@ main.pageMain .section {
   }
 }
 
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1403,4 +2348,558 @@ main.pageMain .section {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ============================
+   Promotions Admin Controls
+   ============================ */
+
+.adminControls {
+  margin-bottom: 2rem;
+}
+
+.promoForm {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 1.75rem;
+  box-shadow: var(--shadow);
+}
+
+.promoForm h3 {
+  margin: 0 0 1.25rem;
+  font-size: 1.15rem;
+  color: var(--ink);
+}
+
+.promoFormGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.promoFormGrid .fullWidth {
+  grid-column: 1 / -1;
+}
+
+.promoFormGrid textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.promoStatus {
+  font-size: 0.78rem;
+  font-weight: 820;
+  text-transform: uppercase;
+  color: var(--green);
+}
+
+.promoAdminActions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--line);
+  margin-top: 0.5rem;
+}
+
+/* ============================
+   Promo Card Grid + Pagination
+   ============================ */
+
+.promoSummaryLine {
+  margin: 0 0 1.25rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.promoCodeBadge {
+  background: var(--green-soft);
+  color: var(--green-dark);
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.promoStatusPill {
+  padding: 0.18rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 820;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.promoStatusPill.active {
+  background: var(--green-soft);
+  color: var(--green-dark);
+}
+
+.promoStatusPill.inactive {
+  background: rgba(212, 92, 45, 0.12);
+  color: #9a3c18;
+}
+
+.promoCardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1.25rem;
+}
+
+.promoCardFull {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.promoCardFull:hover {
+  border-color: rgba(23, 111, 70, 0.28);
+  box-shadow: 0 12px 32px rgba(24, 69, 42, 0.1);
+  transform: translateY(-2px);
+}
+
+.promoCardFull.inactive {
+  opacity: 0.68;
+  border-style: dashed;
+}
+
+.promoCardFullHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.promoCardFullTitle {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.promoCardFullTitle h3 {
+  margin: 0;
+  font-size: 1.08rem;
+  color: var(--ink);
+  line-height: 1.25;
+}
+
+.promoDiscountBig {
+  font-size: 1.12rem;
+  font-weight: 860;
+  color: var(--green);
+  white-space: nowrap;
+}
+
+.promoCardDesc {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.promoDetailGrid {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 1rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.875rem;
+}
+
+.promoDetailGrid div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.promoDetailGrid dt {
+  font-size: 0.72rem;
+  font-weight: 820;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.promoDetailGrid dd {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.promoCardActions {
+  border-top: 1px solid var(--line);
+  padding-top: 0.875rem;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.promoCardActions .ghostDarkButton {
+  min-height: 36px;
+  padding: 0 1rem;
+  font-size: 0.875rem;
+}
+
+/* Pagination */
+.promoPagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 2rem;
+}
+
+.promoPaginationBtn {
+  min-width: 38px;
+  min-height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--white);
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 760;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 180ms ease, background 180ms ease, color 180ms ease, transform 180ms ease;
+}
+
+.promoPaginationBtn:hover:not(:disabled) {
+  border-color: rgba(23, 111, 70, 0.35);
+  background: var(--faint);
+  color: var(--green-dark);
+}
+
+.promoPaginationBtn.active {
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--white);
+  font-weight: 820;
+}
+
+.promoPaginationBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+
+
+.promoListItem {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.promoListItem:hover {
+  border-color: rgba(23, 111, 70, 0.3);
+  box-shadow: 0 10px 28px rgba(24, 69, 42, 0.1);
+}
+
+.promoListItem.inactive {
+  opacity: 0.7;
+}
+
+.promoHeader {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+
+.promoHeaderMain {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.promoHeaderMain h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+
+.promoCodeBadge {
+  background: var(--green-soft);
+  color: var(--green-dark);
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.promoHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.promoHeaderRight strong {
+  font-size: 1.05rem;
+  color: var(--green);
+}
+
+.expandIcon {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.promoDetails {
+  padding: 1.25rem 1.5rem 1.5rem;
+  border-top: 1px solid var(--line);
+  animation: slideDown 0.22s ease-out forwards;
+}
+
+.promoDescription {
+  color: var(--muted);
+  margin: 0 0 1rem;
+  line-height: 1.55;
+}
+
+.promoRules {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.25rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.5rem;
+}
+
+.promoRules li {
+  color: var(--ink);
+  font-size: 0.9rem;
+  display: flex;
+  gap: 0.4rem;
+}
+
+.promoRules li strong {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================
+   Notification Bell Dropdown
+   ============================ */
+
+.notificationBellWrapper {
+  position: relative;
+}
+
+.notificationBellButton {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  color: var(--ink);
+  transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease, color 180ms ease;
+}
+
+.notificationBellButton:hover {
+  border-color: rgba(23, 111, 70, 0.3);
+  color: var(--green);
+  box-shadow: 0 10px 24px rgba(24, 69, 42, 0.11);
+}
+
+.notificationBadge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: #d45c2d;
+  color: #fff;
+  font-size: 0.63rem;
+  font-weight: 850;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  border: 2px solid #f6faf5;
+  pointer-events: none;
+}
+
+.notificationDropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 360px;
+  max-height: 480px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 22px 55px rgba(24, 69, 42, 0.14);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  z-index: 200;
+  animation: slideDown 0.2s ease-out;
+}
+
+.notificationDropdownHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+  background: #ffffff;
+}
+
+.notificationDropdownHeader h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 820;
+  color: var(--ink);
+}
+
+.markAllReadBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--green);
+  font-weight: 760;
+  padding: 0;
+  min-height: auto;
+  transition: opacity 180ms ease;
+}
+
+.markAllReadBtn:hover {
+  opacity: 0.7;
+}
+
+.notificationList {
+  overflow-y: auto;
+  flex: 1;
+  background: #ffffff;
+}
+
+.notificationItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.875rem 1.25rem;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid rgba(18, 32, 24, 0.07);
+  cursor: pointer;
+  background: #ffffff;
+  transition: background 180ms ease;
+  position: relative;
+  min-height: auto;
+  border-radius: 0;
+}
+
+.notificationItem:last-child {
+  border-bottom: none;
+}
+
+.notificationItem.unread {
+  background: #f4fbf6;
+}
+
+.notificationItem.unread:hover,
+.notificationItem.read:hover {
+  background: var(--faint);
+}
+
+.notificationTypeIcon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+  line-height: 1;
+}
+
+.notificationContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.notificationTitle {
+  font-size: 0.875rem;
+  font-weight: 820;
+  color: var(--ink);
+  margin: 0 0 0.2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notificationItem.read .notificationTitle {
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.notificationMessage {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0 0 0.3rem;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.notificationTime {
+  font-size: 0.73rem;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.unreadDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  flex-shrink: 0;
+  margin-top: 0.4rem;
+}
+
+.notificationEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1rem;
+  gap: 0.5rem;
+  color: var(--muted);
+  background: #ffffff;
+}
+
+.notificationEmpty span {
+  font-size: 2.5rem;
+}
+
+.notificationEmpty p {
+  margin: 0;
+  font-size: 0.9rem;
 }

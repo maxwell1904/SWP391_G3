@@ -1,18 +1,31 @@
 spring:
+  profiles:
+    default: local
+
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:h2:mem:swp391;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH}
     username: ${SPRING_DATASOURCE_USERNAME:sa}
     password: ${SPRING_DATASOURCE_PASSWORD:}
     driver-class-name: ${SPRING_DATASOURCE_DRIVER:org.h2.Driver}
+    hikari:
+      maximum-pool-size: ${SPRING_DATASOURCE_MAX_POOL_SIZE:2}
+      minimum-idle: ${SPRING_DATASOURCE_MIN_IDLE:1}
 
   jpa:
     hibernate:
-      ddl-auto: ${SPRING_JPA_DDL_AUTO:create-drop}
+      # Local H2 is intentionally disposable. PostgreSQL overrides this to
+      # `validate` in application-postgres.yml.
+      ddl-auto: create-drop
     show-sql: false
     open-in-view: false
     properties:
       hibernate:
         format_sql: true
+
+  flyway:
+    # H2 remains code-first for fast, isolated local demo/test runs. The
+    # PostgreSQL profile owns its schema through db/migration/postgresql.
+    enabled: false
 
   h2:
     console:
@@ -28,13 +41,29 @@ spring:
       mail:
         smtp:
           auth: true
+          ssl:
+            enable: ${SMTP_SECURE:false}
           starttls:
-            enable: true
-            required: true
+            enable: ${SMTP_STARTTLS_ENABLE:true}
+            required: ${SMTP_STARTTLS_REQUIRED:false}
 
 server:
   port: 8080
 
+app:
+  frontend-base-url: ${APP_FRONTEND_BASE_URL:${FRONTEND_URL:http://localhost:5173}}
+  mail:
+    from-email: ${FROM_EMAIL:${SMTP_USER:${SPRING_MAIL_USERNAME:}}}
+    from-name: ${FROM_NAME:GoalZone}
+  paypal:
+    client-id: ${PAYPAL_CLIENT_ID:}
+    client-secret: ${PAYPAL_CLIENT_SECRET:}
+    env: ${PAYPAL_ENV:sandbox}
+    currency: ${PAYPAL_CURRENCY:USD}
+    mock-mode: ${PAYPAL_MOCK_MODE:true}
+
 jwt:
-  secret: swp391_secret_key
+  # A local fallback keeps demo accounts usable. Set JWT_SECRET in every
+  # shared, staging, or production environment.
+  secret: ${JWT_SECRET:swp391_local_only_change_me_before_deployment}
   expiration: 86400000

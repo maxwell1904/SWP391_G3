@@ -1,0 +1,253 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class BookingController <<controller>> {
+    -bookingWorkflowService : BookingWorkflowService
+
+    +checkoutPreview(@RequestBody ApiRequests.PromotionApply request) : Object
+}
+
+class BookingWorkflowService <<service>> {
+    -support : DemoSupportService
+
+    +previewCheckout(request : ApiRequests.PromotionApply) : Map<String, Object>
+}
+
+class DemoSupportService <<service>> {
+    -userRepository : AppUserRepository
+    -slotRepository : SlotRepository
+    -extraServiceRepository : ExtraServiceRepository
+    -fieldPriceRepository : FieldPriceRepository
+    -promotionRepository : PromotionRepository
+    -customerMembershipRepository : CustomerMembershipRepository
+
+    +getUser(userId : Long) : AppUser
+    +getSlot(slotId : Long) : Slot
+    +getExtraService(serviceId : Long) : ExtraService
+    +parseEnum(enumType : Class<T>, value : String, fallback : T) : T
+    +calculateFieldPrice(slot : Slot) : BigDecimal
+    +calculateServiceTotal(selections : List<ApiRequests.ServiceSelection>) : BigDecimal
+    +validateServiceQuantity(service : ExtraService, quantity : Integer) : int
+    +calculatePromotionDiscount(code : String, slot : Slot, amount : BigDecimal, services : List<ApiRequests.ServiceSelection>) : BigDecimal
+    +calculateMembershipDiscount(customer : AppUser, amount : BigDecimal, source : BookingSource) : BigDecimal
+    +calculateDeposit(total : BigDecimal) : BigDecimal
+    +userSummary(customer : AppUser) : Map<String, Object>
+    +slotSummary(slot : Slot) : Map<String, Object>
+    +money(value : BigDecimal) : BigDecimal
+}
+
+class "ApiRequests.PromotionApply" as PromotionApplyDTO <<dto>> {
+    -customerId : Long
+    -slotId : Long
+    -promotionCode : String
+    -bookingSource : String
+    -services : List<ServiceSelection>
+}
+
+class "ApiRequests.ServiceSelection" as ServiceSelectionDTO <<dto>> {
+    -serviceId : Long
+    -quantity : Integer
+}
+
+interface AppUserRepository <<repository>> {
+    +findById(id : Long) : Optional<AppUser>
+}
+
+interface SlotRepository <<repository>> {
+    +findById(id : Long) : Optional<Slot>
+}
+
+interface ExtraServiceRepository <<repository>> {
+    +findById(id : Long) : Optional<ExtraService>
+}
+
+interface FieldPriceRepository <<repository>> {
+    +findByField_FieldId(fieldId : Long) : List<FieldPrice>
+}
+
+interface PromotionRepository <<repository>> {
+    +findByPromotionCodeIgnoreCase(promotionCode : String) : Optional<Promotion>
+}
+
+interface CustomerMembershipRepository <<repository>> {
+    +findByCustomer_UserId(customerId : Long) : Optional<CustomerMembership>
+}
+
+class AuditEntity <<entity>> {
+    -createdAt : LocalDateTime
+    -updatedAt : LocalDateTime
+}
+
+class AppUser <<entity>> {
+    -userId : Long
+    -role : Role
+    -fullName : String
+    -email : String
+    -phone : String
+    -passwordHash : String
+    -avatarUrl : String
+    -dateOfBirth : LocalDate
+    -address : String
+    -status : AccountStatus
+    -bookingRestricted : boolean
+    -restrictionReason : String
+    -lastLoginAt : LocalDateTime
+    -emailVerified : boolean
+    -emailVerificationToken : String
+    -emailVerificationSentAt : LocalDateTime
+    -passwordResetToken : String
+    -passwordResetSentAt : LocalDateTime
+}
+
+class Slot <<entity>> {
+    -slotId : Long
+    -field : FootballField
+    -slotDate : LocalDate
+    -startTime : LocalTime
+    -endTime : LocalTime
+    -status : SlotStatus
+    -blockReason : String
+    -blockNote : String
+    -createdBy : AppUser
+}
+
+class FootballField <<entity>> {
+    -fieldId : Long
+    -fieldType : FieldType
+    -fieldName : String
+    -description : String
+    -imageUrl : String
+    -location : String
+    -surfaceType : String
+    -status : CommonStatus
+}
+
+class ExtraService <<entity>> {
+    -extraServiceId : Long
+    -serviceName : String
+    -serviceType : ServiceType
+    -description : String
+    -unitName : String
+    -unitPrice : BigDecimal
+    -stockQuantity : Integer
+    -maxQuantityPerBooking : Integer
+    -status : CommonStatus
+}
+
+class FieldPrice <<entity>> {
+    -fieldPriceId : Long
+    -field : FootballField
+    -dayType : String
+    -startTime : LocalTime
+    -endTime : LocalTime
+    -price : BigDecimal
+    -effectiveFrom : LocalDate
+    -effectiveTo : LocalDate
+    -status : CommonStatus
+}
+
+class Promotion <<entity>> {
+    -promotionId : Long
+    -promotionCode : String
+    -promotionName : String
+    -bannerUrl : String
+    -description : String
+    -discountType : DiscountType
+    -discountValue : BigDecimal
+    -maxDiscountAmount : BigDecimal
+    -minBookingAmount : BigDecimal
+    -usageLimit : Integer
+    -usedCount : int
+    -startDate : LocalDate
+    -endDate : LocalDate
+    -applicableFieldType : FieldType
+    -applicableMembershipLevel : MembershipLevel
+    -applicableExtraService : ExtraService
+    -applicableDayType : String
+    -applicableStartTime : LocalTime
+    -applicableEndTime : LocalTime
+    -stackable : boolean
+    -status : CommonStatus
+}
+
+class CustomerMembership <<entity>> {
+    -customerMembershipId : Long
+    -customer : AppUser
+    -membershipLevel : MembershipLevel
+    -completedBookingCount : int
+    -progressNote : String
+    -effectiveFrom : LocalDate
+    -effectiveTo : LocalDate
+}
+
+class MembershipLevel <<entity>> {
+    -membershipLevelId : Long
+    -levelName : String
+    -requiredCompletedBookings : int
+    -discountPercent : BigDecimal
+    -benefitDescription : String
+    -displayOrder : int
+    -status : CommonStatus
+}
+
+enum CommonStatus {
+    + active
+    + inactive
+}
+
+enum DiscountType {
+    + percent
+    + fixed_amount
+}
+
+enum SlotStatus {
+    + available
+    + blocked
+}
+
+' Relationships
+BookingController ..> BookingWorkflowService
+BookingController ..> PromotionApplyDTO
+BookingWorkflowService ..> DemoSupportService
+BookingWorkflowService ..> PromotionApplyDTO
+BookingWorkflowService ..> ServiceSelectionDTO
+
+DemoSupportService ..> AppUserRepository
+DemoSupportService ..> SlotRepository
+DemoSupportService ..> ExtraServiceRepository
+DemoSupportService ..> FieldPriceRepository
+DemoSupportService ..> PromotionRepository
+DemoSupportService ..> CustomerMembershipRepository
+
+AppUserRepository --> AppUser
+SlotRepository --> Slot
+ExtraServiceRepository --> ExtraService
+FieldPriceRepository --> FieldPrice
+PromotionRepository --> Promotion
+CustomerMembershipRepository --> CustomerMembership
+
+FieldPrice --> FootballField
+Slot --> FootballField
+CustomerMembership --> AppUser
+CustomerMembership --> MembershipLevel
+
+AppUser -|> AuditEntity
+Slot -|> AuditEntity
+FootballField -|> AuditEntity
+ExtraService -|> AuditEntity
+FieldPrice -|> AuditEntity
+Promotion -|> AuditEntity
+CustomerMembership -|> AuditEntity
+MembershipLevel -|> AuditEntity
+
+Slot --> SlotStatus
+FootballField --> CommonStatus
+ExtraService --> CommonStatus
+FieldPrice --> CommonStatus
+Promotion --> CommonStatus
+Promotion --> DiscountType
+MembershipLevel --> CommonStatus
+
+@enduml

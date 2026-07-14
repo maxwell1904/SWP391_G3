@@ -1,76 +1,32 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  ArrowRight,
-  CalendarDays,
-  Clock,
-  Eye,
-  EyeOff,
   LogIn,
   LogOut,
-  MailCheck,
   Menu,
-  Search,
-  ShieldCheck,
-  UserRound,
-  Wrench
+  UserRound
 } from 'lucide-react'
+import { pageFromPath, pageRoutes } from './app/routes'
+import { loadStoredUser, saveStoredUser, saveStoredToken } from './app/session'
+import { AccessPanel, ActionPanel, NotificationBell } from './components/common'
+import { emailPattern, passwordIssues, phonePattern } from './features/auth/authRules'
+import {
+  AccountPage,
+  AdminPage,
+  AuthPage,
+  BookingPage,
+  FieldsPage,
+  ForgotPasswordPage,
+  HomePage,
+  MembershipRulesPage,
+  MembershipBenefitsPage,
+  PromotionsPage,
+  ResetPasswordPage,
+  StaffPage,
+  VerifyEmailPage
+} from './pages'
 import api from './services/api'
 import './styles/app.css'
-
-const heroImage = 'https://images.unsplash.com/photo-1556056504-5c7696c4c28d?auto=format&fit=crop&w=2200&q=85'
-
-const tomorrow = () => {
-  const date = new Date()
-  date.setDate(date.getDate() + 1)
-  return date.toISOString().slice(0, 10)
-}
-
-const formatMoney = value => new Intl.NumberFormat('vi-VN', {
-  style: 'currency',
-  currency: 'VND',
-  maximumFractionDigits: 0
-}).format(Number(value || 0))
-
-const demoPassword = 'GoalZone@123'
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const phonePattern = /^0\d{9}$/
-
-const pageRoutes = {
-  home: '/',
-  fields: '/fields',
-  booking: '/booking',
-  login: '/login',
-  account: '/account',
-  verifyEmail: '/verify-email',
-  promotions: '/promotions',
-  staff: '/staff',
-  admin: '/admin'
-}
-
-const pageFromPath = pathname => {
-  const match = Object.entries(pageRoutes).find(([, path]) => path === pathname)
-  return match?.[0] || 'home'
-}
-
-const loadStoredUser = () => {
-  try {
-    return JSON.parse(window.localStorage.getItem('goalzone.currentUser')) || null
-  } catch {
-    return null
-  }
-}
-
-const passwordIssues = password => {
-  const issues = []
-  if (!password) return ['Password is required.']
-  if (password.length < 8) issues.push('Use at least 8 characters.')
-  if (/\s/.test(password)) issues.push('Remove spaces.')
-  if (!/[A-Z]/.test(password)) issues.push('Add one uppercase letter.')
-  if (!/[a-z]/.test(password)) issues.push('Add one lowercase letter.')
-  if (!/\d/.test(password)) issues.push('Add one number.')
-  if (!/[^A-Za-z0-9]/.test(password)) issues.push('Add one special character.')
-  return issues
-}
+import { tomorrow } from './utils/format'
 
 function App() {
   const [loading, setLoading] = useState(true)
@@ -96,6 +52,7 @@ function App() {
   const [membership, setMembership] = useState(null)
   const [reports, setReports] = useState(null)
   const [settings, setSettings] = useState([])
+  const [membershipLevels, setMembershipLevels] = useState([])
   const [notifications, setNotifications] = useState([])
 
   const [searchDate, setSearchDate] = useState(tomorrow())
@@ -106,21 +63,40 @@ function App() {
   const [selectedStaffId, setSelectedStaffId] = useState(3)
   const [promotionCode, setPromotionCode] = useState('')
   const [selectedServices, setSelectedServices] = useState({})
+  const [paymentOption, setPaymentOption] = useState('deposit')
   const [checkout, setCheckout] = useState(null)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [checkoutError, setCheckoutError] = useState('')
-  const [verificationLink, setVerificationLink] = useState('')
+  const [paypalConfig, setPaypalConfig] = useState(null)
+  const [paypalConfigError, setPaypalConfigError] = useState('')
+  const [selectedBookingDetail, setSelectedBookingDetail] = useState(null)
+  const [cancellationPreview, setCancellationPreview] = useState(null)
+  const [billingLoading, setBillingLoading] = useState(false)
+  const [billingError, setBillingError] = useState('')
   const [verifyResult, setVerifyResult] = useState({ status: 'idle', message: '' })
   const [loginErrors, setLoginErrors] = useState({})
   const [registerErrors, setRegisterErrors] = useState({})
+  const [registerLoading, setRegisterLoading] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotSent, setForgotSent] = useState(false)
+  const [forgotLoading, setForgotLoading] = useState(false)
+  const [forgotError, setForgotError] = useState('')
+  const [resetPassword, setResetPassword] = useState('')
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('')
+  const [showResetPassword, setShowResetPassword] = useState(false)
+  const [resetResult, setResetResult] = useState(null)
+  const [resetLoading, setResetLoading] = useState(false)
+  const [resetErrors, setResetErrors] = useState({})
+  const [resetPasswordToken, setResetPasswordToken] = useState(null)
+  const [resetTokenChecking, setResetTokenChecking] = useState(true)
 
-  const [loginForm, setLoginForm] = useState({ emailOrPhone: 'customer@goalzone.local', password: demoPassword })
+  const [loginForm, setLoginForm] = useState({ emailOrPhone: '', password: '' })
   const [registerForm, setRegisterForm] = useState({
-    fullName: 'New Customer',
-    email: `customer${Date.now()}@goalzone.local`,
-    phone: `09${String(Date.now()).slice(-8)}`,
-    password: demoPassword,
-    confirmPassword: demoPassword
+    fullName: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirmPassword: ''
   })
   const [issueDraft, setIssueDraft] = useState({
     title: 'Loose goal net',
@@ -130,13 +106,36 @@ function App() {
   const customers = useMemo(() => users.filter(user => user.role === 'Customer'), [users])
   const selectedSlot = slots.find(slot => slot.slotId === Number(selectedSlotId))
   const selectedBooking = bookings.find(booking => booking.bookingId === Number(selectedBookingId)) || bookings[0]
-  const isCustomer = currentUser?.role === 'Customer'
   const isStaff = currentUser?.role === 'Staff'
   const isAdmin = currentUser?.role === 'Admin'
-  const canOperate = isStaff || isAdmin
+  const canOperate = isStaff
+  const userBookings = currentUser?.role === 'Customer'
+    ? bookings.filter(booking => booking.customerId === currentUser.userId)
+    : []
+  const brandRoute = useMemo(() => {
+    if (currentUser?.role === 'Admin') return 'admin'
+    if (currentUser?.role === 'Staff') return 'staff'
+    return 'home'
+  }, [currentUser])
 
   useEffect(() => {
     refreshAll()
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    api.get('/payments/paypal/config')
+      .then(response => {
+        if (!cancelled) setPaypalConfig(response.data)
+      })
+      .catch(error => {
+        if (!cancelled) {
+          setPaypalConfigError(error.response?.data?.error || 'PayPal is not available')
+        }
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   useEffect(() => {
@@ -146,12 +145,21 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (currentUser) {
-      window.localStorage.setItem('goalzone.currentUser', JSON.stringify(currentUser))
-    } else {
-      window.localStorage.removeItem('goalzone.currentUser')
+    saveStoredUser(currentUser)
+    if (!currentUser) {
+      saveStoredToken(null)
     }
   }, [currentUser])
+
+  useEffect(() => {
+    if (!currentUser?.bookingRestricted) return
+    const reason = currentUser.restrictionReason || 'Your account has been restricted by admin.'
+    setCurrentUser(null)
+    setMembership(null)
+    setNotifications([])
+    setNotice(`Account restricted: ${reason}`)
+    navigatePage('login')
+  }, [currentUser?.bookingRestricted])
 
   useEffect(() => {
     loadSlots()
@@ -176,7 +184,6 @@ function App() {
         setVerifyResult({ status: 'success', message: response.data.message || 'Email verified.' })
         if (response.data.user) {
           setCurrentUser(response.data.user)
-          setVerificationLink('')
         }
       })
       .catch(error => {
@@ -187,6 +194,40 @@ function App() {
     return () => {
       cancelled = true
     }
+  }, [currentPage])
+
+  useEffect(() => {
+    if (currentPage !== 'resetPassword') return undefined
+    let cancelled = false
+    setResetTokenChecking(true)
+    setResetPasswordToken(null)
+    setResetResult(null)
+    const params = new URLSearchParams(window.location.search)
+    const userId = params.get('userId')
+    const token = params.get('token')
+
+    if (!userId || !token) {
+      setResetTokenChecking(false)
+      setResetResult({ status: 'error', message: 'Reset link is missing required information.' })
+      return undefined
+    }
+
+    api.post('/account/validate-reset-token', { userId: Number(userId), token })
+      .then(() => {
+        if (!cancelled) {
+          setResetPasswordToken({ userId: Number(userId), token })
+          setResetTokenChecking(false)
+        }
+      })
+      .catch(error => {
+        if (!cancelled) {
+          setResetPasswordToken(null)
+          setResetTokenChecking(false)
+          setResetResult({ status: 'error', message: error.response?.data?.error || 'Reset link is invalid or expired.' })
+        }
+      })
+
+    return () => { cancelled = true }
   }, [currentPage])
 
   useEffect(() => {
@@ -227,58 +268,192 @@ function App() {
     if (currentUser?.role === 'Customer') {
       setSelectedCustomerId(currentUser.userId)
       loadMembership(currentUser.userId)
+    }
+    if (currentUser) {
       loadNotifications(currentUser.userId)
     }
   }, [currentUser])
 
-  async function refreshAll() {
+  // Real-time polling: refresh notifications every 15 seconds for all logged-in users
+  useEffect(() => {
+    if (!currentUser) return undefined
+    const intervalId = setInterval(() => {
+      loadNotifications(currentUser.userId)
+    }, 15000)
+    return () => clearInterval(intervalId)
+  }, [currentUser])
+
+  useEffect(() => {
+    if (!currentUser || !bookings.length) {
+      setSelectedBookingId(null)
+      return
+    }
+    const accessibleBookings = currentUser.role === 'Customer'
+      ? bookings.filter(booking => booking.customerId === currentUser.userId)
+      : bookings
+    setSelectedBookingId(current => accessibleBookings.some(booking => booking.bookingId === Number(current))
+      ? current
+      : accessibleBookings[0]?.bookingId || null)
+  }, [bookings, currentUser?.role, currentUser?.userId])
+
+  useEffect(() => {
+    const summary = bookings.find(booking => booking.bookingId === Number(selectedBookingId))
+    const canView = summary && currentUser && (
+      currentUser.role !== 'Customer' || summary.customerId === currentUser.userId
+    )
+    if (!canView) {
+      setSelectedBookingDetail(null)
+      setBillingError('')
+      return undefined
+    }
+
+    let cancelled = false
+    setBillingLoading(true)
+    setBillingError('')
+    api.get(`/bookings/${selectedBookingId}`)
+      .then(response => {
+        if (!cancelled) setSelectedBookingDetail(response.data)
+      })
+      .catch(error => {
+        if (!cancelled) {
+          setSelectedBookingDetail(null)
+          setBillingError(error.response?.data?.error || 'Could not load invoice details')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setBillingLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [bookings, currentUser?.role, currentUser?.userId, selectedBookingId])
+
+  async function refreshAll(viewer = currentUser) {
     setLoading(true)
     try {
+      // 1. Load public/common data accessible to everyone (Guests, Customers, Staff, Admins)
       const [
-        userRes,
         fieldRes,
         typeRes,
         serviceRes,
-        bookingRes,
-        paymentRes,
-        refundRes,
-        issueRes,
         promoRes,
-        reportRes,
-        settingRes
+        settingRes,
+        membershipLevelsRes
       ] = await Promise.all([
-        api.get('/account/users'),
         api.get('/fields'),
         api.get('/field-types'),
         api.get('/services'),
-        api.get('/bookings'),
-        api.get('/payments'),
-        api.get('/refunds'),
-        api.get('/issues'),
-        api.get('/promotions'),
-        api.get('/reports'),
-        api.get('/settings')
+        api.get('/promotions' + (viewer?.role === 'Admin' ? '?includeInactive=true' : '')),
+        api.get('/settings'),
+        api.get('/membership/levels')
       ])
-      setUsers(userRes.data)
-      if (currentUser) {
-        const freshUser = userRes.data.find(u => u.userId === currentUser.userId)
-        if (freshUser) {
-          setCurrentUser(freshUser)
-        }
-      }
+      
       setFields(fieldRes.data)
       setFieldTypes(typeRes.data)
       setServices(serviceRes.data)
-      setBookings(bookingRes.data)
-      setPayments(paymentRes.data)
-      setRefunds(refundRes.data)
-      setIssues(issueRes.data)
       setPromotions(promoRes.data)
-      setReports(reportRes.data)
       setSettings(settingRes.data)
-      if (bookingRes.data[0]) setSelectedBookingId(bookingRes.data[0].bookingId)
-      if (currentUser?.role === 'Customer') {
-        await Promise.all([loadMembership(currentUser.userId), loadNotifications(currentUser.userId)])
+      setMembershipLevels(membershipLevelsRes.data)
+
+      // 2. Load role-specific data conditionally
+      const isAdminViewer = viewer?.role === 'Admin'
+      const isStaffViewer = viewer?.role === 'Staff'
+      const isCustomer = viewer?.role === 'Customer'
+
+      if (isAdminViewer) {
+        // Admin owns user management and report data in addition to all operating data.
+        const [
+          userRes,
+          bookingRes,
+          paymentRes,
+          refundRes,
+          issueRes,
+          reportRes
+        ] = await Promise.all([
+          api.get('/account/users'),
+          api.get('/bookings'),
+          api.get('/payments'),
+          api.get('/refunds'),
+          api.get('/issues'),
+          api.get('/reports')
+        ])
+        
+        setUsers(userRes.data)
+        setBookings(bookingRes.data)
+        setPayments(paymentRes.data)
+        setRefunds(refundRes.data)
+        setIssues(issueRes.data)
+        setReports(reportRes.data)
+
+        if (viewer) {
+          const freshUser = userRes.data.find(u => u.userId === viewer.userId)
+          if (freshUser) {
+            setCurrentUser(freshUser)
+          }
+        }
+        
+        setSelectedBookingId(current => bookingRes.data.some(booking => booking.bookingId === Number(current))
+          ? current
+          : bookingRes.data[0]?.bookingId || null)
+
+      } else if (isStaffViewer) {
+        // Staff cannot access Admin-only customer management. Loading it in the same
+        // Promise.all caused a 403 that discarded the otherwise valid booking list.
+        const [customerRes, bookingRes, paymentRes, refundRes, issueRes] = await Promise.all([
+          api.get('/account/customers'),
+          api.get('/bookings'),
+          api.get('/payments'),
+          api.get('/refunds'),
+          api.get('/issues')
+        ])
+        setUsers(customerRes.data)
+        setSelectedCustomerId(current => customerRes.data.some(customer => customer.userId === Number(current))
+          ? current
+          : customerRes.data[0]?.userId || null)
+        setBookings(bookingRes.data)
+        setPayments(paymentRes.data)
+        setRefunds(refundRes.data)
+        setIssues(issueRes.data)
+        setReports(null)
+        setSelectedBookingId(current => bookingRes.data.some(booking => booking.bookingId === Number(current))
+          ? current
+          : bookingRes.data[0]?.bookingId || null)
+          
+      } else if (isCustomer) {
+        // Customers can view their own bookings, and their own membership/notifications
+        const [
+          bookingRes,
+          paymentRes,
+          membershipRes,
+          notificationRes
+        ] = await Promise.all([
+          api.get('/bookings', { params: { customerId: viewer.userId } }),
+          api.get('/payments'),
+          api.get(`/membership/${viewer.userId}/progress`),
+          api.get(`/notifications/${viewer.userId}`)
+        ])
+        
+        setBookings(bookingRes.data)
+        setPayments(paymentRes.data)
+        setMembership(membershipRes.data)
+        setNotifications(notificationRes.data)
+        
+        setSelectedBookingId(current => bookingRes.data.some(booking => booking.bookingId === Number(current))
+          ? current
+          : bookingRes.data[0]?.bookingId || null)
+          
+      } else {
+        // Guests
+        setUsers([])
+        setBookings([])
+        setPayments([])
+        setRefunds([])
+        setIssues([])
+        setReports(null)
+        setNotifications([])
+        setMembership(null)
+        setSelectedBookingId(null)
       }
     } catch (error) {
       setNotice(error.response?.data?.error || 'Could not connect to the booking server')
@@ -305,20 +480,63 @@ function App() {
     setMembership(response.data)
   }
 
-  async function loadNotifications(customerId) {
-    const response = await api.get(`/notifications/${customerId}`)
-    setNotifications(response.data)
+  async function loadNotifications(userId) {
+    try {
+      const response = await api.get(`/notifications/${userId}`)
+      setNotifications(response.data)
+    } catch {
+      // silently fail for background polls
+    }
+  }
+
+  async function toggleNotificationRead(notificationId) {
+    try {
+      const response = await api.put(`/notifications/${notificationId}/toggle`)
+      setNotifications(prev => prev.map(n =>
+        n.notificationId === notificationId ? response.data : n
+      ))
+    } catch (error) {
+      setNotice(error.response?.data?.error || 'Could not update notification')
+    }
+  }
+
+  async function markAllNotificationsRead(userId) {
+    try {
+      await api.put(`/notifications/user/${userId}/read-all`)
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+    } catch (error) {
+      setNotice(error.response?.data?.error || 'Could not mark notifications')
+    }
+  }
+
+  async function createMembershipLevel(payload) {
+    await runAction(async () => api.post('/membership/levels', payload), 'Membership level created')
+  }
+
+  async function updateMembershipLevel(id, payload) {
+    await runAction(async () => api.put(`/membership/levels/${id}`, payload), 'Membership level updated')
+  }
+
+  async function createPromotion(payload) {
+    if (!isAdmin) return
+    await runAction(async () => api.post('/promotions', payload), 'Promotion created')
+  }
+
+  async function updatePromotion(promotionId, payload) {
+    if (!isAdmin) return
+    await runAction(async () => api.put(`/promotions/${promotionId}`, payload), 'Promotion updated')
   }
 
   async function runAction(action, successMessage) {
     setLoading(true)
     try {
       const result = await action()
-      setNotice(successMessage)
+      const serverMessage = result?.data?.message
+      setNotice(serverMessage || successMessage)
       setActionPanel({
         kind: 'success',
         title: successMessage,
-        message: actionMessage(successMessage)
+        message: serverMessage || actionMessage(successMessage)
       })
       await refreshAll()
       await loadSlots()
@@ -340,7 +558,7 @@ function App() {
   function actionMessage(successMessage) {
     if (successMessage.includes('Checkout')) return 'The cost breakdown is ready in the checkout panel.'
     if (successMessage.includes('Booking created')) return 'The booking has been saved and the slot will now be treated as unavailable.'
-    if (successMessage.includes('Account created')) return 'Open the verification link on your account page before online booking.'
+    if (successMessage.includes('Account created')) return 'Check your inbox to verify email before online booking.'
     if (successMessage.includes('Signed in')) return 'Your role-specific workspace is ready.'
     if (successMessage.includes('Email verified')) return 'You can continue with online booking now.'
     if (successMessage.includes('Refund')) return 'Refund information was recorded for the selected booking.'
@@ -435,11 +653,19 @@ function App() {
       password: loginForm.password
     }), 'Signed in')
     if (response?.data?.user) {
-      setCurrentUser(response.data.user)
-      setAuthMode('login')
-      setVerificationLink('')
-      navigatePage('account')
+      await completeSignIn(response.data)
     }
+  }
+
+  async function completeSignIn(data) {
+    const user = data.user
+    saveStoredToken(data.token)
+    setCurrentUser(user)
+    setLoginForm({ emailOrPhone: '', password: '' })
+    setLoginErrors({})
+    setAuthMode('login')
+    await refreshAll(user)
+    navigatePage(user.role === 'Admin' ? 'admin' : user.role === 'Staff' ? 'staff' : 'account')
   }
 
   async function register() {
@@ -459,45 +685,113 @@ function App() {
       email: registerForm.email.trim(),
       phone: registerForm.phone.trim()
     }
-    const response = await runAction(async () => api.post('/account/register', payload), 'Account created')
-    if (response?.data) {
-      const user = response.data.user || response.data
-      setCurrentUser(user)
-      setAuthMode('login')
-      setVerificationLink(response.data.verificationLink || '')
-      if (response.data.verificationRequired) {
-        setNotice('Account created. Open the verification link before online booking')
+    setRegisterLoading(true)
+    try {
+      const response = await runAction(async () => api.post('/account/register', payload), 'Account created')
+      if (response?.data) {
+        const user = response.data.user
+        const token = response.data.token
+        saveStoredToken(token)
+        setCurrentUser(user)
+        setAuthMode('login')
+        setRegisterForm({ fullName: '', email: '', phone: '', password: '', confirmPassword: '' })
+        if (response.data.verificationRequired) {
+          setNotice(response.data.message || 'Account created. Check your inbox to verify email before online booking.')
+        }
+        await refreshAll(user)
+        navigatePage('account')
       }
-      navigatePage('account')
-    }
-  }
-
-  async function verifyEmailFromLink(link = verificationLink) {
-    if (!currentUser) return
-    const params = new URLSearchParams(link.split('?')[1] || '')
-    const token = params.get('token')
-    const userId = Number(params.get('userId') || currentUser.userId)
-    const response = await runAction(async () => api.post('/account/email/verify', {
-      userId,
-      token
-    }), 'Email verified')
-    if (response?.data?.user) {
-      setCurrentUser(response.data.user)
-      setVerificationLink('')
+    } finally {
+      setRegisterLoading(false)
     }
   }
 
   async function resendVerification() {
     if (!currentUser) return
-    const response = await runAction(async () => api.post('/account/email/resend', {
+    await runAction(async () => api.post('/account/email/resend', {
       userId: currentUser.userId
-    }), 'Verification link sent')
-    if (response?.data?.verificationLink) {
-      setVerificationLink(response.data.verificationLink)
+    }), 'Verification email sent')
+  }
+
+  async function sendResetLink() {
+    const email = forgotEmail.trim()
+    if (!emailPattern.test(email)) {
+      setForgotError('Enter a valid email address.')
+      setActionPanel({ kind: 'error', title: 'Check email', message: 'Enter a valid email address.' })
+      return
+    }
+    setForgotLoading(true)
+    setForgotError('')
+    try {
+      const response = await api.post('/account/forgot-password', { email })
+      setForgotSent(true)
+      setActionPanel({ kind: 'success', title: 'Reset link sent', message: response.data?.message || 'Check your inbox for the reset link.' })
+    } catch (error) {
+      const message = error.response?.data?.error || 'Could not send reset link'
+      setForgotError(message)
+      setActionPanel({ kind: 'error', title: 'Failed to send', message })
+    } finally {
+      setForgotLoading(false)
     }
   }
 
+  async function submitReset() {
+    if (!resetPasswordToken) return
+    const errors = {}
+    const issues = passwordIssues(resetPassword)
+    if (issues.length) errors.password = issues[0]
+    if (resetPassword !== resetConfirmPassword) errors.confirmPassword = 'Passwords do not match.'
+    if (Object.keys(errors).length) {
+      setResetErrors(errors)
+      return
+    }
+    setResetLoading(true)
+    setResetErrors({})
+    try {
+      const response = await api.post('/account/reset-password', {
+        userId: resetPasswordToken.userId,
+        token: resetPasswordToken.token,
+        newPassword: resetPassword,
+        confirmPassword: resetConfirmPassword
+      })
+      setResetResult({ status: 'success', message: response.data?.message || 'Password reset successfully.' })
+      setActionPanel({ kind: 'success', title: 'Password reset', message: response.data?.message || 'Password reset successfully.' })
+    } catch (error) {
+      const message = error.response?.data?.error || 'Could not reset password'
+      setResetResult({ status: 'error', message })
+      setActionPanel({ kind: 'error', title: 'Reset failed', message })
+    } finally {
+      setResetLoading(false)
+    }
+  }
+
+  function updateResetForm(field, value) {
+    if (field === 'resetPassword') setResetPassword(value)
+    if (field === 'resetConfirmPassword') setResetConfirmPassword(value)
+    setResetErrors(({ [field]: _ignored, ...rest }) => rest)
+  }
+
+  async function saveProfile(profile) {
+    if (!currentUser) return
+    const response = await runAction(async () => api.put(`/account/users/${currentUser.userId}/profile`, profile), 'Profile updated')
+    if (response?.data) {
+      setCurrentUser(response.data)
+    }
+  }
+
+  async function changePassword(currentPassword, newPassword, confirmPassword) {
+    if (!currentUser) return
+    await runAction(async () => api.put(`/account/users/${currentUser.userId}/password`, {
+      currentPassword,
+      newPassword,
+      confirmPassword
+    }), 'Password changed')
+  }
+
   function logout() {
+    api.post('/account/logout').catch(() => {
+      // Clearing the local session is still safe if an expired token cannot reach the API.
+    })
     setCurrentUser(null)
     setMembership(null)
     setNotifications([])
@@ -511,11 +805,27 @@ function App() {
     navigatePage('home')
   }
 
-  async function createBooking(source = 'online') {
+  async function createBooking(source = 'online', option = 'deposit') {
     if (!currentUser) {
       setAuthMode('login')
       navigatePage('login')
       setNotice('Sign in or create an account before booking')
+      return
+    }
+    if (source === 'walk_in' && !canOperate) {
+      setActionPanel({
+        kind: 'error',
+        title: 'Walk-in booking unavailable',
+        message: 'Only Staff accounts can create a walk-in booking and record a cash payment.'
+      })
+      return
+    }
+    if (source === 'online' && currentUser.role !== 'Customer') {
+      setActionPanel({
+        kind: 'error',
+        title: 'Online checkout unavailable',
+        message: 'Online payment is available only to the customer who owns the booking.'
+      })
       return
     }
     if (currentUser.role === 'Customer' && !currentUser.emailVerified) {
@@ -523,15 +833,102 @@ function App() {
       setNotice('Verify your email before online booking')
       return
     }
-    await runAction(async () => api.post('/bookings', {
-      customerId: bookingCustomerId(),
-      staffId: source === 'walk_in' ? Number(selectedStaffId) : null,
-      slotId: Number(selectedSlotId),
-      bookingSource: source,
-      promotionCode,
-      services: serviceSelections(),
-      note: source === 'walk_in' ? 'Created by staff at venue' : 'Created from customer website'
-    }), source === 'walk_in' ? 'Walk-in booking created' : 'Booking created')
+    const response = await runAction(async () => {
+      const bookingResponse = await api.post('/bookings', {
+        customerId: bookingCustomerId(),
+        staffId: source === 'walk_in' ? Number(selectedStaffId) : null,
+        slotId: Number(selectedSlotId),
+        bookingSource: source,
+        promotionCode,
+        services: serviceSelections(),
+        note: source === 'walk_in' ? 'Created by staff at venue' : 'Created from customer website'
+      })
+      if (source !== 'walk_in') return bookingResponse
+      return api.post('/payments/capture', {
+        bookingId: bookingResponse.data.bookingId,
+        createdById: currentUser.userId,
+        paymentOption: option,
+        paymentMethod: 'cash',
+        amount: null,
+        success: true
+      })
+    }, source === 'walk_in' ? 'Walk-in booking and payment recorded' : 'Booking created')
+
+    if (response?.data) {
+      setSelectedBookingId(response.data.bookingId)
+      setSelectedBookingDetail(response.data)
+      setSelectedServices({})
+      setPromotionCode('')
+      navigatePage(source === 'walk_in' ? 'staff' : 'account')
+    }
+  }
+
+  async function preparePayPalBooking() {
+    if (!currentUser) {
+      navigatePage('login')
+      throw new Error('Sign in before starting PayPal checkout')
+    }
+    if (currentUser.role !== 'Customer') {
+      throw new Error('Online payment is available only to customers.')
+    }
+    if (currentUser.role === 'Customer' && !currentUser.emailVerified) {
+      navigatePage('account')
+      throw new Error('Verify your email before online booking')
+    }
+
+    setLoading(true)
+    try {
+      const response = await api.post('/bookings', {
+        customerId: bookingCustomerId(),
+        staffId: null,
+        slotId: Number(selectedSlotId),
+        bookingSource: 'online',
+        promotionCode,
+        services: serviceSelections(),
+        note: 'Created for PayPal checkout'
+      })
+      setSelectedBookingId(response.data.bookingId)
+      setSelectedBookingDetail(response.data)
+      setNotice('Booking reserved. Complete payment in PayPal.')
+      return response.data
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function completePayPalPayment(detail) {
+    setSelectedBookingId(detail.bookingId)
+    setSelectedBookingDetail(detail)
+    setSelectedServices({})
+    setPromotionCode('')
+    setNotice('PayPal payment completed')
+    setActionPanel({
+      kind: 'success',
+      title: 'PayPal payment completed',
+      message: `${detail.bookingCode} is confirmed and its invoice is ready.`
+    })
+    await Promise.all([refreshAll(), loadSlots()])
+    navigatePage('account')
+  }
+
+  function cancelPayPalPayment() {
+    setNotice('PayPal checkout was cancelled and the slot was released.')
+    setActionPanel({
+      kind: 'error',
+      title: 'PayPal checkout cancelled',
+      message: 'No payment was captured. The pending booking expired and the slot is available again.'
+    })
+    refreshAll()
+    loadSlots()
+  }
+
+  function failPayPalPayment(message) {
+    setNotice(message)
+    setActionPanel({
+      kind: 'error',
+      title: 'PayPal checkout failed',
+      message
+    })
   }
 
   async function updateBooking(status) {
@@ -543,13 +940,61 @@ function App() {
     }), `Booking updated to ${status}`)
   }
 
+  async function updateBookingServices(services) {
+    if (!selectedBooking) return
+    const response = await runAction(
+      async () => api.put(`/bookings/${selectedBooking.bookingId}/services`, { services }),
+      'Booking services updated'
+    )
+    if (response?.data) setSelectedBookingDetail(response.data)
+  }
+
+  async function updateIssue(issueId, status, resolutionNote) {
+    await runAction(async () => api.put(`/issues/${issueId}/status`, {
+      status,
+      resolutionNote,
+      assignedStaffId: currentUser?.role === 'Staff' ? currentUser.userId : Number(selectedStaffId)
+    }), 'Issue updated')
+  }
+
+  async function previewCancellation() {
+    if (!selectedBooking) return
+    setBillingLoading(true)
+    try {
+      const response = await api.get(`/bookings/${selectedBooking.bookingId}/cancellation-preview`)
+      setCancellationPreview(response.data)
+    } catch (error) {
+      setActionPanel({ kind: 'error', title: 'Cancellation preview unavailable', message: error.response?.data?.error || 'Could not calculate cancellation terms.' })
+    } finally {
+      setBillingLoading(false)
+    }
+  }
+
+  async function cancelCustomerBooking() {
+    if (!selectedBooking) return
+    await runAction(async () => api.put(`/bookings/${selectedBooking.bookingId}/status`, {
+      status: 'cancelled',
+      staffId: null,
+      note: 'Cancelled by customer from account page'
+    }), 'Booking cancelled')
+  }
+
+  async function rescheduleBooking(newSlotId) {
+    if (!selectedBooking || !newSlotId) return
+    await runAction(async () => api.put(`/bookings/${selectedBooking.bookingId}/reschedule`, {
+      newSlotId: Number(newSlotId),
+      staffId: currentUser?.role === 'Staff' ? currentUser.userId : null,
+      note: currentUser?.role === 'Customer' ? 'Rescheduled by customer' : 'Rescheduled by staff'
+    }), 'Booking rescheduled')
+  }
+
   async function capturePayment(option = 'deposit') {
     if (!selectedBooking) return
     await runAction(async () => api.post('/payments/capture', {
       bookingId: selectedBooking.bookingId,
       createdById: currentUser?.userId || bookingCustomerId(),
       paymentOption: option,
-      paymentMethod: option === 'remaining' ? 'cash' : 'online_sandbox',
+      paymentMethod: 'cash',
       amount: option === 'full' ? selectedBooking.remainingAmount || selectedBooking.totalAmount : null,
       success: true
     }), 'Payment captured')
@@ -560,11 +1005,19 @@ function App() {
     await runAction(async () => api.post('/refunds', {
       bookingId: selectedBooking.bookingId,
       requestedById: selectedBooking.customerId,
-      processedById: Number(selectedStaffId),
-      refundAmount: selectedBooking.refundableAmount || selectedBooking.depositAmount || 0,
-      refundReason: 'Support-approved refund',
-      approveNow: true
-    }), 'Refund processed')
+      processedById: null,
+      refundAmount: selectedBooking.refundableAmount || cancellationPreview?.refundableAmount || 0,
+      refundReason: 'Customer cancellation refund request',
+      approveNow: false
+    }), 'Refund requested')
+  }
+
+  async function updateRefund(refund, status) {
+    await runAction(async () => api.put(`/refunds/${refund.refundId}/status`, {
+      status,
+      processedById: currentUser?.userId || Number(selectedStaffId),
+      note: status === 'rejected' ? 'Reviewed and rejected by staff' : 'Reviewed by staff'
+    }), `Refund ${status}`)
   }
 
   async function createIssue() {
@@ -591,29 +1044,44 @@ function App() {
     }), 'Deposit rule updated')
   }
 
-  const userBookings = currentUser?.role === 'Customer'
-    ? bookings.filter(booking => booking.customerId === currentUser.userId)
-    : bookings
+  async function updatePolicySetting(key, value) {
+    await runAction(async () => api.put(`/settings/${key}`, {
+      settingValue: String(value),
+      updatedById: currentUser?.userId || 4
+    }), 'Booking policy updated')
+  }
+
+  async function updateCustomerRestriction(customer, bookingRestricted, restrictionReason = '') {
+    await runAction(async () => api.put(`/account/users/${customer.userId}/restriction`, {
+      bookingRestricted,
+      restrictionReason: bookingRestricted ? restrictionReason : ''
+    }), bookingRestricted ? 'Customer booking restricted' : 'Customer booking restored')
+  }
 
   return (
     <div className="siteShell">
       <a className="skipLink" href="#main">Skip to content</a>
       <header className="siteHeader">
-        <button className="brandButton" onClick={() => navigatePage('home')} aria-label="Go to home">
+        <button className="brandButton" onClick={() => navigatePage(brandRoute)} aria-label="Go to home">
           <span className="brandMark">GZ</span>
           <span>GoalZone</span>
         </button>
         <nav className={mobileOpen ? 'mainNav open' : 'mainNav'} aria-label="Primary navigation">
           <button className={currentPage === 'fields' ? 'active' : ''} onClick={() => navigatePage('fields')}>Fields</button>
-          <button className={currentPage === 'booking' ? 'active' : ''} onClick={() => navigatePage('booking')}>Booking</button>
-          <button className={currentPage === 'promotions' ? 'active' : ''} onClick={() => navigatePage('promotions')}>Promotions</button>
-          {currentUser && <button className={currentPage === 'account' ? 'active' : ''} onClick={() => navigatePage('account')}>My account</button>}
-          {canOperate && <button className={currentPage === 'staff' ? 'active' : ''} onClick={() => navigatePage('staff')}>Staff</button>}
-          {isAdmin && <button className={currentPage === 'admin' ? 'active' : ''} onClick={() => navigatePage('admin')}>Admin</button>}
+          {!isAdmin && <button className={currentPage === 'booking' ? 'active' : ''} onClick={() => navigatePage('booking')}>Book</button>}
+          {currentUser?.role === 'Customer' && <button className={currentPage === 'account' ? 'active' : ''} onClick={() => navigatePage('account')}>My bookings</button>}
+          {canOperate && <button className={currentPage === 'staff' ? 'active' : ''} onClick={() => navigatePage('staff')}>Staff workspace</button>}
+          {isAdmin && <button className={currentPage === 'admin' ? 'active' : ''} onClick={() => navigatePage('admin')}>Admin console</button>}
         </nav>
         <div className="headerActions">
           {currentUser ? (
             <>
+              <NotificationBell
+                currentUser={currentUser}
+                notifications={notifications}
+                onToggleRead={toggleNotificationRead}
+                onMarkAllRead={markAllNotificationsRead}
+              />
               <button
                 className="accountButton"
                 onClick={() => navigatePage('account')}
@@ -640,379 +1108,209 @@ function App() {
 
       <main id="main" className={currentPage === 'home' ? '' : 'pageMain'}>
         {currentPage === 'home' && (
-        <section id="home" className="hero" style={{ '--hero-image': `url(${heroImage})` }}>
-          <div className="heroContent">
-            <p className="venueLabel">Football field booking for local venues</p>
-            <h1>GoalZone</h1>
-            <p className="heroCopy">Book a field, add match services, pay the deposit, and manage the booking from one place.</p>
-            <div className="heroActions">
-              <button className="primaryButton" onClick={() => navigatePage('booking')}>
-                <span>Book a field</span>
-                <ArrowRight size={18} />
-              </button>
-              <button className="ghostButton" onClick={() => navigatePage('fields')}>View fields</button>
-            </div>
-          </div>
-          <div className="availabilityStrip" aria-label="Quick availability search">
-            <FieldControl label="Date">
-              <input type="date" value={searchDate} onChange={event => setSearchDate(event.target.value)} />
-            </FieldControl>
-            <FieldControl label="Field type">
-              <select value={fieldTypeFilter} onChange={event => setFieldTypeFilter(event.target.value)}>
-                <option value="">All field types</option>
-                {fieldTypes.map(type => <option key={type.fieldTypeId} value={type.fieldTypeId}>{type.typeName}</option>)}
-              </select>
-            </FieldControl>
-            <button className="stripButton" onClick={() => navigatePage('booking')}>
-              <SearchIcon />
-              <span>Find slots</span>
-            </button>
-          </div>
-        </section>
+          <HomePage
+            searchDate={searchDate}
+            setSearchDate={setSearchDate}
+            fieldTypeFilter={fieldTypeFilter}
+            setFieldTypeFilter={setFieldTypeFilter}
+            fieldTypes={fieldTypes}
+            navigatePage={navigatePage}
+          />
         )}
 
         {(currentPage === 'home' || currentPage === 'fields') && (
-        <section id="fields" className="section">
-          <SectionIntro
-            kicker="Fields"
-            title="Choose the pitch that fits the match"
-            text="Guests can browse active fields and availability before signing in. Booking is required only at checkout."
+          <FieldsPage
+            fields={fields}
+            slots={slots}
+            searchDate={searchDate}
+            setSearchDate={setSearchDate}
+            setFieldTypeFilter={setFieldTypeFilter}
+            setSelectedSlotId={setSelectedSlotId}
+            navigatePage={navigatePage}
           />
-          <div className="fieldGrid">
-            {fields.map(field => (
-              <article className="fieldCard" key={field.fieldId}>
-                <img src={field.imageUrl} alt={`${field.fieldName} football pitch`} />
-                <div>
-                  <span>{field.fieldType}</span>
-                  <h3>{field.fieldName}</h3>
-                  <p>{field.description}</p>
-                  <dl>
-                    <div><dt>Location</dt><dd>{field.location}</dd></div>
-                    <div><dt>Surface</dt><dd>{field.surfaceType}</dd></div>
-                  </dl>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
         )}
 
         {currentPage === 'booking' && (
-        <section id="booking" className="section bookingSection">
-          <SectionIntro
-            kicker="Booking"
-            title="Search, price, and reserve"
-            text="Pick a free slot, add match services, apply a promotion, and see the deposit before the booking is saved."
+          <BookingPage
+            searchDate={searchDate}
+            setSearchDate={setSearchDate}
+            fieldTypeFilter={fieldTypeFilter}
+            setFieldTypeFilter={setFieldTypeFilter}
+            fieldTypes={fieldTypes}
+            canOperate={canOperate}
+            selectedCustomerId={selectedCustomerId}
+            setSelectedCustomerId={setSelectedCustomerId}
+            customers={customers}
+            slots={slots}
+            selectedSlotId={selectedSlotId}
+            setSelectedSlotId={setSelectedSlotId}
+            services={services}
+            selectedServices={selectedServices}
+            setSelectedServices={setSelectedServices}
+            selectedSlot={selectedSlot}
+            promotionCode={promotionCode}
+            setPromotionCode={setPromotionCode}
+            checkout={checkout}
+            checkoutLoading={checkoutLoading}
+            checkoutError={checkoutError}
+            paymentOption={paymentOption}
+            setPaymentOption={setPaymentOption}
+            paypalConfig={paypalConfig}
+            paypalConfigError={paypalConfigError}
+            preparePayPalBooking={preparePayPalBooking}
+            completePayPalPayment={completePayPalPayment}
+            cancelPayPalPayment={cancelPayPalPayment}
+            failPayPalPayment={failPayPalPayment}
+            createBooking={createBooking}
+            currentUser={currentUser}
           />
-          <div className="bookingLayout">
-            <div className="bookingMain">
-              <div className="filterRow">
-                <FieldControl label="Playing date">
-                  <input type="date" value={searchDate} onChange={event => setSearchDate(event.target.value)} />
-                </FieldControl>
-                <FieldControl label="Field type">
-                  <select value={fieldTypeFilter} onChange={event => setFieldTypeFilter(event.target.value)}>
-                    <option value="">All</option>
-                    {fieldTypes.map(type => <option key={type.fieldTypeId} value={type.fieldTypeId}>{type.typeName}</option>)}
-                  </select>
-                </FieldControl>
-                {canOperate && (
-                  <FieldControl label="Customer">
-                    <select value={selectedCustomerId} onChange={event => setSelectedCustomerId(Number(event.target.value))}>
-                      {customers.map(user => <option key={user.userId} value={user.userId}>{user.fullName}</option>)}
-                    </select>
-                  </FieldControl>
-                )}
-              </div>
-              <SlotList slots={slots} selectedSlotId={selectedSlotId} onSelect={setSelectedSlotId} />
-              <ServicePicker services={services} selectedServices={selectedServices} setSelectedServices={setSelectedServices} />
-            </div>
-            <aside className="checkoutPanel">
-              <h3>Checkout preview</h3>
-              <SelectedSlot slot={selectedSlot} />
-              <FieldControl label="Promotion code">
-                <input
-                  value={promotionCode}
-                  placeholder="WELCOME10"
-                  onChange={event => setPromotionCode(event.target.value.toUpperCase())}
-                />
-              </FieldControl>
-              <CheckoutSummary checkout={checkout} loading={checkoutLoading} error={checkoutError} />
-              <div className="stackedActions">
-                {canOperate ? (
-                  <button className="ghostDarkButton" onClick={() => createBooking('walk_in')}>Create walk-in booking</button>
-                ) : (
-                  <button className="primaryButton wide" onClick={() => createBooking('online')}>
-                    <CalendarDays size={18} />
-                    <span>{currentUser ? 'Reserve field' : 'Sign in to book'}</span>
-                  </button>
-                )}
-              </div>
-              {!currentUser && <p className="hintText">You can browse prices now. Login or register is required before the booking is saved.</p>}
-            </aside>
-          </div>
-        </section>
         )}
 
         {(currentPage === 'login' || (currentPage === 'account' && !currentUser)) && (
-        <section id="login" className="section authSection">
-          <SectionIntro
-            kicker="Account"
-            title={currentUser ? 'Account ready for checkout' : 'Sign in before checkout'}
-            text={currentUser
-              ? 'Reserve selected slots and track booking, payment, membership, and support updates from your account.'
-              : 'Customers need an account to hold a field and receive payment, cancellation, and refund updates.'}
+          <AuthPage
+            currentUser={currentUser}
+            authMode={authMode}
+            setAuthMode={setAuthMode}
+            loginErrors={loginErrors}
+            registerErrors={registerErrors}
+            loginForm={loginForm}
+            registerForm={registerForm}
+            updateLoginForm={updateLoginForm}
+            updateRegisterForm={updateRegisterForm}
+            showLoginPassword={showLoginPassword}
+            setShowLoginPassword={setShowLoginPassword}
+            showRegisterPassword={showRegisterPassword}
+            setShowRegisterPassword={setShowRegisterPassword}
+            login={login}
+            register={register}
+            registerLoading={registerLoading}
+            logout={logout}
+            navigatePage={navigatePage}
+            resendVerification={resendVerification}
           />
-          <div className="authGrid">
-            <article className="authPanel">
-              {currentUser ? (
-                <div className="signedInCard">
-                  <span>{currentUser.emailVerified ? 'Signed in' : 'Email verification needed'}</span>
-                  <h3>{currentUser.fullName}</h3>
-                  <p>{currentUser.role} account · {currentUser.emailVerified ? 'verified email' : 'unverified email'}</p>
-                  {!currentUser.emailVerified && (
-                    <EmailVerificationPanel
-                      email={currentUser.email}
-                      onResend={resendVerification}
-                    />
-                  )}
-                  <div className="buttonRow noMargin">
-                    <button className="primaryButton wide" onClick={() => navigatePage('booking')}>Continue booking</button>
-                    <button className="ghostDarkButton wide" onClick={logout}>
-                      <LogOut size={18} />
-                      <span>Log out</span>
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="segmented">
-                    <button className={authMode === 'login' ? 'active' : ''} onClick={() => setAuthMode('login')}>Login</button>
-                    <button className={authMode === 'register' ? 'active' : ''} onClick={() => setAuthMode('register')}>Register</button>
-                  </div>
-                  {authMode === 'login' ? (
-                <div className="formStack">
-                  <FieldControl label="Email or phone" error={loginErrors.emailOrPhone}>
-                    <input
-                      autoComplete="username"
-                      value={loginForm.emailOrPhone}
-                      onChange={event => updateLoginForm('emailOrPhone', event.target.value)}
-                    />
-                  </FieldControl>
-                  <PasswordField
-                    label="Password"
-                    value={loginForm.password}
-                    visible={showLoginPassword}
-                    error={loginErrors.password}
-                    autoComplete="current-password"
-                    onToggle={() => setShowLoginPassword(!showLoginPassword)}
-                    onChange={value => updateLoginForm('password', value)}
-                  />
-                  <button className="primaryButton wide" onClick={() => login()}>
-                    <LogIn size={18} />
-                    <span>Login</span>
-                  </button>
-                </div>
-              ) : (
-                <div className="formStack">
-                  <FieldControl label="Full name" error={registerErrors.fullName}>
-                    <input
-                      autoComplete="name"
-                      value={registerForm.fullName}
-                      onChange={event => updateRegisterForm('fullName', event.target.value)}
-                    />
-                  </FieldControl>
-                  <FieldControl label="Email" error={registerErrors.email}>
-                    <input
-                      autoComplete="email"
-                      inputMode="email"
-                      value={registerForm.email}
-                      onChange={event => updateRegisterForm('email', event.target.value)}
-                    />
-                  </FieldControl>
-                  <FieldControl label="Phone" error={registerErrors.phone}>
-                    <input
-                      autoComplete="tel"
-                      inputMode="tel"
-                      value={registerForm.phone}
-                      onChange={event => updateRegisterForm('phone', event.target.value)}
-                    />
-                  </FieldControl>
-                  <PasswordField
-                    label="Password"
-                    value={registerForm.password}
-                    visible={showRegisterPassword}
-                    error={registerErrors.password}
-                    hint="At least 8 characters with uppercase, lowercase, number, and special character."
-                    autoComplete="new-password"
-                    onToggle={() => setShowRegisterPassword(!showRegisterPassword)}
-                    onChange={value => updateRegisterForm('password', value)}
-                  />
-                  <PasswordField
-                    label="Confirm password"
-                    value={registerForm.confirmPassword}
-                    visible={showRegisterPassword}
-                    error={registerErrors.confirmPassword}
-                    autoComplete="new-password"
-                    onToggle={() => setShowRegisterPassword(!showRegisterPassword)}
-                    onChange={value => updateRegisterForm('confirmPassword', value)}
-                  />
-                  <button className="primaryButton wide" onClick={register}>Create account</button>
-                </div>
-                  )}
-                </>
-              )}
-            </article>
-          </div>
-        </section>
         )}
 
         {currentPage === 'account' && currentUser && (
-          <section id="account" className="section accountSection">
-            <SectionIntro
-              kicker="My account"
-              title={`Welcome, ${currentUser.fullName}`}
-              text="Track bookings, payment history, membership progress, and support messages."
-            />
-            {!currentUser.emailVerified && (
-              <div className="accountVerification">
-                <EmailVerificationPanel
-                  email={currentUser.email}
-                  onResend={resendVerification}
-                />
-              </div>
-            )}
-            <div className="accountGrid">
-              <InfoPanel title="My bookings">
-                <BookingList bookings={userBookings} selectedBookingId={selectedBookingId} onSelect={setSelectedBookingId} />
-              </InfoPanel>
-              <InfoPanel title="Payment history">
-                <DataList items={payments
-                  .filter(payment => currentUser.role !== 'Customer' || userBookings.some(booking => booking.bookingCode === payment.bookingCode))
-                  .map(payment => ({
-                    title: payment.paymentCode,
-                    meta: `${payment.bookingCode} · ${payment.paymentMethod}`,
-                    value: `${payment.status} · ${formatMoney(payment.amount)}`
-                  }))}
-                />
-              </InfoPanel>
-              <InfoPanel title="Membership">
-                {membership ? (
-                  <MetricGrid metrics={[
-                    ['Level', membership.currentLevel],
-                    ['Completed', membership.completedBookingCount],
-                    ['Discount', `${membership.discountPercent}%`],
-                    ['To next', membership.bookingsToNextLevel]
-                  ]} />
-                ) : <p className="emptyText">Login as customer to view membership.</p>}
-              </InfoPanel>
-              <InfoPanel title="Notifications">
-                <DataList items={notifications.map(item => ({
-                  title: item.title,
-                  meta: item.message,
-                  value: item.type
-                }))} />
-              </InfoPanel>
-            </div>
-          </section>
+          <AccountPage
+            currentUser={currentUser}
+            userBookings={userBookings}
+            payments={payments}
+            membership={membership}
+            notifications={notifications}
+            selectedBookingId={selectedBookingId}
+            setSelectedBookingId={setSelectedBookingId}
+            selectedBookingDetail={selectedBookingDetail}
+            cancellationPreview={cancellationPreview}
+            billingLoading={billingLoading}
+            billingError={billingError}
+            resendVerification={resendVerification}
+            onSaveProfile={saveProfile}
+            onChangePassword={changePassword}
+            onPreviewCancellation={previewCancellation}
+            onCancelBooking={cancelCustomerBooking}
+            onRequestRefund={createRefund}
+            onReschedule={rescheduleBooking}
+            availableSlots={slots.filter(slot => slot.available)}
+          />
         )}
 
         {currentPage === 'verifyEmail' && (
-          <section id="verify-email" className="section authSection">
-            <SectionIntro
-              kicker="Email verification"
-              title={verifyResult.status === 'success' ? 'Email verified' : 'Verify your email'}
-              text={verifyResult.message || 'Checking the verification link.'}
-            />
-            <div className="authGrid">
-              <article className="authPanel">
-                <div className="signedInCard">
-                  <span>{verifyResult.status === 'error' ? 'Needs attention' : verifyResult.status === 'success' ? 'Verified' : 'Checking'}</span>
-                  <h3>{verifyResult.message || 'Verifying email link'}</h3>
-                  <p>{verifyResult.status === 'success' ? 'You can continue booking online.' : 'If the link has expired, resend it from your account page.'}</p>
-                  <div className="buttonRow noMargin">
-                    <button className="primaryButton wide" onClick={() => navigatePage(currentUser ? 'booking' : 'login')}>
-                      {currentUser ? 'Continue booking' : 'Back to login'}
-                    </button>
-                    {currentUser && !currentUser.emailVerified && (
-                      <button className="ghostDarkButton wide" onClick={resendVerification}>Resend link</button>
-                    )}
-                  </div>
-                </div>
-              </article>
-            </div>
-          </section>
+          <VerifyEmailPage
+            verifyResult={verifyResult}
+            currentUser={currentUser}
+            navigatePage={navigatePage}
+            resendVerification={resendVerification}
+          />
+        )}
+
+        {currentPage === 'forgotPassword' && (
+          <ForgotPasswordPage
+            forgotEmail={forgotEmail}
+            setForgotEmail={setForgotEmail}
+            forgotSent={forgotSent}
+            forgotLoading={forgotLoading}
+            forgotError={forgotError}
+            sendResetLink={sendResetLink}
+            navigatePage={navigatePage}
+          />
+        )}
+
+        {currentPage === 'resetPassword' && (
+          <ResetPasswordPage
+            resetPassword={resetPassword}
+            resetConfirmPassword={resetConfirmPassword}
+            resetResult={resetResult}
+            resetLoading={resetLoading}
+            resetErrors={resetErrors}
+            showResetPassword={showResetPassword}
+            setShowResetPassword={setShowResetPassword}
+            resetPasswordToken={resetPasswordToken}
+            resetTokenChecking={resetTokenChecking}
+            updateResetForm={updateResetForm}
+            submitReset={submitReset}
+          />
         )}
 
         {(currentPage === 'home' || currentPage === 'promotions') && (
-        <section id="promotions" className="section promotionSection">
-          <SectionIntro
-            kicker="Promotions"
-            title="Active offers and membership benefits"
-            text="Save on selected matches and unlock member discounts after completed bookings."
+          <PromotionsPage
+            promotions={promotions}
+            currentUser={currentUser}
+            createPromotion={createPromotion}
+            updatePromotion={updatePromotion}
+            fieldTypes={fieldTypes}
+            services={services}
+            membershipLevels={membershipLevels}
           />
-          <div className="promoGrid">
-            {promotions.map(promotion => (
-              <article className="promoCard" key={promotion.promotionId}>
-                <span>{promotion.promotionCode}</span>
-                <h3>{promotion.promotionName}</h3>
-                <p>{promotion.description}</p>
-                <strong>{promotion.discountType === 'percent' ? `${promotion.discountValue}% off` : `${formatMoney(promotion.discountValue)} off`}</strong>
-              </article>
-            ))}
-          </div>
-        </section>
+        )}
+
+        {currentPage === 'membership-rules' && isAdmin && (
+          <MembershipRulesPage
+            membershipLevels={membershipLevels}
+            currentUser={currentUser}
+            createMembershipLevel={createMembershipLevel}
+            updateMembershipLevel={updateMembershipLevel}
+          />
+        )}
+
+        {currentPage === 'membership-rules' && !isAdmin && (
+          <AccessPanel title="Admin access" text="Login with an admin account to manage membership rules." onLogin={() => navigatePage('login')} />
+        )}
+
+        {currentPage === 'membership-benefits' && (
+          <MembershipBenefitsPage
+            membershipLevels={membershipLevels}
+            membership={membership}
+          />
         )}
 
         {currentPage === 'staff' && canOperate && (
-          <section id="staff" className="section staffSection">
-            <SectionIntro
-              kicker="Staff operation"
-              title="Daily field operation"
-              text="This role-only area supports walk-in booking, check-in, completion, cancellation, no-show, issue handling, and refund cases."
-            />
-            <div className="operationGrid">
-              <InfoPanel title="Booking calendar">
-                <BookingList bookings={bookings} selectedBookingId={selectedBookingId} onSelect={setSelectedBookingId} />
-              </InfoPanel>
-              <InfoPanel title="Lifecycle actions">
-                <SelectedBooking booking={selectedBooking} />
-                <div className="actionGrid">
-                  <button onClick={() => updateBooking('confirmed')}>Confirm</button>
-                  <button onClick={() => updateBooking('checked_in')}>Check-in</button>
-                  <button onClick={() => updateBooking('completed')}>Complete</button>
-                  <button onClick={() => updateBooking('cancelled')}>Cancel</button>
-                  <button onClick={() => updateBooking('no_show')}>No-show</button>
-                  <button onClick={() => capturePayment('remaining')}>Remaining payment</button>
-                </div>
-              </InfoPanel>
-              <InfoPanel title="Issue report">
-                <FieldControl label="Title">
-                  <input value={issueDraft.title} onChange={event => setIssueDraft({ ...issueDraft, title: event.target.value })} />
-                </FieldControl>
-                <FieldControl label="Description">
-                  <textarea value={issueDraft.description} onChange={event => setIssueDraft({ ...issueDraft, description: event.target.value })} />
-                </FieldControl>
-                <button className="secondaryButton" onClick={createIssue}>
-                  <Wrench size={18} />
-                  <span>Save issue</span>
-                </button>
-                <DataList items={issues.map(issue => ({
-                  title: issue.title,
-                  meta: `${issue.reporter} · ${issue.bookingCode || issue.fieldName || 'general'}`,
-                  value: issue.status
-                }))} />
-              </InfoPanel>
-              <InfoPanel title="Refunds">
-                <button className="secondaryButton" onClick={createRefund}>Process refund</button>
-                <DataList items={refunds.map(refund => ({
-                  title: refund.refundCode,
-                  meta: `${refund.bookingCode} · ${refund.refundReason || 'support case'}`,
-                  value: `${refund.status} · ${formatMoney(refund.refundAmount)}`
-                }))} />
-              </InfoPanel>
-            </div>
-          </section>
+          <StaffPage
+            bookings={bookings}
+            selectedBookingId={selectedBookingId}
+            setSelectedBookingId={setSelectedBookingId}
+            selectedBooking={selectedBooking}
+            selectedBookingDetail={selectedBookingDetail}
+            billingLoading={billingLoading}
+            billingError={billingError}
+            updateBooking={updateBooking}
+            rescheduleBooking={rescheduleBooking}
+            availableSlots={slots.filter(slot => slot.available)}
+            capturePayment={capturePayment}
+            issueDraft={issueDraft}
+            setIssueDraft={setIssueDraft}
+            createIssue={createIssue}
+            issues={issues}
+            createRefund={createRefund}
+            updateRefund={updateRefund}
+            refunds={refunds}
+            services={services}
+            fields={fields}
+            currentUser={currentUser}
+            refreshAll={refreshAll}
+            loadSlots={loadSlots}
+            updateBookingServices={updateBookingServices}
+            updateIssue={updateIssue}
+          />
         )}
 
         {currentPage === 'staff' && !canOperate && (
@@ -1020,41 +1318,16 @@ function App() {
         )}
 
         {currentPage === 'admin' && isAdmin && (
-          <section id="admin" className="section adminSection">
-            <SectionIntro
-              kicker="Admin"
-              title="Management and reports"
-              text="Admin can review revenue, booking activity, customer activity, and lightweight deposit/refund configuration."
-            />
-            <div className="adminGrid">
-              <InfoPanel title="Revenue report">
-                <MetricGrid metrics={[
-                  ['Revenue', formatMoney(reports?.totalRevenue)],
-                  ['Bookings', reports?.bookingCount || 0],
-                  ['Completed', reports?.completedCount || 0],
-                  ['Cancelled', reports?.cancelledCount || 0]
-                ]} />
-              </InfoPanel>
-              <InfoPanel title="Field utilization">
-                <DataList items={Object.entries(reports?.fieldUtilization || {}).map(([field, count]) => ({
-                  title: field,
-                  meta: 'Bookings',
-                  value: count
-                }))} />
-              </InfoPanel>
-              <InfoPanel title="Deposit rule">
-                <DataList items={settings.map(setting => ({
-                  title: setting.settingKey,
-                  meta: setting.description,
-                  value: setting.settingValue
-                }))} />
-                <div className="buttonRow">
-                  <button onClick={() => updateDepositSetting(30)}>Set 30%</button>
-                  <button onClick={() => updateDepositSetting(50)}>Set 50%</button>
-                </div>
-              </InfoPanel>
-            </div>
-          </section>
+          <AdminPage
+            reports={reports}
+            settings={settings}
+            fieldTypes={fieldTypes}
+            updateDepositSetting={updateDepositSetting}
+            updatePolicySetting={updatePolicySetting}
+            customers={customers}
+            updateCustomerRestriction={updateCustomerRestriction}
+            refreshAll={refreshAll}
+          />
         )}
 
         {currentPage === 'admin' && !isAdmin && (
@@ -1068,8 +1341,14 @@ function App() {
           <p>Book local football fields, manage payments, and keep match-day service in one place.</p>
         </div>
         <div className="footerLinks">
-          <button onClick={() => navigatePage('fields')}>Fields</button>
-          <button onClick={() => navigatePage('booking')}>Booking</button>
+          {(!currentUser || currentUser.role !== 'Admin') && (
+            <>
+              <button onClick={() => navigatePage('fields')}>Fields</button>
+              <button onClick={() => navigatePage('booking')}>Booking</button>
+            </>
+          )}
+          {currentUser?.role === 'Admin' && <button onClick={() => navigatePage('admin')}>Admin</button>}
+          {currentUser?.role === 'Staff' && <button onClick={() => navigatePage('staff')}>Staff</button>}
           <button onClick={() => navigatePage(currentUser ? 'account' : 'login')}>{currentUser ? 'Account' : 'Login'}</button>
         </div>
       </footer>
@@ -1084,272 +1363,15 @@ function App() {
       {actionPanel && (
         <ActionPanel
           panel={actionPanel}
-          onClose={() => setActionPanel(null)}
+          onClose={() => {
+            // The action panel already communicates the result. Clearing the
+            // matching notice prevents a second, persistent toast from
+            // covering workspace controls after the panel is dismissed.
+            setActionPanel(null)
+            setNotice('')
+          }}
         />
       )}
-    </div>
-  )
-}
-
-function SearchIcon() {
-  return <Search size={18} />
-}
-
-function AccessPanel({ title, text, onLogin }) {
-  return (
-    <section className="section accessSection">
-      <div className="accessPanel">
-        <span>Restricted area</span>
-        <h2>{title}</h2>
-        <p>{text}</p>
-        <button className="primaryButton" onClick={onLogin}>
-          <LogIn size={18} />
-          <span>Login</span>
-        </button>
-      </div>
-    </section>
-  )
-}
-
-function ActionPanel({ panel, onClose }) {
-  return (
-    <div className={panel.kind === 'error' ? 'actionPanel error' : 'actionPanel'} role="status" aria-live="polite">
-      <div>
-        <span>{panel.kind === 'error' ? 'Needs attention' : 'Done'}</span>
-        <h3>{panel.title}</h3>
-        <p>{panel.message}</p>
-      </div>
-      <button onClick={onClose}>Close</button>
-    </div>
-  )
-}
-
-function SectionIntro({ kicker, title, text }) {
-  return (
-    <div className="sectionIntro">
-      <span>{kicker}</span>
-      <h2>{title}</h2>
-      <p>{text}</p>
-    </div>
-  )
-}
-
-function FieldControl({ label, children, error, hint }) {
-  return (
-    <label className={error ? 'fieldControl invalid' : 'fieldControl'}>
-      <span>{label}</span>
-      {children}
-      {error && <small className="fieldError">{error}</small>}
-      {!error && hint && <small className="fieldHint">{hint}</small>}
-    </label>
-  )
-}
-
-function PasswordField({ label, value, visible, error, hint, autoComplete = 'current-password', onToggle, onChange }) {
-  return (
-    <FieldControl label={label} error={error} hint={hint}>
-      <span className="passwordInput">
-        <input
-          type={visible ? 'text' : 'password'}
-          autoComplete={autoComplete}
-          value={value}
-          onChange={event => onChange(event.target.value)}
-        />
-        <button type="button" onClick={onToggle} aria-label={visible ? 'Hide password' : 'Show password'}>
-          {visible ? <EyeOff size={18} /> : <Eye size={18} />}
-        </button>
-      </span>
-    </FieldControl>
-  )
-}
-
-function EmailVerificationPanel({ email, onResend }) {
-  const [sentNotice, setSentNotice] = useState(false)
-
-  const handleResend = async () => {
-    await onResend()
-    setSentNotice(true)
-    setTimeout(() => setSentNotice(false), 5000)
-  }
-
-  return (
-    <div className="verificationPanel">
-      <div>
-        <MailCheck size={20} />
-        <span>Email Verification Required</span>
-      </div>
-      <p>
-        We have sent a verification link to your email address: <strong>{email}</strong>. 
-        Please check your inbox (and spam folder) to activate your account and enable online booking.
-      </p>
-      <div className="buttonRow noMargin">
-        <button className="secondaryButton" onClick={handleResend}>
-          {sentNotice ? 'Verification link resent!' : 'Resend verification link'}
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function SlotList({ slots, selectedSlotId, onSelect }) {
-  if (!slots.length) return <p className="emptyText">No slots found for this date.</p>
-  return (
-    <div className="slotList">
-      {slots.map(slot => (
-        <button
-          key={slot.slotId}
-          className={Number(selectedSlotId) === slot.slotId ? 'slotItem selected' : 'slotItem'}
-          onClick={() => onSelect(slot.slotId)}
-          disabled={!slot.available}
-        >
-          <span>{slot.fieldName}</span>
-          <strong>{slot.startTime} - {slot.endTime}</strong>
-          <em>{formatMoney(slot.price)}</em>
-          <small>{slot.status}</small>
-        </button>
-      ))}
-    </div>
-  )
-}
-
-function ServicePicker({ services, selectedServices, setSelectedServices }) {
-  return (
-    <div className="serviceBlock">
-      <h3>Add services</h3>
-      <div className="serviceGrid">
-        {services.map(service => (
-          <label key={service.extraServiceId} className="serviceOption">
-            <span>
-              <strong>{service.serviceName}</strong>
-              <small>{formatMoney(service.unitPrice)} / {service.unitName}</small>
-            </span>
-            <input
-              type="number"
-              min="0"
-              max={service.maxQuantityPerBooking || 5}
-              value={selectedServices[service.extraServiceId] || 0}
-              onChange={event => setSelectedServices({
-                ...selectedServices,
-                [service.extraServiceId]: event.target.value
-              })}
-            />
-          </label>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function SelectedSlot({ slot }) {
-  if (!slot) return <p className="emptyText">Select an available slot first.</p>
-  return (
-    <div className="selectedSlot">
-      <Clock size={18} />
-      <div>
-        <strong>{slot.fieldName}</strong>
-        <p>{slot.slotDate} · {slot.startTime} - {slot.endTime}</p>
-      </div>
-      <span>{formatMoney(slot.price)}</span>
-    </div>
-  )
-}
-
-function CheckoutSummary({ checkout, loading, error }) {
-  if (loading) return <p className="emptyText">Updating checkout...</p>
-  if (error) return <p className="errorText">{error}</p>
-  if (!checkout) return <p className="emptyText">Choose an available slot to see pricing.</p>
-  const promotionDiscount = Number(checkout.promotionDiscountAmount || 0)
-  const membershipDiscount = Number(checkout.membershipDiscountAmount || 0)
-  return (
-    <div className="checkoutSummary">
-      <Line label="Field price" value={formatMoney(checkout.fieldPriceAmount)} />
-      <Line label="Services" value={formatMoney(checkout.serviceTotalAmount)} />
-      {promotionDiscount > 0 && <Line label="Promotion" value={`-${formatMoney(checkout.promotionDiscountAmount)}`} />}
-      {membershipDiscount > 0 && <Line label="Membership" value={`-${formatMoney(checkout.membershipDiscountAmount)}`} />}
-      <Line label="Deposit" value={formatMoney(checkout.depositAmount)} />
-      <Line label="Total" value={formatMoney(checkout.totalAmount)} strong />
-    </div>
-  )
-}
-
-function Line({ label, value, strong }) {
-  return (
-    <div className={strong ? 'summaryLine strong' : 'summaryLine'}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  )
-}
-
-function InfoPanel({ title, children }) {
-  return (
-    <article className="infoPanel">
-      <h3>{title}</h3>
-      {children}
-    </article>
-  )
-}
-
-function BookingList({ bookings, selectedBookingId, onSelect }) {
-  if (!bookings.length) return <p className="emptyText">No bookings yet.</p>
-  return (
-    <div className="bookingList">
-      {bookings.map(booking => (
-        <button
-          key={booking.bookingId}
-          className={Number(selectedBookingId) === booking.bookingId ? 'bookingItem selected' : 'bookingItem'}
-          onClick={() => onSelect(booking.bookingId)}
-        >
-          <span>
-            <strong>{booking.bookingCode}</strong>
-            <small>{booking.customer} · {booking.fieldName} · {booking.startTime}</small>
-          </span>
-          <em>{booking.status}</em>
-        </button>
-      ))}
-    </div>
-  )
-}
-
-function SelectedBooking({ booking }) {
-  if (!booking) return <p className="emptyText">Select a booking first.</p>
-  return (
-    <div className="selectedBooking">
-      <ShieldCheck size={19} />
-      <div>
-        <strong>{booking.bookingCode} · {booking.status}</strong>
-        <p>{booking.customer} · {booking.fieldName} · {formatMoney(booking.totalAmount)}</p>
-      </div>
-    </div>
-  )
-}
-
-function DataList({ items }) {
-  if (!items.length) return <p className="emptyText">No records yet.</p>
-  return (
-    <div className="dataList">
-      {items.map((item, index) => (
-        <div className="dataRow" key={`${item.title}-${index}`}>
-          <span>
-            <strong>{item.title}</strong>
-            <small>{item.meta}</small>
-          </span>
-          <em>{item.value}</em>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function MetricGrid({ metrics }) {
-  return (
-    <div className="metricGrid">
-      {metrics.map(([label, value]) => (
-        <div className="metric" key={label}>
-          <span>{label}</span>
-          <strong>{value}</strong>
-        </div>
-      ))}
     </div>
   )
 }
