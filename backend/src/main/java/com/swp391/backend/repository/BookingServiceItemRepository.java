@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface BookingServiceItemRepository extends JpaRepository<BookingServiceItem, Long> {
     List<BookingServiceItem> findByBooking_BookingId(Long bookingId);
+    void deleteByBooking_BookingId(Long bookingId);
 }
