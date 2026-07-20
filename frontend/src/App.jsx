@@ -57,10 +57,11 @@ function App() {
 
   const [searchDate, setSearchDate] = useState(tomorrow())
   const [fieldTypeFilter, setFieldTypeFilter] = useState('')
+  const [fieldFilter, setFieldFilter] = useState('')
   const [selectedSlotId, setSelectedSlotId] = useState(null)
   const [selectedBookingId, setSelectedBookingId] = useState(null)
-  const [selectedCustomerId, setSelectedCustomerId] = useState(1)
-  const [selectedStaffId, setSelectedStaffId] = useState(3)
+  const [selectedCustomerId, setSelectedCustomerId] = useState(null)
+  const [selectedStaffId, setSelectedStaffId] = useState(null)
   const [promotionCode, setPromotionCode] = useState('')
   const [selectedServices, setSelectedServices] = useState({})
   const [paymentOption, setPaymentOption] = useState('deposit')
@@ -99,12 +100,15 @@ function App() {
     confirmPassword: ''
   })
   const [issueDraft, setIssueDraft] = useState({
-    title: 'Loose goal net',
-    description: 'Customer reported a field issue before check-in.'
+    title: '',
+    description: ''
   })
 
   const customers = useMemo(() => users.filter(user => user.role === 'Customer'), [users])
-  const selectedSlot = slots.find(slot => slot.slotId === Number(selectedSlotId))
+  const bookingSlots = useMemo(() => fieldFilter
+    ? slots.filter(slot => Number(slot.fieldId) === Number(fieldFilter))
+    : slots, [slots, fieldFilter])
+  const selectedSlot = bookingSlots.find(slot => slot.slotId === Number(selectedSlotId))
   const selectedBooking = bookings.find(booking => booking.bookingId === Number(selectedBookingId)) || bookings[0]
   const isStaff = currentUser?.role === 'Staff'
   const isAdmin = currentUser?.role === 'Admin'
@@ -152,18 +156,15 @@ function App() {
   }, [currentUser])
 
   useEffect(() => {
-    if (!currentUser?.bookingRestricted) return
-    const reason = currentUser.restrictionReason || 'Your account has been restricted by admin.'
-    setCurrentUser(null)
-    setMembership(null)
-    setNotifications([])
-    setNotice(`Account restricted: ${reason}`)
-    navigatePage('login')
-  }, [currentUser?.bookingRestricted])
-
-  useEffect(() => {
     loadSlots()
   }, [searchDate, fieldTypeFilter])
+
+  useEffect(() => {
+    const firstAvailable = bookingSlots.find(slot => slot.available)
+    setSelectedSlotId(current => bookingSlots.some(slot => slot.slotId === Number(current) && slot.available)
+      ? current
+      : firstAvailable?.slotId || null)
+  }, [bookingSlots])
 
   useEffect(() => {
     if (currentPage !== 'verifyEmail') return undefined
@@ -338,14 +339,12 @@ function App() {
         typeRes,
         serviceRes,
         promoRes,
-        settingRes,
         membershipLevelsRes
       ] = await Promise.all([
         api.get('/fields'),
         api.get('/field-types'),
         api.get('/services'),
         api.get('/promotions' + (viewer?.role === 'Admin' ? '?includeInactive=true' : '')),
-        api.get('/settings'),
         api.get('/membership/levels')
       ])
       
@@ -353,8 +352,8 @@ function App() {
       setFieldTypes(typeRes.data)
       setServices(serviceRes.data)
       setPromotions(promoRes.data)
-      setSettings(settingRes.data)
       setMembershipLevels(membershipLevelsRes.data)
+      if (viewer?.role !== 'Admin') setSettings([])
 
       // 2. Load role-specific data conditionally
       const isAdminViewer = viewer?.role === 'Admin'
@@ -369,14 +368,16 @@ function App() {
           paymentRes,
           refundRes,
           issueRes,
-          reportRes
+          reportRes,
+          settingRes
         ] = await Promise.all([
           api.get('/account/users'),
           api.get('/bookings'),
           api.get('/payments'),
           api.get('/refunds'),
           api.get('/issues'),
-          api.get('/reports')
+          api.get('/reports'),
+          api.get('/settings')
         ])
         
         setUsers(userRes.data)
@@ -385,6 +386,7 @@ function App() {
         setRefunds(refundRes.data)
         setIssues(issueRes.data)
         setReports(reportRes.data)
+        setSettings(settingRes.data)
 
         if (viewer) {
           const freshUser = userRes.data.find(u => u.userId === viewer.userId)
@@ -398,6 +400,7 @@ function App() {
           : bookingRes.data[0]?.bookingId || null)
 
       } else if (isStaffViewer) {
+        setSelectedStaffId(viewer.userId)
         // Staff cannot access Admin-only customer management. Loading it in the same
         // Promise.all caused a 403 that discarded the otherwise valid booking list.
         const [customerRes, bookingRes, paymentRes, refundRes, issueRes] = await Promise.all([
@@ -468,8 +471,6 @@ function App() {
       if (fieldTypeFilter) params.fieldTypeId = fieldTypeFilter
       const response = await api.get('/slots/search', { params })
       setSlots(response.data)
-      const firstAvailable = response.data.find(slot => slot.available)
-      setSelectedSlotId(prev => response.data.some(slot => slot.slotId === Number(prev) && slot.available) ? prev : firstAvailable?.slotId || null)
     } catch (error) {
       setNotice(error.response?.data?.error || 'Could not load availability')
     }
@@ -789,13 +790,10 @@ function App() {
   }
 
   function logout() {
-    api.post('/account/logout').catch(() => {
-      // Clearing the local session is still safe if an expired token cannot reach the API.
-    })
     setCurrentUser(null)
     setMembership(null)
     setNotifications([])
-    setSelectedCustomerId(customers[0]?.userId || 1)
+    setSelectedCustomerId(null)
     setNotice('Signed out')
     setActionPanel({
       kind: 'success',
@@ -836,7 +834,7 @@ function App() {
     const response = await runAction(async () => {
       const bookingResponse = await api.post('/bookings', {
         customerId: bookingCustomerId(),
-        staffId: source === 'walk_in' ? Number(selectedStaffId) : null,
+        staffId: source === 'walk_in' ? currentUser.userId : null,
         slotId: Number(selectedSlotId),
         bookingSource: source,
         promotionCode,
@@ -935,15 +933,15 @@ function App() {
     if (!selectedBooking) return
     await runAction(async () => api.put(`/bookings/${selectedBooking.bookingId}/status`, {
       status,
-      staffId: Number(selectedStaffId),
+      staffId: currentUser?.userId,
       note: 'Updated from staff operation screen'
     }), `Booking updated to ${status}`)
   }
 
-  async function updateBookingServices(services) {
-    if (!selectedBooking) return
+  async function updateBookingServices(services, bookingId = selectedBooking?.bookingId) {
+    if (!bookingId) return
     const response = await runAction(
-      async () => api.put(`/bookings/${selectedBooking.bookingId}/services`, { services }),
+      async () => api.put(`/bookings/${bookingId}/services`, { services }),
       'Booking services updated'
     )
     if (response?.data) setSelectedBookingDetail(response.data)
@@ -953,7 +951,7 @@ function App() {
     await runAction(async () => api.put(`/issues/${issueId}/status`, {
       status,
       resolutionNote,
-      assignedStaffId: currentUser?.role === 'Staff' ? currentUser.userId : Number(selectedStaffId)
+      assignedStaffId: currentUser?.role === 'Staff' ? currentUser.userId : null
     }), 'Issue updated')
   }
 
@@ -1015,7 +1013,7 @@ function App() {
   async function updateRefund(refund, status) {
     await runAction(async () => api.put(`/refunds/${refund.refundId}/status`, {
       status,
-      processedById: currentUser?.userId || Number(selectedStaffId),
+      processedById: currentUser?.userId,
       note: status === 'rejected' ? 'Reviewed and rejected by staff' : 'Reviewed by staff'
     }), `Refund ${status}`)
   }
@@ -1031,23 +1029,32 @@ function App() {
       reporterId: currentUser.userId,
       bookingId: selectedBooking?.bookingId,
       fieldId: selectedBooking ? null : selectedSlot?.fieldId,
-      assignedStaffId: Number(selectedStaffId),
+      assignedStaffId: currentUser?.role === 'Staff' ? currentUser.userId : null,
       title: issueDraft.title,
       description: issueDraft.description
+    }), 'Issue reported')
+  }
+
+  async function reportCustomerIssue(payload) {
+    if (!currentUser) return
+    await runAction(async () => api.post('/issues', {
+      ...payload,
+      reporterId: currentUser.userId,
+      assignedStaffId: null
     }), 'Issue reported')
   }
 
   async function updateDepositSetting(value) {
     await runAction(async () => api.put('/settings/deposit.default_percent', {
       settingValue: String(value),
-      updatedById: currentUser?.userId || 4
+      updatedById: currentUser?.userId
     }), 'Deposit rule updated')
   }
 
   async function updatePolicySetting(key, value) {
     await runAction(async () => api.put(`/settings/${key}`, {
       settingValue: String(value),
-      updatedById: currentUser?.userId || 4
+      updatedById: currentUser?.userId
     }), 'Booking policy updated')
   }
 
@@ -1068,7 +1075,12 @@ function App() {
         </button>
         <nav className={mobileOpen ? 'mainNav open' : 'mainNav'} aria-label="Primary navigation">
           <button className={currentPage === 'fields' ? 'active' : ''} onClick={() => navigatePage('fields')}>Fields</button>
-          {!isAdmin && <button className={currentPage === 'booking' ? 'active' : ''} onClick={() => navigatePage('booking')}>Book</button>}
+          {!isAdmin && <button className={currentPage === 'booking' ? 'active' : ''} onClick={() => navigatePage('booking')}>{isStaff ? 'Walk-in booking' : 'Book'}</button>}
+          <button className={currentPage === 'promotions' ? 'active' : ''} onClick={() => navigatePage('promotions')}>Offers</button>
+          <button
+            className={(currentPage === 'membership-benefits' || currentPage === 'membership-rules') ? 'active' : ''}
+            onClick={() => navigatePage(isAdmin ? 'membership-rules' : 'membership-benefits')}
+          >Membership</button>
           {currentUser?.role === 'Customer' && <button className={currentPage === 'account' ? 'active' : ''} onClick={() => navigatePage('account')}>My bookings</button>}
           {canOperate && <button className={currentPage === 'staff' ? 'active' : ''} onClick={() => navigatePage('staff')}>Staff workspace</button>}
           {isAdmin && <button className={currentPage === 'admin' ? 'active' : ''} onClick={() => navigatePage('admin')}>Admin console</button>}
@@ -1125,6 +1137,7 @@ function App() {
             searchDate={searchDate}
             setSearchDate={setSearchDate}
             setFieldTypeFilter={setFieldTypeFilter}
+            setFieldFilter={setFieldFilter}
             setSelectedSlotId={setSelectedSlotId}
             navigatePage={navigatePage}
           />
@@ -1135,13 +1148,19 @@ function App() {
             searchDate={searchDate}
             setSearchDate={setSearchDate}
             fieldTypeFilter={fieldTypeFilter}
-            setFieldTypeFilter={setFieldTypeFilter}
+            setFieldTypeFilter={value => {
+              setFieldTypeFilter(value)
+              setFieldFilter('')
+            }}
+            fieldFilter={fieldFilter}
+            setFieldFilter={setFieldFilter}
             fieldTypes={fieldTypes}
+            fields={fields}
             canOperate={canOperate}
             selectedCustomerId={selectedCustomerId}
             setSelectedCustomerId={setSelectedCustomerId}
             customers={customers}
-            slots={slots}
+            slots={bookingSlots}
             selectedSlotId={selectedSlotId}
             setSelectedSlotId={setSelectedSlotId}
             services={services}
@@ -1211,6 +1230,11 @@ function App() {
             onRequestRefund={createRefund}
             onReschedule={rescheduleBooking}
             availableSlots={slots.filter(slot => slot.available)}
+            services={services}
+            fields={fields}
+            onUpdateBookingServices={(items, bookingId) => updateBookingServices(items, bookingId)}
+            onReportIssue={reportCustomerIssue}
+            onStartBooking={() => navigatePage('booking')}
           />
         )}
 
@@ -1251,7 +1275,7 @@ function App() {
           />
         )}
 
-        {(currentPage === 'home' || currentPage === 'promotions') && (
+        {currentPage === 'promotions' && (
           <PromotionsPage
             promotions={promotions}
             currentUser={currentUser}
@@ -1310,6 +1334,7 @@ function App() {
             loadSlots={loadSlots}
             updateBookingServices={updateBookingServices}
             updateIssue={updateIssue}
+            navigatePage={navigatePage}
           />
         )}
 
@@ -1327,6 +1352,7 @@ function App() {
             customers={customers}
             updateCustomerRestriction={updateCustomerRestriction}
             refreshAll={refreshAll}
+            navigatePage={navigatePage}
           />
         )}
 

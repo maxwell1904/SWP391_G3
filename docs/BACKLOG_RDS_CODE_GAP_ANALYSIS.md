@@ -1,5 +1,8 @@
 # Backlog, RDS, and Code Gap Analysis
 
+> Archived analysis snapshot. Use `BACKLOG_CODE_FIRST_DELIVERY.md` and
+> `END_TO_END_QA_MATRIX.md` for the current verified state.
+
 Last updated: 2026-06-11
 
 ## Source Files Checked

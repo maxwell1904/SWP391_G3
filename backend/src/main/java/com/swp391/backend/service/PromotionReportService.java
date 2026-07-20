@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalTime;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -333,5 +334,31 @@ public class PromotionReportService {
         } else {
             promotion.setApplicableMembershipLevel(null);
         }
+
+        String dayType = support.clean(request.applicableDayType());
+        if (!support.isBlank(dayType) && !List.of("all", "weekday", "weekend").contains(dayType.toLowerCase())) {
+            throw support.badRequest("Applicable day type must be all, weekday, or weekend");
+        }
+        promotion.setApplicableDayType(support.isBlank(dayType) ? null : dayType.toLowerCase());
+        boolean hasStartTime = !support.isBlank(request.applicableStartTime());
+        boolean hasEndTime = !support.isBlank(request.applicableEndTime());
+        if (hasStartTime != hasEndTime) {
+            throw support.badRequest("Promotion start and end time must be provided together");
+        }
+        if (hasStartTime) {
+            try {
+                LocalTime startTime = LocalTime.parse(request.applicableStartTime());
+                LocalTime endTime = LocalTime.parse(request.applicableEndTime());
+                if (!endTime.isAfter(startTime)) throw support.badRequest("Promotion end time must be after start time");
+                promotion.setApplicableStartTime(startTime);
+                promotion.setApplicableEndTime(endTime);
+            } catch (java.time.format.DateTimeParseException exception) {
+                throw support.badRequest("Promotion time range is invalid");
+            }
+        } else {
+            promotion.setApplicableStartTime(null);
+            promotion.setApplicableEndTime(null);
+        }
+        promotion.setStackable(Boolean.TRUE.equals(request.stackable()));
     }
 }

@@ -7,7 +7,7 @@ Football Field Booking & Venue Operation System
 - Frontend: React + Vite
 - Database: H2 for local demo, Supabase PostgreSQL ready through env vars
 - Email: Spring Boot Mail SMTP for account verification links
-- Authentication: Demo login now, JWT dependency kept for the next security pass
+- Authentication: Spring Security with revocable JWT tokens and role/ownership checks
 
 ## Project Structure
 ```text
@@ -72,7 +72,7 @@ scripts/run-frontend.sh
 
 Open `http://localhost:5173`.
 
-Default demo accounts all use password `GoalZone@123`:
+Default local classroom accounts all use password `GoalZone@123`:
 
 - `customer@goalzone.local`
 - `member@goalzone.local`

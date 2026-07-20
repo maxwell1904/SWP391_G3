@@ -110,7 +110,7 @@ public class DemoSupportService {
                 .orElse(BigDecimal.valueOf(12));
     }
 
-    BigDecimal calculateServiceTotal(List<ApiRequests.ServiceSelection> selections) {
+    BigDecimal calculateServiceTotal(List<ApiRequests.ServiceSelection> selections, Slot slot, Long excludedBookingId) {
         if (selections == null || selections.isEmpty()) {
             return BigDecimal.ZERO;
         }
@@ -118,12 +118,20 @@ public class DemoSupportService {
         for (ApiRequests.ServiceSelection selection : selections) {
             ExtraService service = getExtraService(selection.serviceId());
             int quantity = validateServiceQuantity(service, selection.quantity());
+            if (service.getStockQuantity() != null) {
+                long reserved = bookingServiceItemRepository.sumReservedForOverlappingSlots(
+                        service.getExtraServiceId(), slot.getSlotDate(), slot.getStartTime(), slot.getEndTime(),
+                        ACTIVE_BOOKING_STATUSES, excludedBookingId);
+                if (reserved + quantity > service.getStockQuantity()) {
+                    throw badRequest("Service stock is not enough for this time: " + service.getServiceName());
+                }
+            }
             total = total.add(service.getUnitPrice().multiply(BigDecimal.valueOf(quantity)));
         }
         return money(total);
     }
 
-    BigDecimal calculatePromotionDiscount(String promotionCode, Slot slot, BigDecimal baseAmount, List<ApiRequests.ServiceSelection> services) {
+    BigDecimal calculatePromotionDiscount(String promotionCode, Slot slot, BigDecimal baseAmount, List<ApiRequests.ServiceSelection> services, AppUser customer) {
         if (isBlank(promotionCode)) {
             return BigDecimal.ZERO;
         }
@@ -147,6 +155,24 @@ public class DemoSupportService {
             if (!selected) {
                 throw badRequest("Promotion requires selected extra service: " + promotion.getApplicableExtraService().getServiceName());
             }
+        }
+        if (promotion.getApplicableMembershipLevel() != null) {
+            boolean eligible = customer != null && customerMembershipRepository.findByCustomer_UserId(customer.getUserId())
+                    .map(membership -> Objects.equals(membership.getMembershipLevel().getMembershipLevelId(), promotion.getApplicableMembershipLevel().getMembershipLevelId()))
+                    .orElse(false);
+            if (!eligible) throw badRequest("Promotion is not valid for this membership level");
+        }
+        String slotDayType = slot.getSlotDate().getDayOfWeek() == DayOfWeek.SATURDAY || slot.getSlotDate().getDayOfWeek() == DayOfWeek.SUNDAY
+                ? "weekend" : "weekday";
+        if (!isBlank(promotion.getApplicableDayType())
+                && !"all".equalsIgnoreCase(promotion.getApplicableDayType())
+                && !slotDayType.equalsIgnoreCase(promotion.getApplicableDayType())) {
+            throw badRequest("Promotion is not valid for this day");
+        }
+        if (promotion.getApplicableStartTime() != null
+                && (slot.getStartTime().isBefore(promotion.getApplicableStartTime())
+                || slot.getEndTime().isAfter(promotion.getApplicableEndTime()))) {
+            throw badRequest("Promotion is not valid for this time range");
         }
         BigDecimal discount = promotion.getDiscountType() == DiscountType.percent
                 ? baseAmount.multiply(promotion.getDiscountValue()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
@@ -491,6 +517,10 @@ public class DemoSupportService {
         map.put("refundReason", refund.getRefundReason());
         map.put("status", refund.getStatus().name());
         map.put("transactionCode", refund.getTransactionCode());
+        map.put("paymentId", refund.getPayment() == null ? null : refund.getPayment().getPaymentId());
+        map.put("paymentMethod", refund.getPayment() == null ? null : refund.getPayment().getPaymentMethod().name());
+        map.put("providerStatus", refund.getProviderStatus());
+        map.put("gatewayMessage", refund.getGatewayMessage());
         map.put("requestedAt", refund.getRequestedAt());
         map.put("processedAt", refund.getProcessedAt());
         map.put("requestedBy", refund.getRequestedBy() == null ? null : refund.getRequestedBy().getFullName());
@@ -517,6 +547,10 @@ public class DemoSupportService {
         map.put("applicableFieldTypeId", promotion.getApplicableFieldType() != null ? promotion.getApplicableFieldType().getFieldTypeId() : null);
         map.put("applicableExtraServiceId", promotion.getApplicableExtraService() != null ? promotion.getApplicableExtraService().getExtraServiceId() : null);
         map.put("applicableMembershipLevelId", promotion.getApplicableMembershipLevel() != null ? promotion.getApplicableMembershipLevel().getMembershipLevelId() : null);
+        map.put("applicableDayType", promotion.getApplicableDayType());
+        map.put("applicableStartTime", promotion.getApplicableStartTime() == null ? null : promotion.getApplicableStartTime().toString());
+        map.put("applicableEndTime", promotion.getApplicableEndTime() == null ? null : promotion.getApplicableEndTime().toString());
+        map.put("stackable", promotion.isStackable());
         return map;
     }
 

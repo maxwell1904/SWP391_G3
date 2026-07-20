@@ -3,7 +3,10 @@ import { formatMoney } from '../../../utils/format'
 export function ServicePicker({ services, selectedServices, setSelectedServices }) {
   return (
     <div className="serviceBlock">
-      <h3>Add services</h3>
+      <div className="bookingStepHeader">
+        <div><span>Step 2</span><h3>Add services</h3></div>
+        <p>Optional</p>
+      </div>
       <div className="serviceGrid">
         {services.map(service => (
           <label key={service.extraServiceId} className="serviceOption">

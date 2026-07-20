@@ -3,44 +3,36 @@ package com.swp391.backend.config;
 import com.swp391.backend.entity.*;
 import com.swp391.backend.enums.*;
 import com.swp391.backend.repository.*;
-import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Configuration
 public class DataSeeder {
 
-    @Autowired
-    private AppUserRepository userRepository;
-
-    @Autowired
-    private BCryptPasswordEncoder passwordEncoder;
-
-    @PostConstruct
-    public void migrateExistingPasswords() {
-        List<AppUser> usersWithPlaintext = userRepository.findAll()
-                .stream()
-                .filter(user -> user.getPasswordHash() != null && !user.getPasswordHash().startsWith("$2"))
-                .collect(Collectors.toList());
-
-        if (usersWithPlaintext.isEmpty()) {
-            return;
-        }
-
-        usersWithPlaintext.forEach(user -> user.setPasswordHash(passwordEncoder.encode(user.getPasswordHash())));
-        userRepository.saveAll(usersWithPlaintext);
+    @Bean
+    @Order(1)
+    CommandLineRunner migrateLegacyPasswords(AppUserRepository userRepository, BCryptPasswordEncoder passwordEncoder) {
+        return args -> {
+            List<AppUser> usersWithPlaintext = userRepository.findAll().stream()
+                    .filter(user -> user.getPasswordHash() != null && !user.getPasswordHash().startsWith("$2"))
+                    .toList();
+            usersWithPlaintext.forEach(user -> user.setPasswordHash(passwordEncoder.encode(user.getPasswordHash())));
+            if (!usersWithPlaintext.isEmpty()) {
+                userRepository.saveAll(usersWithPlaintext);
+            }
+        };
     }
 
     @Bean
+    @Order(2)
     CommandLineRunner seedDemoData(
             RoleRepository roleRepository,
             AppUserRepository userRepository,
@@ -144,7 +136,7 @@ public class DataSeeder {
         membership.setMembershipLevel(level);
         membership.setCompletedBookingCount(completedCount);
         membership.setEffectiveFrom(LocalDate.now().minusMonths(1));
-        membership.setProgressNote("Seeded demo membership");
+        membership.setProgressNote("Membership progress is based on completed bookings");
         return membership;
     }
 
@@ -211,7 +203,7 @@ public class DataSeeder {
         service.setUnitPrice(new BigDecimal(price));
         service.setStockQuantity(stock);
         service.setMaxQuantityPerBooking(maxPerBooking);
-        service.setDescription("Seeded " + name.toLowerCase());
+        service.setDescription(name + " available as a booking add-on");
         return service;
     }
 

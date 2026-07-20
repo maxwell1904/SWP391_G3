@@ -1,6 +1,6 @@
 # GoalZone end-to-end QA matrix
 
-Run date: 2026-07-14.  The automated suite uses the real Spring Security,
+Run date: 2026-07-21.  The automated suite uses the real Spring Security,
 controllers, services and persistence flow against isolated H2 data.  The UI
 smoke checks use the Customer, Staff and Admin workspaces in a real browser.
 
@@ -14,7 +14,9 @@ smoke checks use the Customer, Staff and Admin workspaces in a real browser.
 - Browser smoke: Customer booking/account, Staff booking/activity, and Admin
   overview/fields/pricing/policies.  This caught and fixed the blank Staff
   booking list and the duplicate persistent success toast.
-- Supabase: `scripts/verify-supabase-schema.sh` passes after Flyway V5.
+- PostgreSQL migrations run through V9. The live Supabase schema was repaired
+  and `scripts/verify-supabase-schema.sh` passed after V9; browser flow data
+  remained isolated in H2.
 
 ## Backlog verdict
 
@@ -31,16 +33,16 @@ smoke checks use the Customer, Staff and Admin workspaces in a real browser.
 | UC-09 | Pass | Staff customer-activity API and selected-booking UI panel are covered. |
 | UC-10 | Pass | Booking restriction/restoration is separate from account lock and is E2E-covered. |
 | UC-11 | Pass | Guest/customer field list is rendered from the live catalogue API. |
-| UC-12 | Pass | Field detail cards expose type, price, location, surface, image, and availability. |
+| UC-12 | Partial | Field detail exposes type, price, location, surface, uploaded image, and availability. Reviews are deferred and must be removed from current acceptance criteria. |
 | UC-13 | Pass | Date/type slot search was browser-smoked with booked and free slots correctly distinguished. |
 | UC-14 | Pass | Admin field create/update/status flow is E2E-covered. |
 | UC-15 | Pass | Admin time/day pricing create/update is E2E-covered and visible in UI. |
 | UC-16 | Pass | Staff block/unblock slot flow is E2E-covered. |
 | UC-17 | Pass | Staff operation calendar by date is E2E-covered. |
 | UC-18 | Pass | Admin extra-service create/update/status flow is E2E-covered. |
-| UC-19 | Pass | Checkout validates active services and stock/max-per-booking rules. |
+| UC-19 | Pass | Checkout validates active services, max-per-booking, and inventory reserved by overlapping active matches. |
 | UC-20 | Pass | Customer checkout and Staff walk-in booking include services in totals/invoice. |
-| UC-21 | Pass | Staff service edit before check-in recalculates services/discounts/balance/refund delta and upserts the invoice in the same transaction; post-check-in editing is blocked. |
+| UC-21 | Pass | Owning Customer or Staff service edit before check-in recalculates services/discounts/balance/refund delta and upserts the invoice in the same transaction; post-check-in editing is blocked. |
 | UC-22 | Pass | Issue reporting is E2E-covered. |
 | UC-23 | Pass | Staff assignment/resolution and reporter notification are E2E-covered. |
 | UC-24 | Pass | Online booking with availability, pricing, hold, and payment flow is E2E-covered. |
@@ -66,13 +68,13 @@ smoke checks use the Customer, Staff and Admin workspaces in a real browser.
 | UC-44 | Pass | Customer payment history now returns actual captured transactions and was browser-smoked. |
 | UC-45 | Pass | Invoice generation and its component amounts are asserted in payment journeys. |
 | UC-46 | Pass | Booking billing panel exposes invoice and payment status. |
-| UC-47 | Pass* | Refund request/approval/completion flow is E2E-covered; provider-side settlement remains sandbox-manual. |
+| UC-47 | Pass* | An approved PayPal refund calls Payments v2 with the capture ID and a stable idempotency key. Only provider `COMPLETED` becomes completed; pending/failure stays visible and retryable. Cash refund completion is explicitly manual. |
 | UC-48 | Pass | Staff refund list and explicit status transitions are E2E-covered. |
 | UC-49 | Pass | Deposit setting update is E2E-covered and exposed in Policies. |
 | UC-50 | Pass | Refund policy update is E2E-covered and exposed in Policies. |
 | UC-51 | Pass | Active promotions are visible to guests/customers. |
-| UC-52 | Pass | Admin promotion create/update/status path is E2E-covered. |
-| UC-53 | Pass | Promotion validation and discount application are asserted in checkout preview. |
+| UC-52 | Pass | Admin promotion create/update/status/banner path is exposed and role-protected. |
+| UC-53 | Pass | Promotion validation covers dates, usage, minimum, field type, service, membership, day, and time; one code per booking is supported. |
 | UC-54 | Pass | Customer membership progress is E2E-covered and shown in Account. |
 | UC-55 | Pass | Admin membership-level create/update is E2E-covered. |
 | UC-56 | Pass | Membership benefits are exposed from active levels in customer-facing UI. |
@@ -87,8 +89,10 @@ smoke checks use the Customer, Staff and Admin workspaces in a real browser.
 
 `*` A real external provider must still be approved from a PayPal Sandbox buyer
 account / received in an actual inbox.  The configured credentials were
-validated without exposing secrets, but this QA run intentionally did not send
-mail or create a real provider-side transaction.
+validated without exposing secrets (PayPal OAuth returned HTTP 200), but this QA
+run intentionally did not send mail or create/refund a real provider-side
+transaction. At verification time the live Supabase `payment` and `refund`
+tables were empty, so there was no existing capture that could safely be refunded.
 
 ## Backlog cleanup note: UC-07 vs UC-10
 
@@ -99,10 +103,9 @@ new booking).  The UI and API implement both separately.
 
 ## Supabase result
 
-The live database had Flyway history through V4 but lacked the indexes and
-constraints expected by the code.  V5 repairs that legacy drift idempotently,
-adds the provider/auth columns if absent, restores the booking/refund integrity
-trigger, and creates the access-path indexes.  The database passes
-`scripts/verify-supabase-schema.sh` after the repair.  PostgreSQL is now
-protected from unsafe Hibernate DDL modes; it must run via the `postgres`
-profile with Flyway and `ddl-auto=validate`.
+Flyway V8 restores all integrity checks, the active-slot exclusion/indexes and
+refund trigger after the guarded V7 legacy rebuild. V9 adds provider refund
+status, gateway message, idempotency tracking and unique reconciliation indexes. Live verification passed
+with all nine migrations successful and the required access indexes
+present. PostgreSQL runs through the `postgres` profile with Flyway and
+`ddl-auto=validate`; `.env.local` was normalized to that mode.

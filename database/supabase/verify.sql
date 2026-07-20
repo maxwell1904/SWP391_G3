@@ -9,7 +9,9 @@ declare
         'idx_slot_date_status',
         'idx_slot_created_by',
         'idx_payment_booking_id',
-        'idx_notification_user_id'
+        'idx_notification_user_id',
+        'uk_refund_idempotency_key',
+        'uk_refund_transaction_code'
     ];
     required_constraints text[] := array[
         'uk_customer_membership_customer',
@@ -40,5 +42,5 @@ order by installed_rank;
 select indexname, indexdef
 from pg_indexes
 where schemaname = current_schema()
-  and indexname in ('ux_booking_active_slot', 'idx_slot_date_status', 'idx_slot_created_by', 'idx_payment_booking_id', 'idx_notification_user_id')
+  and indexname in ('ux_booking_active_slot', 'idx_slot_date_status', 'idx_slot_created_by', 'idx_payment_booking_id', 'idx_notification_user_id', 'uk_refund_idempotency_key', 'uk_refund_transaction_code')
 order by indexname;

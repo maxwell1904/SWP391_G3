@@ -4,6 +4,7 @@ dist/
 
 # Java
 target/
+backend/uploads/
 .tools/
 *.class
 *.jar

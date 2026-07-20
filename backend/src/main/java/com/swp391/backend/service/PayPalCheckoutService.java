@@ -36,6 +36,9 @@ import java.util.UUID;
 @Service
 @Transactional
 public class PayPalCheckoutService {
+    public record RefundResult(String refundId, String status, String message) {
+    }
+
     private final DemoSupportService support;
     private final BookingWorkflowService bookingWorkflowService;
     private final ObjectMapper objectMapper;
@@ -53,7 +56,7 @@ public class PayPalCheckoutService {
     @Value("${app.paypal.currency:USD}")
     private String currency;
 
-    @Value("${app.paypal.mock-mode:true}")
+    @Value("${app.paypal.mock-mode:false}")
     private boolean configuredMockMode;
 
     @Value("${app.frontend-base-url:http://localhost:5173}")
@@ -68,7 +71,7 @@ public class PayPalCheckoutService {
     @Transactional(readOnly = true)
     public Map<String, Object> config() {
         boolean mockMode = isMockMode();
-        boolean checkoutEnabled = !support.isBlank(clientId) && !mockMode;
+        boolean checkoutEnabled = credentialsConfigured() && !mockMode;
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("enabled", checkoutEnabled);
         response.put("clientId", checkoutEnabled ? clientId : "");
@@ -101,6 +104,7 @@ public class PayPalCheckoutService {
             );
             return orderResponse(payment, settlementAmount, "CREATED");
         }
+        requirePayPalCredentials();
 
         try {
             String orderId = createRemoteOrder(booking, option, settlementAmount, idempotencyKey);
@@ -196,6 +200,64 @@ public class PayPalCheckoutService {
             booking.setExpiredAt(now);
         }
         return bookingWorkflowService.bookingDetail(bookingId);
+    }
+
+    public RefundResult refundCapture(Payment payment, BigDecimal refundAmount, String requestId, String existingRefundId) {
+        if (payment.getPaymentMethod() != PaymentMethod.paypal_sandbox
+                || payment.getStatus() != PaymentStatus.paid
+                || support.isBlank(payment.getProviderCaptureId())) {
+            return new RefundResult(null, "FAILED", "The payment has no refundable PayPal capture.");
+        }
+        if (refundAmount == null || refundAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return new RefundResult(null, "FAILED", "The PayPal refund amount must be positive.");
+        }
+        if (isMockMode()) {
+            return new RefundResult(
+                    "MOCK-PAYPAL-REFUND-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase(),
+                    "COMPLETED",
+                    "Mock PayPal refund completed."
+            );
+        }
+        if (!credentialsConfigured()) {
+            return new RefundResult(null, "FAILED", "PayPal merchant credentials are not configured.");
+        }
+
+        try {
+            JsonNode response;
+            if (!support.isBlank(existingRefundId)) {
+                response = sendJson(
+                        "GET",
+                        paypalBaseUrl() + "/v2/payments/refunds/"
+                                + URLEncoder.encode(existingRefundId, StandardCharsets.UTF_8),
+                        accessToken(), "", null);
+            } else {
+                Map<String, Object> payload = Map.of(
+                        "amount", Map.of(
+                                "value", support.money(refundAmount).toPlainString(),
+                                "currency_code", normalizedCurrency()
+                        ),
+                        "note_to_payer", "GoalZone booking refund"
+                );
+                response = sendJson(
+                        "POST",
+                        paypalBaseUrl() + "/v2/payments/captures/"
+                                + URLEncoder.encode(payment.getProviderCaptureId(), StandardCharsets.UTF_8) + "/refund",
+                        accessToken(),
+                        objectMapper.writeValueAsString(payload),
+                        requestId
+                );
+            }
+            String refundId = response.path("id").asText();
+            String status = response.path("status").asText("PENDING").toUpperCase();
+            if (support.isBlank(refundId)) {
+                return new RefundResult(null, "FAILED", "PayPal did not return a refund transaction ID.");
+            }
+            return new RefundResult(refundId, status, "PayPal refund status: " + status + ".");
+        } catch (Exception exception) {
+            // A network timeout can happen after PayPal accepted the request. Keep the refund reserved and
+            // retry with the same PayPal-Request-Id instead of allowing a second refund request.
+            return new RefundResult(null, "PENDING", "PayPal has not confirmed the refund yet; retry safely with the same request ID.");
+        }
     }
 
     private Payment createPendingPayment(
@@ -377,7 +439,17 @@ public class PayPalCheckoutService {
     }
 
     private boolean isMockMode() {
-        return configuredMockMode || support.isBlank(clientId) || support.isBlank(clientSecret);
+        return configuredMockMode;
+    }
+
+    private boolean credentialsConfigured() {
+        return !support.isBlank(clientId) && !support.isBlank(clientSecret);
+    }
+
+    private void requirePayPalCredentials() {
+        if (!credentialsConfigured()) {
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "PayPal checkout is not configured");
+        }
     }
 
     private String normalizedCurrency() {

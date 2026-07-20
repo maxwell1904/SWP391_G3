@@ -117,7 +117,9 @@ class BookingPolicyWorkflowServiceTest {
                 ((Number) refund.get("refundId")).longValue(),
                 new ApiRequests.RefundStatusUpdate("completed", customer.getUserId(), "Provider completed"));
         assertThat(completed.get("status")).isEqualTo("completed");
-        assertThat(String.valueOf(completed.get("transactionCode"))).startsWith("REFUND-");
+        assertThat(completed.get("paymentMethod")).isEqualTo("cash");
+        assertThat(completed.get("providerStatus")).isEqualTo("MANUAL_CASH_REFUND");
+        assertThat(String.valueOf(completed.get("transactionCode"))).startsWith("CASH-REFUND-");
     }
 
     @Test

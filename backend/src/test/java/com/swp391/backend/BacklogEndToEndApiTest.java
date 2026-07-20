@@ -14,6 +14,7 @@ import org.springframework.http.MediaType;
 import jakarta.persistence.EntityManager;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -31,6 +32,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
@@ -105,6 +107,16 @@ class BacklogEndToEndApiTest {
 
         JsonNode booked = createOnlineBooking(customerToken, customerId, higherPricedSlot.path("slotId").asLong(), "E2E payment and reschedule");
         long bookingId = booked.path("bookingId").asLong();
+        JsonNode customerEditedServices = exchange(auth(put("/api/bookings/" + bookingId + "/services")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of("services", List.of(Map.of(
+                        "serviceId", services.get(0).path("extraServiceId").asLong(), "quantity", 1))))), customerToken), 200);
+        assertThat(customerEditedServices.path("services").size()).isEqualTo(1);
+        JsonNode customerIssue = exchange(auth(post("/api/issues")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of("reporterId", customerId, "bookingId", bookingId,
+                        "title", "E2E customer issue", "description", "Reported through customer support flow"))), customerToken), 200);
+        assertThat(customerIssue.path("reporter").asText()).isEqualTo("Nguyen Van Customer");
         JsonNode order = createPayPalOrder(customerToken, bookingId, customerId, "full");
         JsonNode paid = capturePayPalOrder(customerToken, bookingId, order.path("orderId").asText(), customerId);
         assertThat(paid.path("paymentStatus").asText()).isEqualTo("paid");
@@ -136,11 +148,17 @@ class BacklogEndToEndApiTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(Map.of("status", "approved", "processedById", staffId, "note", "Validated by E2E"))), staffToken), 200);
         assertThat(approvedRefund.path("status").asText()).isEqualTo("approved");
+        JsonNode rejectedFakeCompletion = exchange(auth(put("/api/refunds/" + refund.path("refundId").asLong() + "/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of("status", "completed", "processedById", staffId, "note", "Must not bypass PayPal"))), staffToken), 400);
+        assertThat(rejectedFakeCompletion.path("error").asText()).contains("Invalid refund transition");
         JsonNode completedRefund = exchange(auth(put("/api/refunds/" + refund.path("refundId").asLong() + "/status")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json(Map.of("status", "completed", "processedById", staffId, "note", "Completed by E2E"))), staffToken), 200);
+                .content(json(Map.of("status", "processing", "processedById", staffId, "note", "Sent to PayPal by E2E"))), staffToken), 200);
         assertThat(completedRefund.path("status").asText()).isEqualTo("completed");
-        assertThat(completedRefund.path("transactionCode").asText()).isNotBlank();
+        assertThat(completedRefund.path("paymentMethod").asText()).isEqualTo("paypal_sandbox");
+        assertThat(completedRefund.path("providerStatus").asText()).isEqualTo("COMPLETED");
+        assertThat(completedRefund.path("transactionCode").asText()).startsWith("MOCK-PAYPAL-REFUND-");
 
         JsonNode cancellableSlot = availableSlots(LocalDate.now().plusDays(3)).get(0);
         JsonNode cancellableBooking = createOnlineBooking(customerToken, customerId, cancellableSlot.path("slotId").asLong(), "E2E cancellation");
@@ -155,6 +173,10 @@ class BacklogEndToEndApiTest {
         assertThat(cancelled.path("status").asText()).isEqualTo("cancelled");
         assertThat(cancelled.path("refundableAmount").decimalValue())
                 .isEqualByComparingTo(cancellationPreview.path("refundableAmount").decimalValue());
+        assertThat(exchange(auth(put("/api/bookings/" + cancellableBookingId + "/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of("status", "confirmed", "note", "Invalid transition"))), staffToken), 400)
+                .path("error").asText()).contains("cannot change");
 
         JsonNode notifications = exchange(auth(get("/api/notifications/" + customerId), customerToken), 200);
         assertThat(notifications.isArray()).isTrue();
@@ -366,6 +388,8 @@ class BacklogEndToEndApiTest {
                         "services", List.of(),
                         "note", "E2E booking reminder"
                 ))), staffToken), 200);
+        jdbcTemplate.update("update system_setting set setting_value = '48' where setting_key = 'notification.booking_reminder_hours'");
+        entityManager.clear();
         assertThat(bookingMaintenanceScheduler.sendUpcomingBookingReminders()).isPositive();
         JsonNode notifications = exchange(auth(get("/api/notifications/" + customerId), customerToken), 200);
         assertThat(notifications).anySatisfy(notification ->
@@ -394,6 +418,11 @@ class BacklogEndToEndApiTest {
                         "status", "active"
                 ))), adminToken), 200);
         long fieldId = managedField.path("fieldId").asLong();
+        MockMultipartFile image = new MockMultipartFile("file", "pitch.png", "image/png", new byte[]{1, 2, 3, 4});
+        JsonNode uploaded = exchange(auth(multipart("/api/admin/uploads/images").file(image), adminToken), 200);
+        assertThat(uploaded.path("url").asText()).startsWith("/api/uploads/images/");
+        assertThat(mockMvc.perform(get(uploaded.path("url").asText())).andReturn().getResponse().getStatus()).isEqualTo(200);
+        exchange(multipart("/api/admin/uploads/images").file(image), 403);
         JsonNode fieldPrice = exchange(auth(post("/api/admin/fields/" + fieldId + "/prices")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(Map.of(
@@ -523,6 +552,16 @@ class BacklogEndToEndApiTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(Map.of("bookingRestricted", true, "restrictionReason", "E2E access review"))), adminToken), 200);
         assertThat(restricted.path("bookingRestricted").asBoolean()).isTrue();
+        JsonNode restrictedLogin = login("member@goalzone.local");
+        assertThat(restrictedLogin.path("user").path("bookingRestricted").asBoolean()).isTrue();
+        assertThat(exchange(auth(post("/api/bookings")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of(
+                        "customerId", memberId,
+                        "slotId", availableSlots(LocalDate.now().plusDays(5)).get(0).path("slotId").asLong(),
+                        "bookingSource", "online",
+                        "services", List.of()
+                ))), token(restrictedLogin)), 403).path("error").asText()).contains("restricted");
         JsonNode restored = exchange(auth(put("/api/account/users/" + memberId + "/restriction")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(Map.of("bookingRestricted", false, "restrictionReason", ""))), adminToken), 200);
@@ -584,6 +623,10 @@ class BacklogEndToEndApiTest {
 
         JsonNode customerLogin = login("customer@goalzone.local");
         String customerToken = token(customerLogin);
+        exchange(get("/api/settings"), 403);
+        exchange(auth(post("/api/promotions")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"), customerToken), 403);
         exchange(auth(post("/api/membership/levels")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(Map.of("levelName", "Forbidden", "requiredCompletedBookings", 1, "discountPercent", 1, "displayOrder", 77, "status", "active"))), customerToken), 403);

@@ -26,7 +26,12 @@ export function AccountPage({
   onCancelBooking,
   onRequestRefund,
   onReschedule,
-  availableSlots
+  availableSlots,
+  services,
+  fields,
+  onUpdateBookingServices,
+  onReportIssue,
+  onStartBooking
 }) {
   const [profileForm, setProfileForm] = useState(() => profileFromUser(currentUser))
   const [activePanel, setActivePanel] = useState('bookings')
@@ -121,21 +126,30 @@ export function AccountPage({
               </div>
               <ChangePasswordForm onChangePassword={onChangePassword} />
             </InfoPanel>
-            <InfoPanel title="My bookings" className={activePanel === 'bookings' ? '' : 'workspacePanelHidden'}>
-              <BookingList bookings={userBookings} selectedBookingId={selectedBookingId} onSelect={setSelectedBookingId} />
-            </InfoPanel>
-            <InfoPanel title="Invoice and payment status" className={activePanel === 'bookings' ? '' : 'workspacePanelHidden'}>
-              <BillingDetails detail={selectedBookingDetail} loading={billingLoading} error={billingError} />
-              <BookingChangeActions
-                booking={selectedBookingDetail}
-                preview={cancellationPreview}
-                availableSlots={availableSlots}
-                onPreview={onPreviewCancellation}
-                onCancel={onCancelBooking}
-                onRefund={onRequestRefund}
-                onReschedule={onReschedule}
-              />
-            </InfoPanel>
+            {!userBookings.length ? (
+              <InfoPanel title="No bookings yet" className={activePanel === 'bookings' ? 'accountEmptyState' : 'workspacePanelHidden'}>
+                <p className="emptyText">Choose a field and available time to create your first booking.</p>
+                <button className="primaryButton" onClick={onStartBooking}>Book a field</button>
+              </InfoPanel>
+            ) : (
+              <>
+                <InfoPanel title="My bookings" className={activePanel === 'bookings' ? '' : 'workspacePanelHidden'}>
+                  <BookingList bookings={userBookings} selectedBookingId={selectedBookingId} onSelect={setSelectedBookingId} />
+                </InfoPanel>
+                <InfoPanel title="Invoice and payment status" className={activePanel === 'bookings' ? '' : 'workspacePanelHidden'}>
+                  <BillingDetails detail={selectedBookingDetail} loading={billingLoading} error={billingError} />
+                  <BookingChangeActions
+                    booking={selectedBookingDetail}
+                    preview={cancellationPreview}
+                    availableSlots={availableSlots}
+                    onPreview={onPreviewCancellation}
+                    onCancel={onCancelBooking}
+                    onRefund={onRequestRefund}
+                    onReschedule={onReschedule}
+                  />
+                </InfoPanel>
+              </>
+            )}
             <InfoPanel title="Payment history" className={activePanel === 'payments' ? '' : 'workspacePanelHidden'}>
               <DataList items={accountPayments
                 .map(payment => ({
@@ -161,7 +175,13 @@ export function AccountPage({
                 meta: item.message,
                 value: item.type
               }))} />
+              <CustomerIssueForm bookings={userBookings} fields={fields} onSubmit={onReportIssue} />
             </InfoPanel>
+            {userBookings.length > 0 && (
+              <InfoPanel title="Booking add-ons" className={activePanel === 'bookings' ? '' : 'workspacePanelHidden'}>
+                <BookingServiceEditor booking={selectedBookingDetail} services={services} onSave={onUpdateBookingServices} />
+              </InfoPanel>
+            )}
           </div>
         </>
       ) : (
@@ -231,6 +251,74 @@ export function AccountPage({
         </>
       )}
     </section>
+  )
+}
+
+function BookingServiceEditor({ booking, services = [], onSave }) {
+  const [quantities, setQuantities] = useState({})
+  useEffect(() => {
+    setQuantities(Object.fromEntries((booking?.services || []).map(item => [item.serviceId, item.quantity])))
+  }, [booking?.bookingId, booking?.services])
+  if (!booking || !['pending', 'confirmed'].includes(booking.status)) {
+    return <p className="emptyText">Add-ons can be changed only before check-in.</p>
+  }
+  return (
+    <div className="profileForm">
+      <p className="hintText">Prices, discounts, remaining balance, and invoice are recalculated when you save.</p>
+      {services.filter(service => service.status === 'active').map(service => (
+        <FieldControl key={service.extraServiceId} label={`${service.serviceName} · ${formatMoney(service.unitPrice)}`}>
+          <input
+            type="number"
+            min="0"
+            max={service.maxQuantityPerBooking || service.stockQuantity || 99}
+            value={quantities[service.extraServiceId] || 0}
+            onChange={event => setQuantities(current => ({ ...current, [service.extraServiceId]: Number(event.target.value) }))}
+          />
+        </FieldControl>
+      ))}
+      <button className="primaryButton" onClick={() => onSave(
+        Object.entries(quantities).filter(([, quantity]) => Number(quantity) > 0)
+          .map(([serviceId, quantity]) => ({ serviceId: Number(serviceId), quantity: Number(quantity) })),
+        booking.bookingId
+      )}>Save add-ons</button>
+    </div>
+  )
+}
+
+function CustomerIssueForm({ bookings = [], fields = [], onSubmit }) {
+  const [form, setForm] = useState({ bookingId: '', fieldId: '', title: '', description: '' })
+  async function submit() {
+    if (!form.title.trim() || !form.description.trim()) return
+    await onSubmit({
+      bookingId: form.bookingId ? Number(form.bookingId) : null,
+      fieldId: !form.bookingId && form.fieldId ? Number(form.fieldId) : null,
+      title: form.title.trim(),
+      description: form.description.trim()
+    })
+    setForm({ bookingId: '', fieldId: '', title: '', description: '' })
+  }
+  return (
+    <div className="changePasswordSection">
+      <hr className="sectionDivider" />
+      <h4 className="sectionSubtitle">Report a field or booking issue</h4>
+      <div className="profileForm">
+        <FieldControl label="Related booking (optional)">
+          <select value={form.bookingId} onChange={event => setForm({ ...form, bookingId: event.target.value, fieldId: '' })}>
+            <option value="">No booking selected</option>
+            {bookings.map(booking => <option key={booking.bookingId} value={booking.bookingId}>{booking.bookingCode} · {booking.fieldName}</option>)}
+          </select>
+        </FieldControl>
+        {!form.bookingId && <FieldControl label="Field (optional)">
+          <select value={form.fieldId} onChange={event => setForm({ ...form, fieldId: event.target.value })}>
+            <option value="">General issue</option>
+            {fields.map(field => <option key={field.fieldId} value={field.fieldId}>{field.fieldName}</option>)}
+          </select>
+        </FieldControl>}
+        <FieldControl label="Issue title"><input value={form.title} onChange={event => setForm({ ...form, title: event.target.value })} /></FieldControl>
+        <FieldControl label="What happened?"><textarea value={form.description} onChange={event => setForm({ ...form, description: event.target.value })} /></FieldControl>
+        <button className="primaryButton" disabled={!form.title.trim() || !form.description.trim()} onClick={submit}>Send issue report</button>
+      </div>
+    </div>
   )
 }
 

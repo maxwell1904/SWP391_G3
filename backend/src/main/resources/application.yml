@@ -47,11 +47,18 @@ spring:
             enable: ${SMTP_STARTTLS_ENABLE:true}
             required: ${SMTP_STARTTLS_REQUIRED:false}
 
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
 server:
   port: 8080
 
 app:
   frontend-base-url: ${APP_FRONTEND_BASE_URL:${FRONTEND_URL:http://localhost:5173}}
+  upload:
+    directory: ${APP_UPLOAD_DIRECTORY:./uploads}
   mail:
     from-email: ${FROM_EMAIL:${SMTP_USER:${SPRING_MAIL_USERNAME:}}}
     from-name: ${FROM_NAME:GoalZone}
@@ -60,7 +67,7 @@ app:
     client-secret: ${PAYPAL_CLIENT_SECRET:}
     env: ${PAYPAL_ENV:sandbox}
     currency: ${PAYPAL_CURRENCY:USD}
-    mock-mode: ${PAYPAL_MOCK_MODE:true}
+    mock-mode: ${PAYPAL_MOCK_MODE:false}
 
 jwt:
   # A local fallback keeps demo accounts usable. Set JWT_SECRET in every

@@ -1,5 +1,8 @@
 # RDS Rule Alignment
 
+> Archived rule snapshot. Use `BACKLOG_CODE_FIRST_DELIVERY.md` and
+> `END_TO_END_QA_MATRIX.md` for the current verified rules.
+
 This file tracks the demo implementation against the RDS business rules so the remaining use cases can be added without changing the core model.
 
 ## Implemented

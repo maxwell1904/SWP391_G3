@@ -200,7 +200,11 @@ public final class ApiRequests {
             String status,
             Long applicableFieldTypeId,
             Long applicableExtraServiceId,
-            Long applicableMembershipLevelId
+            Long applicableMembershipLevelId,
+            String applicableDayType,
+            String applicableStartTime,
+            String applicableEndTime,
+            Boolean stackable
     ) {
     }
 

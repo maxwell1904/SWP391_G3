@@ -101,10 +101,6 @@ public class AccountService {
         if (user.getStatus() != AccountStatus.active) {
             throw new ApiException(HttpStatus.FORBIDDEN, "Account is not active");
         }
-        if (user.isBookingRestricted()) {
-            String reason = support.nvl(user.getRestrictionReason(), "Your account has been restricted by admin");
-            throw new ApiException(HttpStatus.FORBIDDEN, "Account is restricted. Reason: " + reason);
-        }
         user.setLastLoginAt(LocalDateTime.now());
         String token = jwtService.generateToken(new SecurityUser(user));
         return Map.of(

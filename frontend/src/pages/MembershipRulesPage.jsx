@@ -9,7 +9,7 @@ export function MembershipRulesPage({ membershipLevels, currentUser, createMembe
   if (!isAdmin) {
     return (
       <section className="section limitWidth">
-        <SectionIntro title="Access Denied" desc="Only administrators can manage membership rules." />
+        <SectionIntro kicker="Membership" title="Access denied" text="Only administrators can manage membership rules." />
       </section>
     )
   }
@@ -55,11 +55,17 @@ export function MembershipRulesPage({ membershipLevels, currentUser, createMembe
 
   return (
     <section className="section limitWidth">
-      <SectionIntro title="Membership Rules" desc="Configure membership tiers and benefits" />
+      <SectionIntro kicker="Membership" title="Tier rules" text="Define the thresholds and automatic discounts customers earn after completed bookings." />
       <div className="sectionContent">
         {isEditing ? (
           <div className="promoForm">
-            <h3>{editForm.membershipLevelId ? 'Edit Membership Level' : 'New Membership Level'}</h3>
+            <div className="formHeading">
+              <div>
+                <span>Tier editor</span>
+                <h3>{editForm.membershipLevelId ? 'Edit membership tier' : 'Create membership tier'}</h3>
+              </div>
+              <p>Customers move up automatically when they complete enough bookings.</p>
+            </div>
             <div className="promoFormGrid">
               <FieldControl label="Level Name">
                 <input type="text" value={editForm.levelName} onChange={e => updateField('levelName', e.target.value)} placeholder="e.g. Gold" />
@@ -86,39 +92,33 @@ export function MembershipRulesPage({ membershipLevels, currentUser, createMembe
               </div>
             </div>
             <div className="buttonRow">
-              <button className="primaryButton" onClick={handleSave}>Save</button>
-              <button className="secondaryButton" onClick={() => setIsEditing(false)}>Cancel</button>
+              <button type="button" className="primaryButton" onClick={handleSave}>Save tier</button>
+              <button type="button" className="secondaryButton" onClick={() => setIsEditing(false)}>Cancel</button>
             </div>
           </div>
         ) : (
           <div className="adminControls">
-            <button className="primaryButton" onClick={handleNew}>+ Add New Level</button>
+            <button type="button" className="primaryButton" onClick={handleNew}>Add membership tier</button>
           </div>
         )}
 
-        <div className="promoCardGrid">
-          {membershipLevels.map(level => (
-            <div key={level.membershipLevelId} className={`promoCardFull ${level.status === 'inactive' ? 'inactive' : ''}`}>
-              <div className="promoCardFullHeader">
-                <span className="promoCodeBadge">{level.levelName}</span>
-                <span className={`promoStatusPill ${level.status}`}>
-                  {level.status}
-                </span>
-              </div>
-              <div className="promoCardFullTitle">
-                <div>
-                  <h3>Requires {level.requiredCompletedBookings} bookings</h3>
+        <div className="tierAdminList">
+          {[...membershipLevels].sort((a, b) => a.displayOrder - b.displayOrder).map(level => (
+            <article key={level.membershipLevelId} className={`tierAdminItem ${level.status === 'inactive' ? 'inactive' : ''}`}>
+              <div className="tierAdminRank" aria-hidden="true">{Number(level.displayOrder) + 1}</div>
+              <div className="tierAdminIdentity">
+                <div className="tierAdminNameRow">
+                  <h3>{level.levelName}</h3>
+                  <span className={`promoStatusPill ${level.status}`}>{level.status}</span>
                 </div>
-                <span className="promoDiscountBig">
-                  {level.discountPercent}% off
-                </span>
+                <p>{level.benefitDescription || 'Standard field booking access.'}</p>
               </div>
-              <p className="promoCardDesc">{level.benefitDescription}</p>
-              
-              <div className="promoCardActions">
-                <button className="ghostDarkButton" onClick={() => handleEdit(level)}>Edit</button>
-              </div>
-            </div>
+              <dl className="tierAdminMetrics">
+                <div><dt>Threshold</dt><dd>{level.requiredCompletedBookings} bookings</dd></div>
+                <div><dt>Discount</dt><dd>{level.discountPercent}% off</dd></div>
+              </dl>
+              <button type="button" className="ghostDarkButton" onClick={() => handleEdit(level)}>Edit tier</button>
+            </article>
           ))}
           {membershipLevels.length === 0 && (
             <p className="emptyText" style={{ gridColumn: '1/-1' }}>No membership levels defined.</p>

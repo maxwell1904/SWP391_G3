@@ -1,5 +1,8 @@
 # Implementation Scope
 
+> Archived scope snapshot. Use `BACKLOG_CODE_FIRST_DELIVERY.md` for the
+> current code-first decisions.
+
 This repo is a runnable MVP slice for the Football Field Booking System.
 
 ## Backlog Coverage

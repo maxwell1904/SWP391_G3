@@ -1,18 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Badge, Button, Divider, Group, Image, Modal, Paper, SimpleGrid, Stack, Text, Title } from '@mantine/core'
-import { CalendarDays, Clock3, MapPin, Ruler, Star, UsersRound, Wrench } from 'lucide-react'
-import { FieldControl, SectionIntro } from '../components/common'
+import { Badge, Button, Group, Image, Modal, Paper, SimpleGrid, Stack, Text, Title } from '@mantine/core'
+import { CalendarDays, MapPin, Ruler, UsersRound, Wrench } from 'lucide-react'
+import { SectionIntro } from '../components/common'
 import api from '../services/api'
-import { formatMoney, formatTimeRange } from '../utils/format'
+import { formatMoney, formatTimeRange, resolveAssetUrl } from '../utils/format'
 
 const labelize = value => String(value || '').replace(/_/g, ' ').toLowerCase()
 
 export function FieldsPage({
   fields,
-  slots = [],
-  searchDate,
-  setSearchDate,
   setFieldTypeFilter,
+  setFieldFilter,
   setSelectedSlotId,
   navigatePage
 }) {
@@ -21,7 +19,6 @@ export function FieldsPage({
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
   const [detailOpen, setDetailOpen] = useState(false)
-  const [availability, setAvailability] = useState({ loaded: false, items: [], error: '' })
 
   useEffect(() => {
     if (!fields.length || !fields.some(field => Number(field.fieldId) === Number(selectedFieldId))) {
@@ -63,45 +60,14 @@ export function FieldsPage({
     }
   }, [selectedField?.fieldId])
 
-  useEffect(() => {
-    if (!searchDate) return undefined
-
-    let cancelled = false
-    setAvailability({ loaded: false, items: [], error: '' })
-    api.get('/slots/search', { params: { date: searchDate } })
-      .then(response => {
-        if (!cancelled) setAvailability({ loaded: true, items: response.data, error: '' })
-      })
-      .catch(error => {
-        if (!cancelled) {
-          setAvailability({
-            loaded: true,
-            items: [],
-            error: error.response?.data?.error || 'Could not load availability.'
-          })
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [searchDate])
-
-  const availabilityItems = availability.loaded ? availability.items : slots
-  const selectedSlots = useMemo(() => {
-    if (!selectedField) return []
-    return availabilityItems.filter(slot => Number(slot.fieldId) === Number(selectedField.fieldId))
-  }, [availabilityItems, selectedField])
-  const availableSlots = selectedSlots.filter(slot => slot.available)
-  const previewSlots = selectedSlots.slice(0, 5)
   const displayDetail = fieldDetail || selectedField
   const priceRange = fieldDetail?.priceRange
   const detailServices = fieldDetail?.services || []
-  const nextOpenSlots = fieldDetail?.availabilitySummary?.nextOpenSlots || []
 
-  function openBooking(slot) {
-    setFieldTypeFilter?.('')
-    if (slot?.slotId) setSelectedSlotId?.(slot.slotId)
+  function openBooking() {
+    setFieldTypeFilter?.(String(selectedField?.fieldTypeId || ''))
+    setFieldFilter?.(String(selectedField?.fieldId || ''))
+    setSelectedSlotId?.(null)
     setDetailOpen(false)
     navigatePage?.('booking')
   }
@@ -116,7 +82,7 @@ export function FieldsPage({
       <SectionIntro
         kicker="Fields"
         title="Choose the pitch that fits the match"
-        text="Guests can browse active fields, inspect pricing, and check open slots before signing in."
+        text="Compare field size, surface, pricing, and optional match-day services before checking availability."
       />
 
       {!fields.length ? (
@@ -126,9 +92,6 @@ export function FieldsPage({
           <div className="fieldGrid fieldGridCards" aria-label="Active football fields">
             {fields.map(field => {
               const isSelected = detailOpen && Number(field.fieldId) === Number(selectedField?.fieldId)
-              const fieldSlots = availabilityItems.filter(slot => Number(slot.fieldId) === Number(field.fieldId))
-              const openSlotCount = fieldSlots.filter(slot => slot.available).length
-
               return (
                 <button
                   type="button"
@@ -137,7 +100,7 @@ export function FieldsPage({
                   onClick={() => openFieldDetail(field)}
                   aria-pressed={isSelected}
                 >
-                  <img src={field.imageUrl} alt={`${field.fieldName} football pitch`} />
+                  <img src={resolveAssetUrl(field.imageUrl)} alt={`${field.fieldName} football pitch`} width="640" height="360" loading="lazy" />
                   <div className="fieldCardBody">
                     <Group justify="space-between" gap="xs" wrap="nowrap">
                       <Badge color="green" variant={isSelected ? 'filled' : 'light'} radius="sm">{field.fieldType}</Badge>
@@ -152,7 +115,7 @@ export function FieldsPage({
                       <div><dt>Surface</dt><dd>{field.surfaceType}</dd></div>
                     </dl>
                     <div className="fieldCardFooter">
-                      <span>{availability.loaded ? `${openSlotCount} open slots` : 'Checking slots'}</span>
+                      <span>Pricing & amenities</span>
                       <strong>View details</strong>
                     </div>
                   </div>
@@ -167,15 +130,16 @@ export function FieldsPage({
             size="xl"
             centered
             title="Field details"
+            closeButtonProps={{ 'aria-label': 'Close field details' }}
           >
           {displayDetail && (
           <Paper className="fieldDetailPanel fieldDetailModal" withBorder shadow="sm" radius="md">
             <div className="fieldDetailHero">
               <Image
                 className="fieldDetailImage"
-                src={displayDetail.imageUrl}
+                src={resolveAssetUrl(displayDetail.imageUrl)}
                 alt={`${displayDetail.fieldName} detail`}
-                fallbackSrc={selectedField?.imageUrl}
+                fallbackSrc={resolveAssetUrl(selectedField?.imageUrl)}
               />
               <div className="fieldDetailContent">
                 <Group justify="space-between" align="flex-start" gap="md">
@@ -190,7 +154,7 @@ export function FieldsPage({
 
                 <Text c="dimmed" lh={1.55}>{displayDetail.description}</Text>
 
-                <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="xs" className="detailStatGrid">
+                <SimpleGrid cols={2} spacing="xs" className="detailStatGrid">
                   <div className="detailStat">
                     <MapPin size={17} />
                     <span>Location</span>
@@ -218,41 +182,7 @@ export function FieldsPage({
             </div>
 
             <div className="fieldDetailBody">
-              <Group justify="space-between" align="end" className="fieldDetailToolbar">
-                <div>
-                  <Text fw={850}>Availability</Text>
-                  <Text size="sm" c="dimmed">Open slots for the selected playing date.</Text>
-                </div>
-                <FieldControl label="Date">
-                  <input type="date" value={searchDate} onChange={event => setSearchDate?.(event.target.value)} />
-                </FieldControl>
-              </Group>
-
-              {availability.error && <p className="errorText">{availability.error}</p>}
-
-              <div className="miniSlotList">
-                {previewSlots.length ? previewSlots.map(slot => (
-                  <button
-                    type="button"
-                    className={slot.available ? 'miniSlotItem' : 'miniSlotItem unavailable'}
-                    key={slot.slotId}
-                    onClick={() => openBooking(slot)}
-                    disabled={!slot.available}
-                  >
-                    <Clock3 size={18} />
-                    <span>{formatTimeRange(slot.startTime, slot.endTime)}</span>
-                    <strong>{formatMoney(slot.price)}</strong>
-                    <Badge color={slot.available ? 'green' : 'gray'} variant={slot.available ? 'light' : 'outline'} radius="sm">
-                      {slot.available ? 'Available' : labelize(slot.status)}
-                    </Badge>
-                  </button>
-                )) : (
-                  <p className="emptyText">No slots found for this field on the selected date.</p>
-                )}
-              </div>
-
-              <Divider />
-
+              <div className="fieldDetailOverviewGrid">
               <Stack gap="xs">
                 <Group justify="space-between" align="center">
                   <div>
@@ -276,14 +206,11 @@ export function FieldsPage({
                   )}
                 </div>
               </Stack>
-
-              <Divider />
-
               <Stack gap="xs">
                 <Group justify="space-between" align="center">
                   <div>
-                    <Text fw={850}>Services and reviews</Text>
-                    <Text size="sm" c="dimmed">Available add-ons for match-day bookings and MVP review status.</Text>
+                    <Text fw={850}>Available add-ons</Text>
+                    <Text size="sm" c="dimmed">Optional equipment and match-day services.</Text>
                   </div>
                   <Badge color="green" variant="light">{detailServices.length} services</Badge>
                 </Group>
@@ -300,48 +227,14 @@ export function FieldsPage({
                     <p className="emptyText">No active services are configured.</p>
                   )}
                 </div>
-                <div className="fieldReviewSummary">
-                  <Star size={17} />
-                  <span>{fieldDetail?.reviewSummary || 'Review summary is loading.'}</span>
-                </div>
               </Stack>
-
-              <Divider />
-
-              <Stack gap="xs">
-                <Group justify="space-between" align="center">
-                  <div>
-                    <Text fw={850}>Next open slots</Text>
-                    <Text size="sm" c="dimmed">A short availability summary across the next few days.</Text>
-                  </div>
-                  <Badge color="green" variant="light">{fieldDetail?.availabilitySummary?.nextOpenSlotCount || 0} open</Badge>
-                </Group>
-                <div className="miniSlotList">
-                  {nextOpenSlots.length ? nextOpenSlots.map(slot => (
-                    <button
-                      type="button"
-                      className="miniSlotItem"
-                      key={`${slot.slotDate}-${slot.slotId}`}
-                      onClick={() => openBooking(slot)}
-                    >
-                      <Clock3 size={18} />
-                      <span>{slot.slotDate} · {formatTimeRange(slot.startTime, slot.endTime)}</span>
-                      <strong>{formatMoney(slot.price)}</strong>
-                      <Badge color="green" variant="light" radius="sm">Open</Badge>
-                    </button>
-                  )) : (
-                    <p className="emptyText">No upcoming open slots were found in the detail summary.</p>
-                  )}
-                </div>
-              </Stack>
+              </div>
 
               <div className="fieldDetailActions">
-                <Button color="green" leftSection={<CalendarDays size={18} />} onClick={() => openBooking(availableSlots[0])}>
-                  {availableSlots[0] ? 'Book earliest slot' : 'Open booking'}
+                <Button color="green" leftSection={<CalendarDays size={18} />} onClick={openBooking}>
+                  Check availability
                 </Button>
-                <Button variant="subtle" color="dark" onClick={() => openBooking()}>
-                  View all slots
-                </Button>
+                <Text size="sm" c="dimmed">Choose a date and time on the booking page.</Text>
               </div>
             </div>
           </Paper>

@@ -87,7 +87,7 @@ public class SecurityConfig {
                                 "/api/services",
                                 "/api/promotions",
                                 "/api/membership/levels",
-                                "/api/settings",
+                                "/api/uploads/images/*",
                                 "/api/payments/paypal/config"
                         ).permitAll()
                         // A visitor may calculate an anonymous basket; booking itself is authenticated.
@@ -126,11 +126,12 @@ public class SecurityConfig {
                         ).hasAnyRole("Staff", "Admin")
                         .requestMatchers(HttpMethod.GET, "/api/refunds").hasAnyRole("Staff", "Admin")
                         .requestMatchers(HttpMethod.PUT, "/api/refunds/**").hasAnyRole("Staff", "Admin")
-                        .requestMatchers(HttpMethod.POST, "/api/promotions").hasAnyRole("Staff", "Admin")
-                        .requestMatchers(HttpMethod.PUT, "/api/promotions/**").hasAnyRole("Staff", "Admin")
+                        .requestMatchers(HttpMethod.GET, "/api/settings").hasRole("Admin")
+                        .requestMatchers(HttpMethod.POST, "/api/promotions").hasRole("Admin")
+                        .requestMatchers(HttpMethod.PUT, "/api/promotions/**").hasRole("Admin")
                         // The workflow service enforces that a customer may only cancel
                         // their own booking; Staff/Admin retain the other lifecycle actions.
-                        .requestMatchers(HttpMethod.PUT, "/api/bookings/*/services").hasAnyRole("Staff", "Admin")
+                        .requestMatchers(HttpMethod.PUT, "/api/bookings/*/services").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/issues/*/status").hasAnyRole("Staff", "Admin")
                         .requestMatchers("/api/account/users/*/activity").hasAnyRole("Staff", "Admin")
                         .requestMatchers(HttpMethod.GET, "/api/account/customers").hasAnyRole("Staff", "Admin")

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Badge, Button, Group, Modal, Stack, Text } from '@mantine/core'
 import { Plus } from 'lucide-react'
-import { FieldControl, InfoPanel, WorkspaceHeader, WorkspaceTabs } from '../components/common'
+import { FieldControl, ImageUploadField, InfoPanel, WorkspaceHeader, WorkspaceTabs } from '../components/common'
 import { DataList, MetricGrid } from '../components/data'
 import api from '../services/api'
 import { formatMoney, formatTimeRange } from '../utils/format'
@@ -55,7 +55,8 @@ export function AdminPage({
   updatePolicySetting,
   customers,
   updateCustomerRestriction,
-  refreshAll
+  refreshAll,
+  navigatePage
 }) {
   const restrictedCustomers = customers.filter(customer => customer.bookingRestricted).length
   const [adminFields, setAdminFields] = useState([])
@@ -459,6 +460,11 @@ export function AdminPage({
         ]}
       />
 
+      <Group className="adminDestinationBar" gap="sm">
+        <Button variant="light" onClick={() => navigatePage('promotions')}>Manage promotions</Button>
+        <Button variant="light" onClick={() => navigatePage('membership-rules')}>Manage membership tiers</Button>
+      </Group>
+
       <WorkspaceTabs
         value={activePanel}
         onChange={setActivePanel}
@@ -518,9 +524,7 @@ export function AdminPage({
             <FieldControl label="Surface">
               <input value={fieldForm.surfaceType} onChange={event => updateFieldForm('surfaceType', event.target.value)} />
             </FieldControl>
-            <FieldControl label="Image URL">
-              <input value={fieldForm.imageUrl} onChange={event => updateFieldForm('imageUrl', event.target.value)} />
-            </FieldControl>
+            <ImageUploadField label="Field image" value={fieldForm.imageUrl} onChange={value => updateFieldForm('imageUrl', value)} />
             <FieldControl label="Status">
               <select value={fieldForm.status} onChange={event => updateFieldForm('status', event.target.value)}>
                 <option value="active">Active</option>
@@ -838,7 +842,7 @@ export function AdminPage({
       >
         <Stack gap="sm">
           <Text size="sm" c="dimmed">
-            The customer will be blocked from signing in. They will receive an email with this reason.
+            The customer can still sign in and review existing bookings, but cannot create a new booking. They will receive an email with this reason.
           </Text>
           <FieldControl label="Restriction reason">
             <textarea

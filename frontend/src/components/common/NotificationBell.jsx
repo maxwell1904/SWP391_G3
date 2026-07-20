@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Bell } from 'lucide-react'
+import { Bell, BellOff, CalendarCheck, CalendarX, Clock3, CreditCard, RotateCcw } from 'lucide-react'
 
 export function NotificationBell({ currentUser, notifications, onToggleRead, onMarkAllRead }) {
   const [open, setOpen] = useState(false)
@@ -33,12 +33,12 @@ export function NotificationBell({ currentUser, notifications, onToggleRead, onM
   }
 
   const typeIcon = {
-    booking_confirmed: '✅',
-    booking_cancelled: '❌',
-    payment_received: '💳',
-    refund_processed: '💰',
-    check_in_reminder: '⏰',
-    system: '🔔',
+    booking_confirmed: CalendarCheck,
+    booking_cancelled: CalendarX,
+    payment_received: CreditCard,
+    refund_processed: RotateCcw,
+    check_in_reminder: Clock3,
+    system: Bell,
   }
 
   return (
@@ -72,26 +72,29 @@ export function NotificationBell({ currentUser, notifications, onToggleRead, onM
           <div className="notificationList">
             {notifications.length === 0 && (
               <div className="notificationEmpty">
-                <span>🔕</span>
+                <BellOff size={24} aria-hidden="true" />
                 <p>No notifications yet</p>
               </div>
             )}
-            {notifications.map(n => (
-              <button
-                key={n.notificationId}
-                className={`notificationItem ${n.read ? 'read' : 'unread'}`}
-                onClick={() => onToggleRead(n.notificationId)}
-                id={`notification-${n.notificationId}`}
-              >
-                <span className="notificationTypeIcon">{typeIcon[n.type] || '🔔'}</span>
-                <div className="notificationContent">
-                  <p className="notificationTitle">{n.title}</p>
-                  <p className="notificationMessage">{n.message}</p>
-                  <span className="notificationTime">{formatTime(n.sentAt)}</span>
-                </div>
-                {!n.read && <span className="unreadDot" aria-label="Unread" />}
-              </button>
-            ))}
+            {notifications.map(n => {
+              const TypeIcon = typeIcon[n.type] || Bell
+              return (
+                <button
+                  key={n.notificationId}
+                  className={`notificationItem ${n.read ? 'read' : 'unread'}`}
+                  onClick={() => onToggleRead(n.notificationId)}
+                  id={`notification-${n.notificationId}`}
+                >
+                  <span className="notificationTypeIcon"><TypeIcon size={19} aria-hidden="true" /></span>
+                  <div className="notificationContent">
+                    <p className="notificationTitle">{n.title}</p>
+                    <p className="notificationMessage">{n.message}</p>
+                    <span className="notificationTime">{formatTime(n.sentAt)}</span>
+                  </div>
+                  {!n.read && <span className="unreadDot" aria-label="Unread" />}
+                </button>
+              )
+            })}
           </div>
         </div>
       )}

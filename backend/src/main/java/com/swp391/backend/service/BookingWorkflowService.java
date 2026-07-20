@@ -33,8 +33,8 @@ public class BookingWorkflowService {
         BookingSource source = support.parseEnum(BookingSource.class, request.bookingSource(), BookingSource.online);
         Slot slot = support.getSlot(request.slotId());
         BigDecimal fieldPrice = support.calculateFieldPrice(slot);
-        BigDecimal serviceTotal = support.calculateServiceTotal(request.services());
-        BigDecimal promotionDiscount = support.calculatePromotionDiscount(request.promotionCode(), slot, serviceTotal.add(fieldPrice), request.services());
+        BigDecimal serviceTotal = support.calculateServiceTotal(request.services(), slot, null);
+        BigDecimal promotionDiscount = support.calculatePromotionDiscount(request.promotionCode(), slot, serviceTotal.add(fieldPrice), request.services(), customer);
         BigDecimal membershipDiscount = support.calculateMembershipDiscount(customer, fieldPrice.add(serviceTotal).subtract(promotionDiscount), source);
         BigDecimal total = support.money(fieldPrice.add(serviceTotal).subtract(promotionDiscount).subtract(membershipDiscount));
         BigDecimal deposit = support.calculateDeposit(total);
@@ -92,8 +92,8 @@ public class BookingWorkflowService {
         booking.setNote(request.note());
 
         BigDecimal fieldPrice = support.calculateFieldPrice(slot);
-        BigDecimal serviceTotal = support.calculateServiceTotal(request.services());
-        BigDecimal promotionDiscount = support.calculatePromotionDiscount(request.promotionCode(), slot, fieldPrice.add(serviceTotal), request.services());
+        BigDecimal serviceTotal = support.calculateServiceTotal(request.services(), slot, null);
+        BigDecimal promotionDiscount = support.calculatePromotionDiscount(request.promotionCode(), slot, fieldPrice.add(serviceTotal), request.services(), customer);
         BigDecimal membershipDiscount = support.calculateMembershipDiscount(customer, fieldPrice.add(serviceTotal).subtract(promotionDiscount), source);
         BigDecimal total = support.money(fieldPrice.add(serviceTotal).subtract(promotionDiscount).subtract(membershipDiscount));
         BigDecimal deposit = support.calculateDeposit(total);
@@ -170,35 +170,28 @@ public class BookingWorkflowService {
                 throw new ApiException(HttpStatus.FORBIDDEN, "Customers can only cancel their own bookings");
             }
         }
+        requireValidTransition(booking.getStatus(), nextStatus);
         LocalDateTime now = LocalDateTime.now();
         switch (nextStatus) {
             case confirmed -> {
                 booking.setConfirmedAt(now);
                 support.notifyUser(booking.getCustomer(), booking, NotificationType.booking_confirmation, "Booking confirmed", "Booking " + booking.getBookingCode() + " is confirmed.");
             }
-            case checked_in -> {
-                support.requireCurrentStatus(booking, BookingStatus.confirmed);
-                booking.setCheckedInAt(now);
-            }
+            case checked_in -> booking.setCheckedInAt(now);
             case completed -> {
-                support.requireCurrentStatus(booking, BookingStatus.checked_in);
                 booking.setCompletedAt(now);
                 support.updateMembershipProgress(booking.getCustomer());
                 support.generateInvoice(booking);
             }
             case cancelled -> {
-                if (booking.getStatus() == BookingStatus.checked_in || booking.getStatus() == BookingStatus.completed) {
-                    throw support.badRequest("Checked-in or completed bookings cannot be cancelled");
-                }
                 booking.setCancelledAt(now);
                 support.previewAndStoreCancellation(booking);
                 support.notifyUser(booking.getCustomer(), booking, NotificationType.cancellation, "Booking cancelled", "Booking " + booking.getBookingCode() + " has been cancelled.");
             }
             case rejected -> {
-                support.requireCurrentStatus(booking, BookingStatus.pending);
                 support.notifyUser(booking.getCustomer(), booking, NotificationType.booking_confirmation, "Booking rejected", "Booking " + booking.getBookingCode() + " was rejected by staff.");
             }
-            case no_show -> support.requireCurrentStatus(booking, BookingStatus.confirmed);
+            case no_show -> { }
             case expired -> booking.setExpiredAt(now);
             default -> {
             }
@@ -285,11 +278,22 @@ public class BookingWorkflowService {
         BigDecimal discountTotal = BigDecimal.ZERO;
         for (BookingPromotion applied : appliedPromotions) {
             Promotion promotion = applied.getPromotion();
+            String slotDayType = newSlotDayType(slot);
+            boolean membershipEligible = promotion.getApplicableMembershipLevel() == null
+                    || support.customerMembershipRepository.findByCustomer_UserId(booking.getCustomer().getUserId())
+                    .map(membership -> Objects.equals(membership.getMembershipLevel().getMembershipLevelId(), promotion.getApplicableMembershipLevel().getMembershipLevelId()))
+                    .orElse(false);
             boolean remainsApplicable = (promotion.getMinBookingAmount() == null || baseAmount.compareTo(promotion.getMinBookingAmount()) >= 0)
                     && (promotion.getApplicableFieldType() == null
                     || Objects.equals(promotion.getApplicableFieldType().getFieldTypeId(), slot.getField().getFieldType().getFieldTypeId()))
                     && (promotion.getApplicableExtraService() == null
-                    || selectedServiceIds.contains(promotion.getApplicableExtraService().getExtraServiceId()));
+                    || selectedServiceIds.contains(promotion.getApplicableExtraService().getExtraServiceId()))
+                    && membershipEligible
+                    && (support.isBlank(promotion.getApplicableDayType()) || "all".equalsIgnoreCase(promotion.getApplicableDayType())
+                    || slotDayType.equalsIgnoreCase(promotion.getApplicableDayType()))
+                    && (promotion.getApplicableStartTime() == null
+                    || (!slot.getStartTime().isBefore(promotion.getApplicableStartTime())
+                    && !slot.getEndTime().isAfter(promotion.getApplicableEndTime())));
             if (!remainsApplicable) {
                 applied.setDiscountAmount(BigDecimal.ZERO.setScale(2));
                 continue;
@@ -308,17 +312,24 @@ public class BookingWorkflowService {
         return support.money(discountTotal);
     }
 
+    private String newSlotDayType(Slot slot) {
+        return switch (slot.getSlotDate().getDayOfWeek()) {
+            case SATURDAY, SUNDAY -> "weekend";
+            default -> "weekday";
+        };
+    }
+
     /** UC-21: services can change until the customer has checked in. */
     public Map<String, Object> updateBookingServices(Long bookingId, ApiRequests.BookingServicesUpdate request) {
         AppUser requester = currentUser();
-        if (!isOperator(requester)) throw new ApiException(HttpStatus.FORBIDDEN, "Staff or administrator access is required");
         Booking booking = support.getBooking(bookingId);
+        requireBookingVisible(booking);
         if (booking.getStatus() != BookingStatus.pending && booking.getStatus() != BookingStatus.confirmed) {
             throw support.badRequest("Services can only be changed before check-in");
         }
 
         List<ApiRequests.ServiceSelection> selections = request.services() == null ? List.of() : request.services();
-        BigDecimal serviceTotal = support.calculateServiceTotal(selections);
+        BigDecimal serviceTotal = support.calculateServiceTotal(selections, booking.getSlot(), bookingId);
         BigDecimal baseAmount = booking.getFieldPriceAmount().add(serviceTotal);
         List<Long> selectedServiceIds = selections.stream().map(ApiRequests.ServiceSelection::serviceId).toList();
         BigDecimal promotionDiscount = recalculatePromotionDiscount(booking, booking.getSlot(), baseAmount, selectedServiceIds);
@@ -337,7 +348,7 @@ public class BookingWorkflowService {
         booking.setDepositAmount(support.calculateDeposit(total));
         booking.setRemainingAmount(remaining);
         booking.setRefundableAmount(refundable);
-        booking.setStaff(resolveOperatingStaff(null));
+        if (isOperator(requester)) booking.setStaff(resolveOperatingStaff(null));
         support.generateInvoice(booking);
         support.notifyUser(booking.getCustomer(), booking, NotificationType.booking_confirmation,
                 "Booking services updated", "Services for booking " + booking.getBookingCode() + " were updated before check-in."
@@ -347,6 +358,18 @@ public class BookingWorkflowService {
                         ? " The remaining balance is " + remaining + "."
                         : ""));
         return bookingDetail(bookingId);
+    }
+
+    private void requireValidTransition(BookingStatus current, BookingStatus next) {
+        boolean valid = switch (current) {
+            case pending -> List.of(BookingStatus.confirmed, BookingStatus.rejected, BookingStatus.cancelled, BookingStatus.expired).contains(next);
+            case confirmed -> List.of(BookingStatus.checked_in, BookingStatus.cancelled, BookingStatus.no_show).contains(next);
+            case checked_in -> next == BookingStatus.completed;
+            default -> false;
+        };
+        if (!valid) {
+            throw support.badRequest("Booking cannot change from " + current + " to " + next);
+        }
     }
 
     private AppUser currentUser() {

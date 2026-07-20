@@ -24,10 +24,13 @@ import java.util.UUID;
 public class PaymentWorkflowService {
     private final DemoSupportService support;
     private final BookingWorkflowService bookingWorkflowService;
+    private final PayPalCheckoutService payPalCheckoutService;
 
-    public PaymentWorkflowService(DemoSupportService support, BookingWorkflowService bookingWorkflowService) {
+    public PaymentWorkflowService(DemoSupportService support, BookingWorkflowService bookingWorkflowService,
+                                  PayPalCheckoutService payPalCheckoutService) {
         this.support = support;
         this.bookingWorkflowService = bookingWorkflowService;
+        this.payPalCheckoutService = payPalCheckoutService;
     }
 
     public Map<String, Object> capturePayment(ApiRequests.PaymentCapture request) {
@@ -112,10 +115,8 @@ public class PaymentWorkflowService {
         }
         Refund refund = new Refund();
         refund.setBooking(booking);
-        if (request.paymentId() != null) {
-            refund.setPayment(support.paymentRepository.findById(request.paymentId()).orElseThrow(() -> support.notFound("Payment not found")));
-        }
         refund.setRefundCode("RF" + System.currentTimeMillis());
+        refund.setIdempotencyKey("GZ-REFUND-" + UUID.randomUUID());
         refund.setRequestedBy(operator && request.requestedById() != null ? support.getUser(request.requestedById()) : requester);
         if (request.processedById() != null) {
             refund.setProcessedBy(support.getUser(request.processedById()));
@@ -130,14 +131,20 @@ public class PaymentWorkflowService {
             throw support.badRequest("Refund amount must be between zero and the remaining refundable amount");
         }
         refund.setRefundAmount(requestedAmount);
+        refund.setPayment(resolveRefundPayment(booking, request.paymentId(), requestedAmount));
         refund.setRefundReason(request.refundReason());
         refund.setRequestedAt(LocalDateTime.now());
         Refund savedRefund = support.refundRepository.save(refund);
         support.notifyUser(booking.getCustomer(), booking, NotificationType.refund, "Refund requested",
                 "Your refund request " + savedRefund.getRefundCode() + " is awaiting staff review.");
-        // Kept for backwards compatibility with the old demo client: approval is still explicit and auditable.
         if (request.approveNow()) {
-            updateRefundStatus(savedRefund.getRefundId(), new ApiRequests.RefundStatusUpdate("completed", request.processedById(), null));
+            if (!operator) {
+                throw new ApiException(HttpStatus.FORBIDDEN, "Only staff or administrators may approve a refund");
+            }
+            updateRefundStatus(savedRefund.getRefundId(), new ApiRequests.RefundStatusUpdate("approved", request.processedById(), null));
+            return updateRefundStatus(savedRefund.getRefundId(), new ApiRequests.RefundStatusUpdate(
+                    savedRefund.getPayment().getPaymentMethod() == PaymentMethod.paypal_sandbox ? "processing" : "completed",
+                    request.processedById(), null));
         }
         return support.refundSummary(savedRefund);
     }
@@ -150,9 +157,12 @@ public class PaymentWorkflowService {
                 .orElseThrow(() -> support.notFound("Refund not found"));
         RefundStatus next = support.parseEnum(RefundStatus.class, request.status(), refund.getStatus());
         RefundStatus current = refund.getStatus();
+        boolean providerProcessing = next == RefundStatus.processing
+                && (current == RefundStatus.approved || current == RefundStatus.processing || current == RefundStatus.failed);
         boolean validTransition = (current == RefundStatus.requested && (next == RefundStatus.approved || next == RefundStatus.rejected))
-                || (current == RefundStatus.approved && (next == RefundStatus.processing || next == RefundStatus.completed))
-                || (current == RefundStatus.processing && (next == RefundStatus.completed || next == RefundStatus.failed));
+                || providerProcessing
+                || (current == RefundStatus.approved && next == RefundStatus.completed
+                    && refund.getPayment() != null && refund.getPayment().getPaymentMethod() == PaymentMethod.cash);
         if (!validTransition) {
             throw support.badRequest("Invalid refund transition from " + current + " to " + next);
         }
@@ -162,19 +172,24 @@ public class PaymentWorkflowService {
         if (!support.isBlank(request.note())) {
             refund.setRefundReason(request.note());
         }
-        refund.setStatus(next);
-        if (next == RefundStatus.completed || next == RefundStatus.rejected || next == RefundStatus.failed) {
+        if (providerProcessing) {
+            processProviderRefund(refund);
+        } else {
+            refund.setStatus(next);
+        }
+        if (refund.getStatus() == RefundStatus.completed || refund.getStatus() == RefundStatus.rejected || refund.getStatus() == RefundStatus.failed) {
             refund.setProcessedAt(LocalDateTime.now());
         }
-        if (next == RefundStatus.completed) {
-            // PayPal refunds need a live merchant credential/capture id. This demo records the provider-agnostic
-            // completion here; a production adapter should call PayPal's refund endpoint before this transition.
-            refund.setTransactionCode("REFUND-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
-            support.invoiceRepository.findByBooking_BookingId(refund.getBooking().getBookingId())
-                    .ifPresent(invoice -> invoice.setRefundAmount(refund.getRefundAmount()));
+        if (refund.getStatus() == RefundStatus.completed && refund.getPayment().getPaymentMethod() == PaymentMethod.cash) {
+            refund.setProviderStatus("MANUAL_CASH_REFUND");
+            refund.setGatewayMessage("Cash refund recorded by venue staff.");
+            refund.setTransactionCode("CASH-REFUND-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
         }
         Refund saved = support.refundRepository.save(refund);
-        String title = switch (next) {
+        if (saved.getStatus() == RefundStatus.completed) {
+            syncInvoiceRefundAmount(saved.getBooking());
+        }
+        String title = switch (saved.getStatus()) {
             case approved -> "Refund approved";
             case rejected -> "Refund rejected";
             case processing -> "Refund processing";
@@ -183,8 +198,76 @@ public class PaymentWorkflowService {
             default -> "Refund updated";
         };
         support.notifyUser(saved.getBooking().getCustomer(), saved.getBooking(), NotificationType.refund, title,
-                "Refund " + saved.getRefundCode() + " is now " + next.name() + ".");
+                "Refund " + saved.getRefundCode() + " is now " + saved.getStatus().name() + ".");
         return support.refundSummary(saved);
+    }
+
+    private void processProviderRefund(Refund refund) {
+        Payment payment = refund.getPayment();
+        if (payment == null || payment.getPaymentMethod() != PaymentMethod.paypal_sandbox) {
+            throw support.badRequest("Only a captured PayPal payment can be sent to the PayPal refund API");
+        }
+        refund.setStatus(RefundStatus.processing);
+        PayPalCheckoutService.RefundResult result = payPalCheckoutService.refundCapture(
+                payment, refund.getRefundAmount(), refund.getIdempotencyKey(), refund.getTransactionCode());
+        refund.setProviderStatus(result.status());
+        refund.setGatewayMessage(result.message());
+        if (!support.isBlank(result.refundId())) {
+            refund.setTransactionCode(result.refundId());
+        }
+        refund.setStatus(switch (result.status()) {
+            case "COMPLETED" -> RefundStatus.completed;
+            case "PENDING" -> RefundStatus.processing;
+            default -> RefundStatus.failed;
+        });
+    }
+
+    private Payment resolveRefundPayment(Booking booking, Long requestedPaymentId, BigDecimal amount) {
+        List<Payment> candidates = support.paymentRepository
+                .findByBooking_BookingIdOrderByPaymentIdDesc(booking.getBookingId()).stream()
+                .filter(payment -> payment.getStatus() == PaymentStatus.paid)
+                .toList();
+        if (requestedPaymentId != null) {
+            Payment selected = candidates.stream()
+                    .filter(payment -> payment.getPaymentId().equals(requestedPaymentId))
+                    .findFirst()
+                    .orElseThrow(() -> support.badRequest("The selected paid payment does not belong to this booking"));
+            ensureRefundCapacity(selected, amount);
+            return selected;
+        }
+        return candidates.stream()
+                .filter(payment -> payment.getPaymentMethod() == PaymentMethod.paypal_sandbox)
+                .filter(payment -> refundableCapacity(payment).compareTo(amount) >= 0)
+                .findFirst()
+                .or(() -> candidates.stream().filter(payment -> refundableCapacity(payment).compareTo(amount) >= 0).findFirst())
+                .orElseThrow(() -> support.badRequest("No single captured payment has enough remaining refundable value"));
+    }
+
+    private void ensureRefundCapacity(Payment payment, BigDecimal amount) {
+        if (refundableCapacity(payment).compareTo(amount) < 0) {
+            throw support.badRequest("Refund amount exceeds the remaining value of the selected payment");
+        }
+    }
+
+    private BigDecimal refundableCapacity(Payment payment) {
+        BigDecimal committed = support.refundRepository
+                .findByBooking_BookingIdOrderByRefundIdDesc(payment.getBooking().getBookingId()).stream()
+                .filter(refund -> refund.getPayment() != null && refund.getPayment().getPaymentId().equals(payment.getPaymentId()))
+                .filter(refund -> refund.getStatus() != RefundStatus.rejected && refund.getStatus() != RefundStatus.failed)
+                .map(Refund::getRefundAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return support.money(payment.getAmount().subtract(committed).max(BigDecimal.ZERO));
+    }
+
+    private void syncInvoiceRefundAmount(Booking booking) {
+        BigDecimal completed = support.refundRepository.findByBooking_BookingIdOrderByRefundIdDesc(booking.getBookingId()).stream()
+                .filter(refund -> refund.getStatus() == RefundStatus.completed)
+                .map(Refund::getRefundAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        support.invoiceRepository.findByBooking_BookingId(booking.getBookingId()).ifPresent(invoice -> {
+            invoice.setRefundAmount(support.money(completed));
+            support.invoiceRepository.save(invoice);
+        });
     }
 
     @Transactional(readOnly = true)

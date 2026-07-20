@@ -1,5 +1,8 @@
 # Implemented Use Cases
 
+> Archived snapshot. Use `BACKLOG_CODE_FIRST_DELIVERY.md` and
+> `END_TO_END_QA_MATRIX.md` for the current code-first scope.
+
 Last updated: 2026-06-11
 
 Source of truth: `../SWP391_G3_Backlog.xlsx`, sheet `Backlog`. The `Contribution` sheet has one owner/module mismatch for BaoNG, so the UC IDs below follow the `Backlog` sheet.
@@ -77,8 +80,8 @@ Status meanings:
 | UC-44 | View payment history | Done | Payment history is shown in account/staff/admin data flows. |
 | UC-45 | Generate booking invoice | Done | Invoice summary is generated/updated after payment capture and completion. |
 | UC-46 | View invoice/payment status | Done for demo | Customer and staff workspaces load booking billing detail with derived payment status, invoice totals, paid/remaining/refund amounts, and transaction history. |
-| UC-47 | Process online refund | Partial | Refund records and completed refund transaction codes exist. No real gateway refund call. |
-| UC-48 | Manage refund requests | Partial | Staff/Admin can process a refund demo case. A full request queue with approve/reject states is missing. |
+| UC-47 | Process online refund | Done for sandbox | Approved PayPal refunds call Payments v2 by capture ID with an idempotency key; completion is copied only from the provider response. |
+| UC-48 | Manage refund requests | Done | Staff/Admin refund queue supports approve/reject, PayPal submission/retry, explicit cash refund recording, and gateway status visibility. |
 | UC-49 | Configure deposit rules | Partial | Admin can switch deposit percent between demo values through `system_setting`. Full rule editor is not implemented. |
 | UC-50 | Configure cancellation/refund policy | Partial | Policy values are modelled in `system_setting`; full admin policy UI/rule editor is not implemented. |
 
