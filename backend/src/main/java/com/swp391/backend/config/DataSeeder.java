@@ -6,6 +6,8 @@ import com.swp391.backend.enums.*;
 import com.swp391.backend.repository.*;
 import com.swp391.backend.service.BookingWorkflowService;
 import com.swp391.backend.service.PaymentWorkflowService;
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,9 +17,31 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Configuration
 public class DataSeeder {
+
+    @Autowired
+    private AppUserRepository userRepository;
+
+    @Autowired
+    private BCryptPasswordEncoder passwordEncoder;
+
+    @PostConstruct
+    public void migrateExistingPasswords() {
+        List<AppUser> usersWithPlaintext = userRepository.findAll()
+                .stream()
+                .filter(user -> user.getPasswordHash() != null && !user.getPasswordHash().startsWith("$2"))
+                .collect(Collectors.toList());
+
+        if (usersWithPlaintext.isEmpty()) {
+            return;
+        }
+
+        usersWithPlaintext.forEach(user -> user.setPasswordHash(passwordEncoder.encode(user.getPasswordHash())));
+        userRepository.saveAll(usersWithPlaintext);
+    }
 
     @Bean
     CommandLineRunner seedDemoData(
