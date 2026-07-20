@@ -1,0 +1,98 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class BookingController <<controller>> {
+    -bookingWorkflowService : BookingWorkflowService
+
+    +updateStatus(@PathVariable Long bookingId, @RequestBody ApiRequests.BookingStatusUpdate request) : Object
+}
+
+class BookingWorkflowService <<service>> {
+    -support : DemoSupportService
+
+    +updateBookingStatus(bookingId : Long, request : ApiRequests.BookingStatusUpdate) : Map<String, Object>
+}
+
+class DemoSupportService <<service>> {
+    -bookingRepository : BookingRepository
+    -userRepository : AppUserRepository
+
+    +getBooking(bookingId : Long) : Booking
+    +getUser(userId : Long) : AppUser
+    +parseEnum(enumType : Class<T>, value : String, fallback : T) : T
+    +requireCurrentStatus(booking : Booking, status : BookingStatus) : void
+    +isBlank(value : String) : boolean
+}
+
+class "ApiRequests.BookingStatusUpdate" as BookingStatusUpdateDTO <<dto>> {
+    -status : String
+    -staffId : Long
+    -note : String
+}
+
+interface BookingRepository <<repository>> {
+    +findById(id : Long) : Optional<Booking>
+}
+
+interface AppUserRepository <<repository>> {
+    +findById(id : Long) : Optional<AppUser>
+}
+
+class AuditEntity <<entity>> {
+    -createdAt : LocalDateTime
+    -updatedAt : LocalDateTime
+}
+
+class Booking <<entity>> {
+    -bookingId : Long
+    -customer : AppUser
+    -staff : AppUser
+    -slot : Slot
+    -bookingCode : String
+    -status : BookingStatus
+    -bookingSource : BookingSource
+    -fieldPriceAmount : BigDecimal
+    -serviceTotalAmount : BigDecimal
+    -promotionDiscountAmount : BigDecimal
+    -membershipDiscountAmount : BigDecimal
+    -totalAmount : BigDecimal
+    -depositAmount : BigDecimal
+    -paidAmount : BigDecimal
+    -remainingAmount : BigDecimal
+    -cancellationFeeAmount : BigDecimal
+    -refundableAmount : BigDecimal
+    -note : String
+    -confirmedAt : LocalDateTime
+    -checkedInAt : LocalDateTime
+    -completedAt : LocalDateTime
+    -cancelledAt : LocalDateTime
+    -expiredAt : LocalDateTime
+}
+
+enum BookingStatus {
+    + pending
+    + confirmed
+    + checked_in
+    + completed
+    + cancelled
+    + no_show
+    + expired
+    + rejected
+}
+
+' Relationships
+BookingController ..> BookingWorkflowService
+BookingController ..> BookingStatusUpdateDTO
+BookingWorkflowService ..> DemoSupportService
+BookingWorkflowService ..> BookingStatusUpdateDTO
+DemoSupportService ..> BookingRepository
+DemoSupportService ..> AppUserRepository
+DemoSupportService ..> Booking
+BookingRepository --> Booking
+AppUserRepository --> AppUser
+Booking -|> AuditEntity
+Booking --> BookingStatus
+
+@enduml

@@ -1,0 +1,145 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class FieldOperationController <<controller>> {
+    -fieldOperationService : FieldOperationService
+
+    +fieldDetail(@PathVariable Long fieldId) : Object
+}
+
+class FieldOperationService <<service>> {
+    -support : DemoSupportService
+
+    +fieldDetail(fieldId : Long) : Map<String, Object>
+    -nextAvailableSlots(fieldId : Long) : List<Map<String, Object>>
+}
+
+class DemoSupportService <<service>> {
+    -fieldRepository : FootballFieldRepository
+    -fieldPriceRepository : FieldPriceRepository
+    -slotRepository : SlotRepository
+    -extraServiceRepository : ExtraServiceRepository
+    -bookingRepository : BookingRepository
+
+    +getField(fieldId : Long) : FootballField
+    +fieldSummary(field : FootballField) : Map<String, Object>
+    +serviceSummary(service : ExtraService) : Map<String, Object>
+    +calculateFieldPrice(slot : Slot) : BigDecimal
+}
+
+interface FootballFieldRepository <<repository>> {
+    +findById(id : Long) : Optional<FootballField>
+    +findByStatus(status : CommonStatus) : List<FootballField>
+}
+
+interface FieldPriceRepository <<repository>> {
+    +findByField_FieldId(fieldId : Long) : List<FieldPrice>
+}
+
+interface SlotRepository <<repository>> {
+    +findBySlotDate(date : LocalDate) : List<Slot>
+}
+
+interface ExtraServiceRepository <<repository>> {
+    +findByStatus(status : CommonStatus) : List<ExtraService>
+}
+
+class AuditEntity <<entity>> {
+    -createdAt : LocalDateTime
+    -updatedAt : LocalDateTime
+}
+
+class FootballField <<entity>> {
+    -fieldId : Long
+    -fieldType : FieldType
+    -fieldName : String
+    -description : String
+    -imageUrl : String
+    -location : String
+    -surfaceType : String
+    -status : CommonStatus
+}
+
+class FieldType <<entity>> {
+    -fieldTypeId : Long
+    -typeName : String
+    -playerCapacity : Integer
+    -description : String
+    -status : CommonStatus
+}
+
+class FieldPrice <<entity>> {
+    -fieldPriceId : Long
+    -field : FootballField
+    -dayType : String
+    -startTime : LocalTime
+    -endTime : LocalTime
+    -price : BigDecimal
+    -effectiveFrom : LocalDate
+    -effectiveTo : LocalDate
+    -status : CommonStatus
+}
+
+class Slot <<entity>> {
+    -slotId : Long
+    -field : FootballField
+    -slotDate : LocalDate
+    -startTime : LocalTime
+    -endTime : LocalTime
+    -status : SlotStatus
+    -blockReason : String
+    -blockNote : String
+    -createdBy : AppUser
+}
+
+class ExtraService <<entity>> {
+    -extraServiceId : Long
+    -serviceName : String
+    -serviceType : ServiceType
+    -description : String
+    -unitName : String
+    -unitPrice : BigDecimal
+    -stockQuantity : Integer
+    -maxQuantityPerBooking : Integer
+    -status : CommonStatus
+}
+
+enum CommonStatus {
+    + active
+    + inactive
+}
+
+enum SlotStatus {
+    + available
+    + blocked
+}
+
+' Relationships
+FieldOperationController ..> FieldOperationService
+FieldOperationService ..> DemoSupportService
+DemoSupportService ..> FootballFieldRepository
+DemoSupportService ..> FieldPriceRepository
+DemoSupportService ..> SlotRepository
+DemoSupportService ..> ExtraServiceRepository
+DemoSupportService ..> FootballField
+DemoSupportService ..> FieldPrice
+DemoSupportService ..> Slot
+DemoSupportService ..> ExtraService
+FootballFieldRepository --> FootballField
+FieldPriceRepository --> FieldPrice
+SlotRepository --> Slot
+ExtraServiceRepository --> ExtraService
+FootballField --> FieldType
+FieldPrice --> FootballField
+Slot --> FootballField
+FootballField --> CommonStatus
+Slot --> SlotStatus
+FootballField -|> AuditEntity
+FieldType -|> AuditEntity
+FieldPrice -|> AuditEntity
+Slot -|> AuditEntity
+ExtraService -|> AuditEntity
+
+@enduml

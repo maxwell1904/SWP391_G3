@@ -8,9 +8,14 @@ import com.swp391.backend.enums.SlotStatus;
 import com.swp391.backend.repository.AppUserRepository;
 import com.swp391.backend.repository.BookingRepository;
 import com.swp391.backend.repository.SlotRepository;
+import com.swp391.backend.security.SecurityUser;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -38,9 +43,24 @@ class PayPalCheckoutServiceTest {
     @Autowired
     private BookingRepository bookingRepository;
 
+    private AppUser customer;
+
+    @BeforeEach
+    void authenticateCustomer() {
+        customer = userRepository.findByEmail("customer@goalzone.local").orElseThrow();
+        SecurityUser principal = new SecurityUser(customer);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities())
+        );
+    }
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
+
     @Test
     void createsAndCapturesMockPayPalOrder() {
-        AppUser customer = userRepository.findByEmail("customer@goalzone.local").orElseThrow();
         Map<String, Object> booking = createBooking(customer);
         Long bookingId = ((Number) booking.get("bookingId")).longValue();
 
@@ -54,7 +74,6 @@ class PayPalCheckoutServiceTest {
                 new ApiRequests.PayPalOrderCapture(customer.getUserId())
         );
 
-        assertThat(order.get("mockMode")).isEqualTo(true);
         assertThat(order.get("paymentOption")).isEqualTo("full");
         assertThat(detail.get("paymentStatus")).isEqualTo("paid");
         assertThat(detail.get("remainingAmount")).isEqualTo(BigDecimal.ZERO.setScale(2));
@@ -65,7 +84,6 @@ class PayPalCheckoutServiceTest {
 
     @Test
     void cancellingPayPalOrderExpiresPendingBookingAndReleasesSlot() {
-        AppUser customer = userRepository.findByEmail("customer@goalzone.local").orElseThrow();
         Map<String, Object> booking = createBooking(customer);
         Long bookingId = ((Number) booking.get("bookingId")).longValue();
         Map<String, Object> order = payPalCheckoutService.createOrder(

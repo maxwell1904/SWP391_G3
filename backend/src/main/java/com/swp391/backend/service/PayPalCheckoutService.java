@@ -3,20 +3,24 @@ package com.swp391.backend.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.swp391.backend.dto.ApiRequests;
+import com.swp391.backend.entity.AppUser;
 import com.swp391.backend.entity.Booking;
 import com.swp391.backend.entity.Payment;
+import com.swp391.backend.enums.BookingSource;
 import com.swp391.backend.enums.BookingStatus;
 import com.swp391.backend.enums.NotificationType;
 import com.swp391.backend.enums.PaymentMethod;
 import com.swp391.backend.enums.PaymentOption;
 import com.swp391.backend.enums.PaymentStatus;
+import com.swp391.backend.security.SecurityUser;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -49,9 +53,6 @@ public class PayPalCheckoutService {
     @Value("${app.paypal.currency:USD}")
     private String currency;
 
-    @Value("${app.paypal.vnd-rate:25000}")
-    private BigDecimal vndRate;
-
     @Value("${app.paypal.mock-mode:true}")
     private boolean configuredMockMode;
 
@@ -67,33 +68,32 @@ public class PayPalCheckoutService {
     @Transactional(readOnly = true)
     public Map<String, Object> config() {
         boolean mockMode = isMockMode();
+        boolean checkoutEnabled = !support.isBlank(clientId) && !mockMode;
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("enabled", !support.isBlank(clientId) || mockMode);
-        response.put("mockMode", mockMode);
-        response.put("clientId", support.isBlank(clientId) ? "sb" : clientId);
+        response.put("enabled", checkoutEnabled);
+        response.put("clientId", checkoutEnabled ? clientId : "");
         response.put("currency", normalizedCurrency());
         response.put("environment", environment);
-        response.put("vndRate", vndRate);
-        response.put("note", mockMode
-                ? "PayPal credentials are not configured; using a local PayPal sandbox simulation."
-                : "PayPal sandbox checkout is configured.");
+        response.put("amountUnit", "USD");
+        response.put("note", checkoutEnabled
+                ? "PayPal checkout is configured."
+                : "Online payment is unavailable until PayPal credentials are configured.");
         return response;
     }
 
     // Backlog owner: AnNP - UC-40 Pay deposit/full amount via online payment sandbox.
     public Map<String, Object> createOrder(Long bookingId, ApiRequests.PayPalOrderCreate request) {
-        Booking booking = support.getBooking(bookingId);
+        Booking booking = onlineBookingOwnedByCustomer(bookingId, request.createdById());
         PaymentOption option = support.parseEnum(PaymentOption.class, request.paymentOption(), PaymentOption.deposit);
-        BigDecimal vndAmount = payableAmount(booking, option);
-        BigDecimal settlementAmount = toSettlementAmount(vndAmount);
+        BigDecimal bookingAmount = payableAmount(booking, option);
+        BigDecimal settlementAmount = toSettlementAmount(bookingAmount);
         String idempotencyKey = "GZ-" + booking.getBookingCode() + "-" + option.name() + "-" + UUID.randomUUID();
 
         if (isMockMode()) {
             Payment payment = createPendingPayment(
                     booking,
-                    request.createdById(),
                     option,
-                    vndAmount,
+                    bookingAmount,
                     "MOCK-PAYPAL-ORDER-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase(),
                     settlementAmount,
                     "CREATED",
@@ -104,7 +104,7 @@ public class PayPalCheckoutService {
 
         try {
             String orderId = createRemoteOrder(booking, option, settlementAmount, idempotencyKey);
-            Payment payment = createPendingPayment(booking, request.createdById(), option, vndAmount, orderId, settlementAmount, "CREATED", idempotencyKey);
+            Payment payment = createPendingPayment(booking, option, bookingAmount, orderId, settlementAmount, "CREATED", idempotencyKey);
             return orderResponse(payment, settlementAmount, "CREATED");
         } catch (Exception exception) {
             throw new ApiException(HttpStatus.BAD_GATEWAY, "Could not create PayPal order: " + exception.getMessage());
@@ -113,7 +113,7 @@ public class PayPalCheckoutService {
 
     // Backlog owner: AnNP - UC-40 Pay deposit/full amount via online payment sandbox.
     public Map<String, Object> captureOrder(Long bookingId, String orderId, ApiRequests.PayPalOrderCapture request) {
-        Booking booking = support.getBooking(bookingId);
+        Booking booking = onlineBookingOwnedByCustomer(bookingId, request.createdById());
         Payment payment = support.paymentRepository.findByProviderOrderId(orderId)
                 .orElseThrow(() -> support.notFound("PayPal order not found"));
         if (!payment.getBooking().getBookingId().equals(bookingId)) {
@@ -163,10 +163,6 @@ public class PayPalCheckoutService {
         payment.setTransactionCode(captureId);
         payment.setGatewayMessage(isMockMode() ? "Mock PayPal sandbox capture completed" : "PayPal capture completed");
         payment.setPaidAt(LocalDateTime.now());
-        if (request.createdById() != null) {
-            payment.setCreatedBy(support.getUser(request.createdById()));
-        }
-
         booking.setPaidAmount(support.money(booking.getPaidAmount().add(payment.getAmount())));
         booking.setRemainingAmount(support.money(booking.getTotalAmount().subtract(booking.getPaidAmount()).max(BigDecimal.ZERO)));
         if (booking.getStatus() == BookingStatus.pending && booking.getPaidAmount().compareTo(booking.getDepositAmount()) >= 0) {
@@ -179,7 +175,7 @@ public class PayPalCheckoutService {
     }
 
     public Map<String, Object> cancelOrder(Long bookingId, String orderId) {
-        Booking booking = support.getBooking(bookingId);
+        Booking booking = onlineBookingOwnedByCustomer(bookingId, null);
         Payment payment = support.paymentRepository.findByProviderOrderId(orderId)
                 .orElseThrow(() -> support.notFound("PayPal order not found"));
         if (!payment.getBooking().getBookingId().equals(bookingId)) {
@@ -204,7 +200,6 @@ public class PayPalCheckoutService {
 
     private Payment createPendingPayment(
             Booking booking,
-            Long createdById,
             PaymentOption option,
             BigDecimal amount,
             String orderId,
@@ -219,7 +214,7 @@ public class PayPalCheckoutService {
         payment.setPaymentMethod(PaymentMethod.paypal_sandbox);
         payment.setAmount(amount);
         payment.setStatus(PaymentStatus.pending);
-        payment.setCreatedBy(createdById == null ? booking.getCustomer() : support.getUser(createdById));
+        payment.setCreatedBy(booking.getCustomer());
         payment.setProviderOrderId(orderId);
         payment.setProviderStatus(providerStatus);
         payment.setCurrency(normalizedCurrency());
@@ -239,7 +234,6 @@ public class PayPalCheckoutService {
         response.put("amount", payment.getAmount());
         response.put("settlementAmount", settlementAmount);
         response.put("currency", normalizedCurrency());
-        response.put("mockMode", isMockMode());
         return response;
     }
 
@@ -262,14 +256,32 @@ public class PayPalCheckoutService {
         return amount;
     }
 
-    private BigDecimal toSettlementAmount(BigDecimal vndAmount) {
-        if ("VND".equalsIgnoreCase(normalizedCurrency())) {
-            return support.money(vndAmount);
+    private Booking onlineBookingOwnedByCustomer(Long bookingId, Long requestedActorId) {
+        Booking booking = support.getBooking(bookingId);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof SecurityUser principal)) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "Sign in is required");
         }
-        if (vndRate == null || vndRate.compareTo(BigDecimal.ZERO) <= 0) {
-            throw support.badRequest("PayPal VND conversion rate is invalid");
+        AppUser requester = principal.getAppUser();
+        if (!"Customer".equalsIgnoreCase(requester.getRole().getRoleName())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Online payment is available only to customers");
         }
-        return vndAmount.divide(vndRate, 2, RoundingMode.HALF_UP);
+        if (!booking.getCustomer().getUserId().equals(requester.getUserId())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "You can only pay for your own booking");
+        }
+        if (requestedActorId != null && !requestedActorId.equals(requester.getUserId())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Online payment actor does not match the signed-in customer");
+        }
+        if (booking.getBookingSource() != BookingSource.online) {
+            throw support.badRequest("PayPal checkout is available only for online bookings");
+        }
+        return booking;
+    }
+
+    private BigDecimal toSettlementAmount(BigDecimal bookingAmount) {
+        // GoalZone stores and displays monetary values in USD. PayPal receives
+        // the exact booking amount, so there is no hidden display conversion.
+        return support.money(bookingAmount);
     }
 
     private String createRemoteOrder(Booking booking, PaymentOption option, BigDecimal settlementAmount, String idempotencyKey) throws Exception {

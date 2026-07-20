@@ -1,0 +1,81 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class FieldOperationController <<controller>> {
+    -fieldOperationService : FieldOperationService
+
+    +createIssue(@RequestBody ApiRequests.IssueCreate request) : Object
+}
+
+class FieldOperationService <<service>> {
+    -support : DemoSupportService
+
+    +createIssue(request : ApiRequests.IssueCreate) : Map<String, Object>
+}
+
+class DemoSupportService <<service>> {
+    -issueRepository : IssueRepository
+
+    +requireText(value : String, message : String) : void
+    +getUser(userId : Long) : AppUser
+    +getBooking(bookingId : Long) : Booking
+    +getField(fieldId : Long) : FootballField
+    +getExtraService(serviceId : Long) : ExtraService
+    +issueSummary(issue : Issue) : Map<String, Object>
+    +badRequest(message : String) : ApiException
+}
+
+class "ApiRequests.IssueCreate" as IssueCreateDTO <<dto>> {
+    -reporterId : Long
+    -bookingId : Long
+    -fieldId : Long
+    -extraServiceId : Long
+    -assignedStaffId : Long
+    -title : String
+    -description : String
+}
+
+interface IssueRepository <<repository>> {
+    +save(entity : Issue) : Issue
+}
+
+class AuditEntity <<entity>> {
+    -createdAt : LocalDateTime
+    -updatedAt : LocalDateTime
+}
+
+class Issue <<entity>> {
+    -issueId : Long
+    -reporter : AppUser
+    -booking : Booking
+    -field : FootballField
+    -extraService : ExtraService
+    -assignedStaff : AppUser
+    -title : String
+    -description : String
+    -status : IssueStatus
+    -resolutionNote : String
+    -resolvedAt : LocalDateTime
+}
+
+enum IssueStatus {
+    + open
+    + in_progress
+    + resolved
+    + rejected
+}
+
+' Relationships
+FieldOperationController ..> FieldOperationService
+FieldOperationController ..> IssueCreateDTO
+FieldOperationService ..> IssueCreateDTO
+FieldOperationService ..> DemoSupportService
+DemoSupportService ..> IssueRepository
+DemoSupportService ..> Issue
+IssueRepository --> Issue
+Issue --> IssueStatus
+Issue -|> AuditEntity
+
+@enduml

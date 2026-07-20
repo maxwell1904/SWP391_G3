@@ -8,7 +8,12 @@ import com.swp391.backend.enums.SlotStatus;
 import com.swp391.backend.repository.AppUserRepository;
 import com.swp391.backend.repository.BookingRepository;
 import com.swp391.backend.repository.SlotRepository;
+import com.swp391.backend.security.SecurityUser;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +43,23 @@ class PaymentWorkflowServiceTest {
     @Autowired
     private BookingRepository bookingRepository;
 
+    @BeforeEach
+    void signInAsCustomer() {
+        authenticate(userRepository.findByEmail("customer@goalzone.local").orElseThrow());
+    }
+
+    private void authenticate(AppUser user) {
+        SecurityUser principal = new SecurityUser(user);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities())
+        );
+    }
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
+
     @Test
     void capturesConfiguredDepositWhenAmountIsOmitted() {
         Map<String, Object> booking = createBooking();
@@ -64,6 +86,18 @@ class PaymentWorkflowServiceTest {
         assertThat(firstPayment(detail).get("paymentOption")).isEqualTo("full");
     }
 
+    @Test
+    void customerPaymentHistoryContainsTheirCapturedPayment() {
+        Map<String, Object> booking = createBooking();
+        Map<String, Object> detail = capture(booking, "deposit");
+
+        authenticate(userRepository.findByEmail("customer@goalzone.local").orElseThrow());
+        List<Map<String, Object>> history = paymentWorkflowService.payments();
+
+        assertThat(history).extracting(payment -> payment.get("paymentCode"))
+                .contains(((List<Map<String, Object>>) detail.get("payments")).get(0).get("paymentCode"));
+    }
+
     private Map<String, Object> createBooking() {
         AppUser customer = userRepository.findByEmail("customer@goalzone.local").orElseThrow();
         Slot slot = slotRepository.findAll().stream()
@@ -87,12 +121,13 @@ class PaymentWorkflowServiceTest {
     }
 
     private Map<String, Object> capture(Map<String, Object> booking, String paymentOption) {
-        AppUser customer = userRepository.findByEmail("customer@goalzone.local").orElseThrow();
+        AppUser staff = userRepository.findByEmail("staff@goalzone.local").orElseThrow();
+        authenticate(staff);
         return paymentWorkflowService.capturePayment(new ApiRequests.PaymentCapture(
                 ((Number) booking.get("bookingId")).longValue(),
-                customer.getUserId(),
+                staff.getUserId(),
                 paymentOption,
-                "online_sandbox",
+                "cash",
                 null,
                 true
         ));

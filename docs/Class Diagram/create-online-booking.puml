@@ -1,0 +1,173 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class BookingController <<controller>> {
+    -bookingWorkflowService : BookingWorkflowService
+
+    +createBooking(@RequestBody ApiRequests.BookingCreate request) : Object
+}
+
+class BookingWorkflowService <<service>> {
+    -support : DemoSupportService
+
+    +createBooking(request : ApiRequests.BookingCreate) : Map<String, Object>
+    +bookingDetail(bookingId : Long) : Map<String, Object>
+}
+
+class DemoSupportService <<service>> {
+    -bookingRepository : BookingRepository
+    -bookingServiceItemRepository : BookingServiceItemRepository
+    -bookingPromotionRepository : BookingPromotionRepository
+
+    +getUser(userId : Long) : AppUser
+    +getSlot(slotId : Long) : Slot
+    +getBooking(bookingId : Long) : Booking
+    +validateSlotBookable(slot : Slot) : void
+    +calculateFieldPrice(slot : Slot) : BigDecimal
+    +calculateServiceTotal(selections : List<ApiRequests.ServiceSelection>) : BigDecimal
+    +calculatePromotionDiscount(code : String, slot : Slot, amount : BigDecimal, services : List<ApiRequests.ServiceSelection>) : BigDecimal
+    +calculateMembershipDiscount(customer : AppUser, amount : BigDecimal, source : BookingSource) : BigDecimal
+    +calculateDeposit(total : BigDecimal) : BigDecimal
+    +saveBookingServices(booking : Booking, selections : List<ApiRequests.ServiceSelection>) : void
+    +saveBookingPromotion(booking : Booking, code : String, discount : BigDecimal) : void
+    +notifyUser(user : AppUser, booking : Booking, type : NotificationType, title : String, message : String) : void
+    +bookingSummary(booking : Booking) : Map<String, Object>
+    +bookingServiceSummary(item : BookingServiceItem) : Map<String, Object>
+    +bookingPromotionSummary(bp : BookingPromotion) : Map<String, Object>
+    +money(value : BigDecimal) : BigDecimal
+}
+
+class "ApiRequests.BookingCreate" as BookingCreateDTO <<dto>> {
+    -customerId : Long
+    -staffId : Long
+    -slotId : Long
+    -bookingSource : String
+    -promotionCode : String
+    -services : List<ServiceSelection>
+    -note : String
+}
+
+class "ApiRequests.ServiceSelection" as ServiceSelectionDTO <<dto>> {
+    -serviceId : Long
+    -quantity : Integer
+}
+
+interface BookingRepository <<repository>> {
+    +save(entity : Booking) : Booking
+    +existsBySlotAndStatusIn(slot : Slot, statuses : Collection<BookingStatus>) : boolean
+    +findById(id : Long) : Optional<Booking>
+}
+
+interface BookingServiceItemRepository <<repository>> {
+    +save(entity : BookingServiceItem) : BookingServiceItem
+    +findByBooking_BookingId(bookingId : Long) : List<BookingServiceItem>
+}
+
+interface BookingPromotionRepository <<repository>> {
+    +save(entity : BookingPromotion) : BookingPromotion
+    +findByBooking_BookingId(bookingId : Long) : List<BookingPromotion>
+}
+
+class AuditEntity <<entity>> {
+    -createdAt : LocalDateTime
+    -updatedAt : LocalDateTime
+}
+
+class Booking <<entity>> {
+    -bookingId : Long
+    -customer : AppUser
+    -staff : AppUser
+    -slot : Slot
+    -bookingCode : String
+    -status : BookingStatus
+    -bookingSource : BookingSource
+    -fieldPriceAmount : BigDecimal
+    -serviceTotalAmount : BigDecimal
+    -promotionDiscountAmount : BigDecimal
+    -membershipDiscountAmount : BigDecimal
+    -totalAmount : BigDecimal
+    -depositAmount : BigDecimal
+    -paidAmount : BigDecimal
+    -remainingAmount : BigDecimal
+    -cancellationFeeAmount : BigDecimal
+    -refundableAmount : BigDecimal
+    -note : String
+    -confirmedAt : LocalDateTime
+    -checkedInAt : LocalDateTime
+    -completedAt : LocalDateTime
+    -cancelledAt : LocalDateTime
+    -expiredAt : LocalDateTime
+}
+
+class BookingServiceItem <<entity>> {
+    -bookingServiceId : Long
+    -booking : Booking
+    -extraService : ExtraService
+    -quantity : int
+    -unitPrice : BigDecimal
+    -lineTotal : BigDecimal
+}
+
+class BookingPromotion <<entity>> {
+    -bookingPromotionId : Long
+    -booking : Booking
+    -promotion : Promotion
+    -promotionCodeSnapshot : String
+    -discountAmount : BigDecimal
+    -appliedAt : LocalDateTime
+}
+
+class ExtraService <<entity>> {
+    -extraServiceId : Long
+    -serviceName : String
+    -serviceType : ServiceType
+    -description : String
+    -unitName : String
+    -unitPrice : BigDecimal
+    -stockQuantity : Integer
+    -maxQuantityPerBooking : Integer
+    -status : CommonStatus
+}
+
+enum BookingStatus {
+    + pending
+    + confirmed
+    + checked_in
+    + completed
+    + cancelled
+    + no_show
+    + expired
+    + rejected
+}
+
+enum BookingSource {
+    + online
+    + walk_in
+}
+
+' Relationships
+BookingController ..> BookingWorkflowService
+BookingController ..> BookingCreateDTO
+BookingWorkflowService ..> BookingCreateDTO
+BookingWorkflowService ..> DemoSupportService
+BookingWorkflowService ..> ServiceSelectionDTO
+DemoSupportService ..> BookingRepository
+DemoSupportService ..> BookingServiceItemRepository
+DemoSupportService ..> BookingPromotionRepository
+DemoSupportService ..> Booking
+DemoSupportService ..> BookingServiceItem
+DemoSupportService ..> BookingPromotion
+BookingRepository --> Booking
+BookingServiceItemRepository --> BookingServiceItem
+BookingPromotionRepository --> BookingPromotion
+BookingServiceItem --> Booking
+BookingServiceItem --> ExtraService
+BookingPromotion --> Booking
+Booking -|> AuditEntity
+BookingServiceItem -|> AuditEntity
+Booking --> BookingStatus
+Booking --> BookingSource
+
+@enduml

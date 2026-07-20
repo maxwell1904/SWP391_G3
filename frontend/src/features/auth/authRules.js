@@ -1,4 +1,3 @@
-export const demoPassword = 'GoalZone@123'
 export const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 export const phonePattern = /^0\d{9}$/
 

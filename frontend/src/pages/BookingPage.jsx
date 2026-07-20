@@ -42,12 +42,29 @@ export function BookingPage({
   createBooking,
   currentUser
 }) {
+  const isCustomer = currentUser?.role === 'Customer'
+  const isAdministrator = currentUser?.role === 'Admin'
+
+  if (isAdministrator) {
+    return (
+      <section id="booking" className="section bookingSection">
+        <SectionIntro
+          kicker="Booking desk"
+          title="Customer checkout is not available to administrators"
+          text="Online checkout belongs to the customer journey. Walk-in bookings and cash collection are handled from the Staff workspace, while this account manages operations and configuration."
+        />
+      </section>
+    )
+  }
+
   return (
     <section id="booking" className="section bookingSection">
       <SectionIntro
-        kicker="Booking"
-        title="Search, price, and reserve"
-        text="Pick a free slot, add match services, apply a promotion, and see the deposit before the booking is saved."
+        kicker={canOperate ? 'Walk-in booking' : 'Booking'}
+        title={canOperate ? 'Create a booking at the venue' : 'Search, price, and reserve'}
+        text={canOperate
+          ? 'Choose the customer and an available slot, then record the cash payment at the counter.'
+          : 'Pick a free slot, add match services, apply a promotion, and see the deposit before the booking is saved.'}
       />
       <div className="bookingLayout">
         <div className="bookingMain">
@@ -73,7 +90,7 @@ export function BookingPage({
           <ServicePicker services={services} selectedServices={selectedServices} setSelectedServices={setSelectedServices} />
         </div>
         <aside className="checkoutPanel">
-          <h3>Checkout preview</h3>
+          <h3>{canOperate ? 'Walk-in payment' : 'Checkout preview'}</h3>
           <SelectedSlot slot={selectedSlot} />
           <FieldControl label="Promotion code">
             <input
@@ -87,9 +104,9 @@ export function BookingPage({
           <div className="stackedActions">
             {canOperate ? (
               <button className="ghostDarkButton" disabled={!checkout} onClick={() => createBooking('walk_in', paymentOption)}>
-                Create and record {paymentOption === 'full' ? 'full payment' : 'deposit'}
+                Create walk-in & record {paymentOption === 'full' ? 'full cash payment' : 'cash deposit'}
               </button>
-            ) : currentUser ? (
+            ) : isCustomer ? (
               <PayPalCheckout
                 key={`${selectedSlotId}-${paymentOption}-${promotionCode}-${JSON.stringify(selectedServices)}`}
                 config={paypalConfig}
@@ -107,7 +124,7 @@ export function BookingPage({
               </button>
             )}
           </div>
-          {paypalConfigError && <p className="errorText">{paypalConfigError}</p>}
+          {isCustomer && paypalConfigError && <p className="errorText">{paypalConfigError}</p>}
           {!currentUser && <p className="hintText">You can browse prices now. Login or register is required before the booking is saved.</p>}
           {currentUser?.bookingRestricted && (
             <p className="errorText" style={{ marginTop: '0.5rem', color: 'var(--orange, #ff6b6b)' }}>

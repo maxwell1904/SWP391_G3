@@ -1,0 +1,89 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class PromotionReportController <<controller>> {
+    -promotionReportService : PromotionReportService
+
+    +membershipProgress(@PathVariable Long customerId) : Object
+    +membershipLevels() : Object
+}
+
+class PromotionReportService <<service>> {
+    -support : DemoSupportService
+
+    +membershipProgress(customerId : Long) : Map<String, Object>
+    +membershipLevels() : List<Map<String, Object>>
+}
+
+class DemoSupportService <<service>> {
+    -customerMembershipRepository : CustomerMembershipRepository
+    -membershipLevelRepository : MembershipLevelRepository
+
+    +getUser(userId : Long) : AppUser
+    +userSummary(user : AppUser) : Map<String, Object>
+    +membershipLevelSummary(level : MembershipLevel) : Map<String, Object>
+}
+
+interface CustomerMembershipRepository <<repository>> {
+    +findByCustomer_UserId(customerId : Long) : Optional<CustomerMembership>
+}
+
+interface MembershipLevelRepository <<repository>> {
+    +findAllByOrderByDisplayOrderAsc() : List<MembershipLevel>
+}
+
+class CustomerMembership <<entity>> {
+    -customerMembershipId : Long
+    -customer : AppUser
+    -membershipLevel : MembershipLevel
+    -completedBookingCount : int
+    -progressNote : String
+    -effectiveFrom : LocalDate
+    -effectiveTo : LocalDate
+}
+
+class MembershipLevel <<entity>> {
+    -membershipLevelId : Long
+    -levelName : String
+    -requiredCompletedBookings : int
+    -discountPercent : BigDecimal
+    -benefitDescription : String
+    -displayOrder : int
+    -status : CommonStatus
+}
+
+class AppUser <<entity>> {
+    -userId : Long
+    -fullName : String
+    -email : String
+}
+
+class AuditEntity <<entity>> {
+    -createdAt : LocalDateTime
+    -updatedAt : LocalDateTime
+}
+
+enum CommonStatus {
+    + active
+    + inactive
+}
+
+' Relationships
+PromotionReportController ..> PromotionReportService
+PromotionReportService ..> DemoSupportService
+DemoSupportService ..> CustomerMembershipRepository
+DemoSupportService ..> MembershipLevelRepository
+DemoSupportService ..> CustomerMembership
+DemoSupportService ..> MembershipLevel
+DemoSupportService ..> AppUser
+CustomerMembershipRepository --> CustomerMembership
+MembershipLevelRepository --> MembershipLevel
+CustomerMembership --> AppUser
+CustomerMembership --> MembershipLevel
+CustomerMembership -|> AuditEntity
+MembershipLevel -|> AuditEntity
+MembershipLevel --> CommonStatus
+
+@enduml

@@ -7,6 +7,10 @@ import com.swp391.backend.enums.IssueStatus;
 import com.swp391.backend.enums.NotificationType;
 import com.swp391.backend.enums.ServiceType;
 import com.swp391.backend.enums.SlotStatus;
+import com.swp391.backend.security.SecurityUser;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -142,19 +146,63 @@ public class FieldOperationService {
     }
 
     public Map<String, Object> blockSlot(ApiRequests.SlotBlock request) {
+        requireOperator();
+        if (request.slotDate() == null) throw support.badRequest("Slot date is required");
+        support.requireText(request.startTime(), "Start time is required");
+        support.requireText(request.endTime(), "End time is required");
+        support.requireText(request.blockReason(), "Block reason is required");
         FootballField field = support.getField(request.fieldId());
-        Slot slot = new Slot();
+        LocalTime startTime = LocalTime.parse(request.startTime());
+        LocalTime endTime = LocalTime.parse(request.endTime());
+        if (!startTime.isBefore(endTime)) throw support.badRequest("Start time must be before end time");
+        Slot slot = support.slotRepository.findByField_FieldIdAndSlotDate(field.getFieldId(), request.slotDate()).stream()
+                .filter(existing -> existing.getStartTime().equals(startTime) && existing.getEndTime().equals(endTime))
+                .findFirst()
+                .orElseGet(Slot::new);
+        if (slot.getSlotId() != null && support.bookingRepository.existsBySlotAndStatusIn(slot, DemoSupportService.ACTIVE_BOOKING_STATUSES)) {
+            throw support.badRequest("An active booking already exists for this slot");
+        }
         slot.setField(field);
         slot.setSlotDate(request.slotDate());
-        slot.setStartTime(LocalTime.parse(request.startTime()));
-        slot.setEndTime(LocalTime.parse(request.endTime()));
+        slot.setStartTime(startTime);
+        slot.setEndTime(endTime);
         slot.setStatus(SlotStatus.blocked);
-        slot.setBlockReason(request.blockReason());
-        slot.setBlockNote(request.blockNote());
-        if (request.createdById() != null) {
-            slot.setCreatedBy(support.getUser(request.createdById()));
-        }
+        slot.setBlockReason(support.clean(request.blockReason()));
+        slot.setBlockNote(support.clean(request.blockNote()));
+        // Never trust a user id supplied by the browser for an audit field.
+        slot.setCreatedBy(currentUser());
         return support.slotSummary(support.slotRepository.save(slot));
+    }
+
+    public Map<String, Object> unblockSlot(Long slotId) {
+        requireOperator();
+        Slot slot = support.getSlot(slotId);
+        if (slot.getStatus() != SlotStatus.blocked) {
+            throw support.badRequest("Only blocked slots can be unblocked");
+        }
+        slot.setStatus(SlotStatus.available);
+        slot.setBlockReason(null);
+        slot.setBlockNote(null);
+        return support.slotSummary(slot);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> operationCalendar(LocalDate date) {
+        requireOperator();
+        LocalDate targetDate = date == null ? LocalDate.now() : date;
+        Map<Long, Booking> bookingsBySlot = support.bookingRepository.findBySlot_SlotDateOrderBySlot_StartTimeAsc(targetDate).stream()
+                .collect(java.util.stream.Collectors.toMap(booking -> booking.getSlot().getSlotId(), booking -> booking, (first, ignored) -> first));
+        return support.slotRepository.findBySlotDate(targetDate).stream()
+                .sorted(Comparator.comparing((Slot slot) -> slot.getField().getFieldName())
+                        .thenComparing(Slot::getStartTime))
+                .map(slot -> {
+                    Booking booking = bookingsBySlot.get(slot.getSlotId());
+                    Map<String, Object> item = new LinkedHashMap<>(support.slotSummary(slot));
+                    item.put("booking", booking == null ? null : support.bookingSummary(booking));
+                    item.put("operationalStatus", booking != null ? booking.getStatus().name() : slot.getStatus().name());
+                    return item;
+                })
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -186,10 +234,18 @@ public class FieldOperationService {
 
     public Map<String, Object> createIssue(ApiRequests.IssueCreate request) {
         support.requireText(request.title(), "Issue title is required");
+        AppUser reporter = currentUser();
+        if (request.reporterId() != null && !Objects.equals(request.reporterId(), reporter.getUserId()) && !isOperator()) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "You can only report issues under your own account");
+        }
         Issue issue = new Issue();
-        issue.setReporter(support.getUser(request.reporterId()));
+        issue.setReporter(reporter);
         if (request.bookingId() != null) {
-            issue.setBooking(support.getBooking(request.bookingId()));
+            Booking booking = support.getBooking(request.bookingId());
+            if (!isOperator() && !Objects.equals(booking.getCustomer().getUserId(), reporter.getUserId())) {
+                throw new ApiException(HttpStatus.FORBIDDEN, "You can only report issues for your own booking");
+            }
+            issue.setBooking(booking);
         }
         if (request.fieldId() != null) {
             issue.setField(support.getField(request.fieldId()));
@@ -198,7 +254,8 @@ public class FieldOperationService {
             issue.setExtraService(support.getExtraService(request.extraServiceId()));
         }
         if (request.assignedStaffId() != null) {
-            issue.setAssignedStaff(support.getUser(request.assignedStaffId()));
+            requireOperator();
+            issue.setAssignedStaff(requireStaff(request.assignedStaffId()));
         }
         issue.setTitle(request.title());
         issue.setDescription(request.description());
@@ -207,11 +264,12 @@ public class FieldOperationService {
 
     // Backlog owner: BaoNG - UC-23 Resolve field/service issue.
     public Map<String, Object> updateIssueStatus(Long issueId, ApiRequests.IssueStatusUpdate request) {
+        requireOperator();
         Issue issue = support.issueRepository.findById(issueId)
                 .orElseThrow(() -> support.notFound("Issue not found"));
         IssueStatus nextStatus = support.parseEnum(IssueStatus.class, request.status(), issue.getStatus());
         if (request.assignedStaffId() != null) {
-            issue.setAssignedStaff(support.getUser(request.assignedStaffId()));
+            issue.setAssignedStaff(requireStaff(request.assignedStaffId()));
         }
 
         String resolutionNote = support.clean(request.resolutionNote());
@@ -236,9 +294,35 @@ public class FieldOperationService {
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> issues() {
+        requireOperator();
         return support.issueRepository.findAllByOrderByIssueIdDesc().stream()
                 .map(support::issueSummary)
                 .toList();
+    }
+
+    private AppUser currentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof SecurityUser user)) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "Sign in is required");
+        }
+        return user.getAppUser();
+    }
+
+    private boolean isOperator() {
+        String role = currentUser().getRole().getRoleName();
+        return "Staff".equalsIgnoreCase(role) || "Admin".equalsIgnoreCase(role);
+    }
+
+    private void requireOperator() {
+        if (!isOperator()) throw new ApiException(HttpStatus.FORBIDDEN, "Staff or administrator access is required");
+    }
+
+    private AppUser requireStaff(Long userId) {
+        AppUser user = support.getUser(userId);
+        if (!"Staff".equalsIgnoreCase(user.getRole().getRoleName())) {
+            throw support.badRequest("Issues can only be assigned to a staff account");
+        }
+        return user;
     }
 
     private void applyFieldRequest(FootballField field, ApiRequests.FieldUpsert request) {

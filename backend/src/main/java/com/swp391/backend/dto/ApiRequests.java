@@ -74,6 +74,18 @@ public final class ApiRequests {
     ) {
     }
 
+    public record AccountStatusUpdate(String status) {
+    }
+
+    public record StaffUpsert(
+            String fullName,
+            String email,
+            String phone,
+            String password,
+            String status
+    ) {
+    }
+
     public record ServiceSelection(
             Long serviceId,
             Integer quantity
@@ -93,6 +105,14 @@ public final class ApiRequests {
 
     public record BookingStatusUpdate(
             String status,
+            Long staffId,
+            String note
+    ) {
+    }
+
+    /** Moves an unstarted booking to another available slot. */
+    public record BookingReschedule(
+            Long newSlotId,
             Long staffId,
             String note
     ) {
@@ -148,6 +168,14 @@ public final class ApiRequests {
     ) {
     }
 
+    /** Staff-only lifecycle action for a customer refund request. */
+    public record RefundStatusUpdate(
+            String status,
+            Long processedById,
+            String note
+    ) {
+    }
+
     public record PromotionApply(
             Long customerId,
             Long slotId,
@@ -169,7 +197,10 @@ public final class ApiRequests {
             Integer usageLimit,
             LocalDate startDate,
             LocalDate endDate,
-            String status
+            String status,
+            Long applicableFieldTypeId,
+            Long applicableExtraServiceId,
+            Long applicableMembershipLevelId
     ) {
     }
 
@@ -221,6 +252,19 @@ public final class ApiRequests {
             String blockReason,
             String blockNote,
             Long createdById
+    ) {
+    }
+
+    public record BookingServicesUpdate(List<ServiceSelection> services) {
+    }
+
+    public record MembershipLevelUpsert(
+            String levelName,
+            Integer requiredCompletedBookings,
+            BigDecimal discountPercent,
+            String benefitDescription,
+            Integer displayOrder,
+            String status
     ) {
     }
 }

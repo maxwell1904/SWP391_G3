@@ -1,0 +1,9 @@
+== Login ==
+
+1. Find user by email
+SELECT * FROM app_user
+WHERE email = ?
+
+2. Find user by phone — only if email not found
+SELECT * FROM app_user
+WHERE phone = ?

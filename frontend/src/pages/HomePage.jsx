@@ -30,7 +30,7 @@ export function HomePage({ searchDate, setSearchDate, fieldTypeFilter, setFieldT
         </FieldControl>
         <button className="stripButton" onClick={() => navigatePage('booking')}>
           <SearchIcon />
-          <span>Find slots</span>
+          <span>Show live slots</span>
         </button>
       </div>
     </section>

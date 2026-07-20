@@ -1,0 +1,88 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class AccountController <<controller>> {
+    -accountService : AccountService
+
+    +login(@RequestBody ApiRequests.Login request) : Object
+}
+
+class AccountService <<service>> {
+    -support : DemoSupportService
+    -passwordEncoder : BCryptPasswordEncoder
+    -jwtService : JwtService
+
+    +login(request : ApiRequests.Login) : Map<String, Object>
+}
+
+class DemoSupportService <<service>> {
+    -userRepository : AppUserRepository
+
+    +requireText(value : String, message : String) : void
+    +clean(value : String) : String
+    +notFound(message : String) : ApiException
+    +userSummary(user : AppUser) : Map<String, Object>
+}
+
+class JwtService <<service>> {
+    -secretKey : String
+    -jwtExpiration : long
+
+    +generateToken(subject : String) : String
+}
+
+interface AppUserRepository <<repository>> {
+    +findByEmail(email : String) : Optional<AppUser>
+    +findByPhone(phone : String) : Optional<AppUser>
+}
+
+class AppUser <<entity>> {
+    -userId : Long
+    -fullName : String
+    -email : String
+    -phone : String
+    -passwordHash : String
+    -avatarUrl : String
+    -dateOfBirth : LocalDate
+    -address : String
+    -status : AccountStatus
+    -bookingRestricted : boolean
+    -restrictionReason : String
+    -lastLoginAt : LocalDateTime
+    -emailVerified : boolean
+    -emailVerificationToken : String
+    -emailVerificationSentAt : LocalDateTime
+    -passwordResetToken : String
+    -passwordResetSentAt : LocalDateTime
+}
+
+class "ApiRequests.Login" as LoginDTO <<dto>> {
+    -emailOrPhone : String
+    -password : String
+}
+
+class AuditEntity <<entity>> {
+    -createdAt : LocalDateTime
+    -updatedAt : LocalDateTime
+}
+
+enum AccountStatus {
+    + active
+    + inactive
+    + locked
+}
+
+' Relationships
+AccountController ..> AccountService
+AccountController ..> LoginDTO
+AccountService ..> LoginDTO
+AccountService ..> DemoSupportService
+AccountService ..> JwtService
+DemoSupportService ..> AppUserRepository
+AppUserRepository --> AppUser
+AppUser -|> AuditEntity
+AppUser --> AccountStatus
+
+@enduml

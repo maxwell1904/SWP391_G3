@@ -81,7 +81,7 @@ Default demo accounts all use password `GoalZone@123`:
 
 Registration passwords must be 8-72 characters with uppercase, lowercase, number, special character, and no spaces.
 
-Local dev runs with an in-memory H2 database and seed data. To use Supabase PostgreSQL and SMTP verification email, copy `.env.example` to a local `.env.local`, fill the secrets locally, then run `scripts/check-supabase.sh` and `scripts/run-backend.sh`. The backend script automatically loads `.env` and `.env.local`. Do not commit real database or email passwords.
+Local dev runs with an in-memory H2 database and seed data. To use Supabase PostgreSQL and SMTP verification email, copy `.env.example` to a local `.env.local`, fill the secrets locally (including `JWT_SECRET`), and keep `SPRING_PROFILES_ACTIVE=postgres`. Run `scripts/check-supabase.sh`, the read-only `database/supabase/preflight.sql` for a legacy schema, then `scripts/run-backend.sh`; Flyway owns PostgreSQL schema changes and Hibernate validates them. Finally run `scripts/verify-supabase-schema.sh`. The backend script automatically loads `.env` and `.env.local`. Do not commit database, email, or JWT secrets.
 
 ## Implemented MVP Slice
 

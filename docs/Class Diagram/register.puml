@@ -1,0 +1,140 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class AccountController <<controller>> {
+    -accountService : AccountService
+
+    +register(@RequestBody ApiRequests.Register request) : Object
+}
+
+class AccountService <<service>> {
+    -support : DemoSupportService
+    -verificationEmailService : VerificationEmailService
+    -passwordEncoder : BCryptPasswordEncoder
+    -jwtService : JwtService
+
+    +register(request : ApiRequests.Register) : Map<String, Object>
+    -issueEmailVerification(user : AppUser) : void
+    -validatePassword(password : String, confirmPassword : String) : void
+}
+
+class DemoSupportService <<service>> {
+    -userRepository : AppUserRepository
+    -roleRepository : RoleRepository
+    -customerMembershipRepository : CustomerMembershipRepository
+
+    +requireText(value : String, message : String) : void
+    +clean(value : String) : String
+    +badRequest(message : String) : ApiException
+    +serverError(message : String) : ApiException
+    +userSummary(user : AppUser) : Map<String, Object>
+    +attachDefaultMembership(customer : AppUser) : CustomerMembership
+}
+
+class VerificationEmailService <<service>> {
+    -mailSender : JavaMailSender
+    -frontendBaseUrl : String
+    -fromEmail : String
+    -fromName : String
+    -smtpUsername : String
+
+    +sendVerificationEmail(user : AppUser) : VerificationEmailDelivery
+    +verificationLink(user : AppUser) : String
+}
+
+class JwtService <<service>> {
+    -secretKey : String
+    -jwtExpiration : long
+
+    +generateToken(subject : String) : String
+}
+
+class "ApiRequests.Register" as RegisterDTO <<dto>> {
+    -fullName : String
+    -email : String
+    -phone : String
+    -password : String
+    -confirmPassword : String
+}
+
+class VerificationEmailDelivery <<dto>> {
+    -sent : boolean
+    -status : String
+    -message : String
+}
+
+interface AppUserRepository <<repository>> {
+    +findByEmail(email : String) : Optional<AppUser>
+    +findByPhone(phone : String) : Optional<AppUser>
+    +save(entity : AppUser) : AppUser
+}
+
+interface RoleRepository <<repository>> {
+    +findByRoleName(roleName : String) : Optional<Role>
+}
+
+class AuditEntity <<entity>> {
+    -createdAt : LocalDateTime
+    -updatedAt : LocalDateTime
+}
+
+class AppUser <<entity>> {
+    -userId : Long
+    -role : Role
+    -fullName : String
+    -email : String
+    -phone : String
+    -passwordHash : String
+    -avatarUrl : String
+    -dateOfBirth : LocalDate
+    -address : String
+    -status : AccountStatus
+    -bookingRestricted : boolean
+    -restrictionReason : String
+    -lastLoginAt : LocalDateTime
+    -emailVerified : boolean
+    -emailVerificationToken : String
+    -emailVerificationSentAt : LocalDateTime
+    -passwordResetToken : String
+    -passwordResetSentAt : LocalDateTime
+}
+
+class Role <<entity>> {
+    -roleId : Long
+    -roleName : String
+    -description : String
+    -status : CommonStatus
+}
+
+class CustomerMembership <<entity>> {
+    -customerMembershipId : Long
+    -customer : AppUser
+    -membershipLevel : MembershipLevel
+    -completedBookingCount : int
+    -progressNote : String
+    -effectiveFrom : LocalDate
+    -effectiveTo : LocalDate
+}
+
+' Relationships
+AccountController ..> AccountService
+AccountController ..> RegisterDTO
+AccountService ..> RegisterDTO
+AccountService ..> DemoSupportService
+AccountService ..> VerificationEmailService
+AccountService ..> JwtService
+VerificationEmailService ..> VerificationEmailDelivery
+DemoSupportService ..> AppUserRepository
+DemoSupportService ..> RoleRepository
+DemoSupportService ..> CustomerMembership
+AppUserRepository --> AppUser
+RoleRepository --> Role
+AppUser -|> AuditEntity
+Role -|> AuditEntity
+CustomerMembership -|> AuditEntity
+CustomerMembership --> AppUser
+AppUser --> Role
+
+@enduml

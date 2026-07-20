@@ -38,6 +38,16 @@ public class PromotionReportController {
         return promotionReportService.membershipLevels();
     }
 
+    @PostMapping("/membership/levels")
+    public Object createMembershipLevel(@RequestBody ApiRequests.MembershipLevelUpsert request) {
+        return promotionReportService.createMembershipLevel(request);
+    }
+
+    @PutMapping("/membership/levels/{id}")
+    public Object updateMembershipLevel(@PathVariable Long id, @RequestBody ApiRequests.MembershipLevelUpsert request) {
+        return promotionReportService.updateMembershipLevel(id, request);
+    }
+
     @GetMapping("/membership/{customerId}/progress")
     public Object membershipProgress(@PathVariable Long customerId) {
         return promotionReportService.membershipProgress(customerId);
@@ -61,5 +71,15 @@ public class PromotionReportController {
     @GetMapping("/notifications/{userId}")
     public Object notifications(@PathVariable Long userId) {
         return promotionReportService.notifications(userId);
+    }
+
+    @PutMapping("/notifications/{notificationId}/toggle")
+    public Object toggleNotificationRead(@PathVariable Long notificationId) {
+        return promotionReportService.toggleNotificationRead(notificationId);
+    }
+
+    @PutMapping("/notifications/user/{userId}/read-all")
+    public Object markAllNotificationsRead(@PathVariable Long userId) {
+        return promotionReportService.markAllNotificationsRead(userId);
     }
 }

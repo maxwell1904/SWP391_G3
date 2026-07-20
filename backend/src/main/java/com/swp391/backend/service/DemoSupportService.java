@@ -93,7 +93,7 @@ public class DemoSupportService {
             throw badRequest("Past slots cannot be booked");
         }
         if (bookingRepository.existsBySlotAndStatusIn(slot, ACTIVE_BOOKING_STATUSES)) {
-            throw badRequest("Slot already has an active booking");
+            throw conflict("Slot already has an active booking. Please select another time.");
         }
     }
 
@@ -107,7 +107,7 @@ public class DemoSupportService {
                 .filter(price -> !slot.getStartTime().isBefore(price.getStartTime()) && !slot.getEndTime().isAfter(price.getEndTime()))
                 .findFirst()
                 .map(FieldPrice::getPrice)
-                .orElse(BigDecimal.valueOf(300000));
+                .orElse(BigDecimal.valueOf(12));
     }
 
     BigDecimal calculateServiceTotal(List<ApiRequests.ServiceSelection> selections) {
@@ -276,7 +276,7 @@ public class DemoSupportService {
         booking.setRefundableAmount((BigDecimal) preview.get("refundableAmount"));
     }
 
-    private BigDecimal settingDecimal(String key, BigDecimal fallback) {
+    BigDecimal settingDecimal(String key, BigDecimal fallback) {
         return systemSettingRepository.findBySettingKey(key)
                 .map(SystemSetting::getSettingValue)
                 .map(BigDecimal::new)
@@ -444,6 +444,7 @@ public class DemoSupportService {
 
     Map<String, Object> bookingServiceSummary(BookingServiceItem item) {
         Map<String, Object> map = new LinkedHashMap<>();
+        map.put("serviceId", item.getExtraService().getExtraServiceId());
         map.put("serviceName", item.getExtraService().getServiceName());
         map.put("quantity", item.getQuantity());
         map.put("unitPrice", item.getUnitPrice());
@@ -490,6 +491,10 @@ public class DemoSupportService {
         map.put("refundReason", refund.getRefundReason());
         map.put("status", refund.getStatus().name());
         map.put("transactionCode", refund.getTransactionCode());
+        map.put("requestedAt", refund.getRequestedAt());
+        map.put("processedAt", refund.getProcessedAt());
+        map.put("requestedBy", refund.getRequestedBy() == null ? null : refund.getRequestedBy().getFullName());
+        map.put("processedBy", refund.getProcessedBy() == null ? null : refund.getProcessedBy().getFullName());
         return map;
     }
 
@@ -509,6 +514,9 @@ public class DemoSupportService {
         map.put("usageLimit", promotion.getUsageLimit());
         map.put("usedCount", promotion.getUsedCount());
         map.put("status", promotion.getStatus().name());
+        map.put("applicableFieldTypeId", promotion.getApplicableFieldType() != null ? promotion.getApplicableFieldType().getFieldTypeId() : null);
+        map.put("applicableExtraServiceId", promotion.getApplicableExtraService() != null ? promotion.getApplicableExtraService().getExtraServiceId() : null);
+        map.put("applicableMembershipLevelId", promotion.getApplicableMembershipLevel() != null ? promotion.getApplicableMembershipLevel().getMembershipLevelId() : null);
         return map;
     }
 
@@ -599,6 +607,10 @@ public class DemoSupportService {
 
     ApiException badRequest(String message) {
         return new ApiException(HttpStatus.BAD_REQUEST, message);
+    }
+
+    ApiException conflict(String message) {
+        return new ApiException(HttpStatus.CONFLICT, message);
     }
 
     ApiException notFound(String message) {

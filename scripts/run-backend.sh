@@ -34,6 +34,16 @@ for ENV_FILE in "$ROOT_DIR/.env" "$ROOT_DIR/.env.local"; do
   fi
 done
 
+# A PostgreSQL URL means this process targets Supabase (or another persistent
+# database). Never let the disposable local H2 profile's create-drop setting
+# run against it merely because SPRING_PROFILES_ACTIVE was omitted locally.
+if [[ "${SPRING_DATASOURCE_URL:-}" == jdbc:postgresql:* ]] \
+  && [[ ",${SPRING_PROFILES_ACTIVE:-}," != *",postgres,"* ]]; then
+  export SPRING_PROFILES_ACTIVE="postgres"
+  export SPRING_JPA_DDL_AUTO="validate"
+  echo "PostgreSQL datasource detected: activating the postgres/Flyway profile."
+fi
+
 if command -v mvn >/dev/null 2>&1; then
   MVN_BIN="mvn"
 else
