@@ -3,6 +3,8 @@ package com.swp391.backend.config;
 import com.swp391.backend.entity.*;
 import com.swp391.backend.enums.*;
 import com.swp391.backend.repository.*;
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
