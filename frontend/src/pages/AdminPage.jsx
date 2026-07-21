@@ -76,6 +76,7 @@ export function AdminPage({
   const [staffForm, setStaffForm] = useState(emptyStaffForm)
   const [staffPasswordVisible, setStaffPasswordVisible] = useState(false)
   const [customerEditor, setCustomerEditor] = useState({ opened: false, customer: null })
+  const [customerProfileErrors, setCustomerProfileErrors] = useState({})
   const [customerActivity, setCustomerActivity] = useState(null)
   const [policyValues, setPolicyValues] = useState({})
   const [activePanel, setActivePanel] = useState('overview')
@@ -423,9 +424,17 @@ export function AdminPage({
   async function saveCustomerProfile() {
     const customer = customerEditor.customer
     if (!customer) return
+    const errors = {}
+    const fullName = (customer.fullName || '').trim()
+    if (!fullName) errors.fullName = 'Full name is required.'
+    const phone = (customer.phone || '').trim()
+    if (phone && !/^0\d{9}$/.test(phone)) errors.phone = 'Phone must be 10 digits and start with 0.'
+    setCustomerProfileErrors(errors)
+    if (Object.keys(errors).length > 0) return
     try {
       await api.put(`/account/users/${customer.userId}/profile`, customer)
       setCustomerEditor({ opened: false, customer: null })
+      setCustomerProfileErrors({})
       await refreshAll?.()
       setFieldNotice('Customer profile updated.')
     } catch (error) {
@@ -818,10 +827,10 @@ export function AdminPage({
         </Stack>
       </Modal>
 
-      <Modal opened={customerEditor.opened} onClose={() => setCustomerEditor({ opened: false, customer: null })} centered title="Edit customer profile">
+      <Modal opened={customerEditor.opened} onClose={() => { setCustomerEditor({ opened: false, customer: null }); setCustomerProfileErrors({}) }} centered title="Edit customer profile">
         <Stack gap="sm">
-          <FieldControl label="Full name"><input value={customerEditor.customer?.fullName || ''} onChange={event => setCustomerEditor(editor => ({ ...editor, customer: { ...editor.customer, fullName: event.target.value } }))} /></FieldControl>
-          <FieldControl label="Phone"><input value={customerEditor.customer?.phone || ''} onChange={event => setCustomerEditor(editor => ({ ...editor, customer: { ...editor.customer, phone: event.target.value } }))} /></FieldControl>
+          <FieldControl label="Full name" error={customerProfileErrors.fullName}><input value={customerEditor.customer?.fullName || ''} onChange={event => setCustomerEditor(editor => ({ ...editor, customer: { ...editor.customer, fullName: event.target.value } }))} /></FieldControl>
+          <FieldControl label="Phone" error={customerProfileErrors.phone}><input value={customerEditor.customer?.phone || ''} onChange={event => setCustomerEditor(editor => ({ ...editor, customer: { ...editor.customer, phone: event.target.value } }))} /></FieldControl>
           <FieldControl label="Address"><textarea value={customerEditor.customer?.address || ''} onChange={event => setCustomerEditor(editor => ({ ...editor, customer: { ...editor.customer, address: event.target.value } }))} /></FieldControl>
           <Button onClick={saveCustomerProfile}>Save customer profile</Button>
         </Stack>
