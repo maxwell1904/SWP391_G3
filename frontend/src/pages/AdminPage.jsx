@@ -755,7 +755,7 @@ export function AdminPage({
               <div className="customerAdminRow" key={customer.userId}>
                 <span>
                   <strong>{customer.fullName}</strong>
-                  <small>{customer.email} - {customer.phone || 'no phone'}</small>
+                  <small title={`${customer.email} - ${customer.phone || 'no phone'}`}>{customer.email} - {customer.phone || 'no phone'}</small>
                   {customer.bookingRestricted && <small>{customer.restrictionReason || 'Booking restricted'}</small>}
                 </span>
                 <Button
