@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Badge, Button, Group, Modal, Stack, Text } from '@mantine/core'
 import { Plus } from 'lucide-react'
-import { FieldControl, ImageUploadField, InfoPanel, WorkspaceHeader, WorkspaceTabs } from '../components/common'
+import { FieldControl, ImageUploadField, InfoPanel, PasswordField, WorkspaceHeader, WorkspaceTabs } from '../components/common'
 import { DataList, MetricGrid } from '../components/data'
 import api from '../services/api'
 import { formatMoney, formatTimeRange } from '../utils/format'
@@ -74,6 +74,7 @@ export function AdminPage({
   const [staffAccounts, setStaffAccounts] = useState([])
   const [selectedStaffId, setSelectedStaffId] = useState('new')
   const [staffForm, setStaffForm] = useState(emptyStaffForm)
+  const [staffPasswordVisible, setStaffPasswordVisible] = useState(false)
   const [customerEditor, setCustomerEditor] = useState({ opened: false, customer: null })
   const [customerActivity, setCustomerActivity] = useState(null)
   const [policyValues, setPolicyValues] = useState({})
@@ -796,7 +797,7 @@ export function AdminPage({
             <FieldControl label="Full name"><input value={staffForm.fullName} onChange={event => setStaffForm(form => ({ ...form, fullName: event.target.value }))} /></FieldControl>
             <FieldControl label="Email"><input type="email" value={staffForm.email} onChange={event => setStaffForm(form => ({ ...form, email: event.target.value }))} /></FieldControl>
             <FieldControl label="Phone"><input value={staffForm.phone} onChange={event => setStaffForm(form => ({ ...form, phone: event.target.value }))} /></FieldControl>
-            <FieldControl label={selectedStaffId === 'new' ? 'Initial password' : 'New password (optional)'}><input type="password" value={staffForm.password} onChange={event => setStaffForm(form => ({ ...form, password: event.target.value }))} /></FieldControl>
+            <PasswordField label={selectedStaffId === 'new' ? 'Initial password' : 'New password (optional)'} value={staffForm.password} visible={staffPasswordVisible} onToggle={() => setStaffPasswordVisible(v => !v)} onChange={value => setStaffForm(form => ({ ...form, password: value }))} autoComplete="new-password" />
             <FieldControl label="Status"><select value={staffForm.status} onChange={event => setStaffForm(form => ({ ...form, status: event.target.value }))}><option value="active">Active</option><option value="inactive">Inactive</option></select></FieldControl>
           </div>
           <Button color="green" onClick={saveStaff}>{selectedStaffId === 'new' ? 'Create staff account' : 'Save staff account'}</Button>
