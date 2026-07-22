@@ -11,6 +11,7 @@ import { AccessPanel, ActionPanel, NotificationBell } from './components/common'
 import { emailPattern, passwordIssues, phonePattern } from './features/auth/authRules'
 import {
   AccountPage,
+  AvailabilityAssistantPage,
   AdminPage,
   AuthPage,
   BookingPage,
@@ -345,7 +346,7 @@ function App() {
         api.get('/field-types'),
         api.get('/services'),
         api.get('/promotions' + (viewer?.role === 'Admin' ? '?includeInactive=true' : '')),
-        api.get('/membership/levels')
+        api.get('/membership/levels' + (viewer?.role === 'Admin' ? '?includeInactive=true' : ''))
       ])
       
       setFields(fieldRes.data)
@@ -479,6 +480,18 @@ function App() {
   async function loadMembership(customerId) {
     const response = await api.get(`/membership/${customerId}/progress`)
     setMembership(response.data)
+  }
+
+  async function loadReports(from, to) {
+    try {
+      const params = {}
+      if (from) params.from = from
+      if (to) params.to = to
+      const response = await api.get('/reports', { params })
+      setReports(response.data)
+    } catch (error) {
+      setNotice(error.response?.data?.error || 'Could not load reports')
+    }
   }
 
   async function loadNotifications(userId) {
@@ -1077,6 +1090,7 @@ function App() {
           <button className={currentPage === 'fields' ? 'active' : ''} onClick={() => navigatePage('fields')}>Fields</button>
           {!isAdmin && <button className={currentPage === 'booking' ? 'active' : ''} onClick={() => navigatePage('booking')}>{isStaff ? 'Walk-in booking' : 'Book'}</button>}
           <button className={currentPage === 'promotions' ? 'active' : ''} onClick={() => navigatePage('promotions')}>Offers</button>
+          <button className={currentPage === 'assistant' ? 'active' : ''} onClick={() => navigatePage('assistant')}>Find a field</button>
           <button
             className={(currentPage === 'membership-benefits' || currentPage === 'membership-rules') ? 'active' : ''}
             onClick={() => navigatePage(isAdmin ? 'membership-rules' : 'membership-benefits')}
@@ -1287,6 +1301,14 @@ function App() {
           />
         )}
 
+        {currentPage === 'assistant' && (
+          <AvailabilityAssistantPage
+            fieldTypes={fieldTypes}
+            currentUser={currentUser}
+            navigatePage={navigatePage}
+          />
+        )}
+
         {currentPage === 'membership-rules' && isAdmin && (
           <MembershipRulesPage
             membershipLevels={membershipLevels}
@@ -1353,6 +1375,7 @@ function App() {
             updateCustomerRestriction={updateCustomerRestriction}
             refreshAll={refreshAll}
             navigatePage={navigatePage}
+            loadReports={loadReports}
           />
         )}
 

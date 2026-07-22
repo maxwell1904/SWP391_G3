@@ -268,7 +268,9 @@ public final class ApiRequests {
             BigDecimal discountPercent,
             String benefitDescription,
             Integer displayOrder,
-            String status
+            String status,
+            String qualificationPeriod,
+            Integer requiredConsecutivePeriods
     ) {
     }
 }

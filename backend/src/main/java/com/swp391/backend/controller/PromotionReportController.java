@@ -2,7 +2,10 @@ package com.swp391.backend.controller;
 
 import com.swp391.backend.dto.ApiRequests;
 import com.swp391.backend.service.PromotionReportService;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api")
@@ -34,8 +37,8 @@ public class PromotionReportController {
     }
 
     @GetMapping("/membership/levels")
-    public Object membershipLevels() {
-        return promotionReportService.membershipLevels();
+    public Object membershipLevels(@RequestParam(defaultValue = "false") boolean includeInactive) {
+        return promotionReportService.membershipLevels(includeInactive);
     }
 
     @PostMapping("/membership/levels")
@@ -54,8 +57,11 @@ public class PromotionReportController {
     }
 
     @GetMapping("/reports")
-    public Object reports() {
-        return promotionReportService.reports();
+    public Object reports(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+    ) {
+        return promotionReportService.reports(from, to);
     }
 
     @GetMapping("/settings")

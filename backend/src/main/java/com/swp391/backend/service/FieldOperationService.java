@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.DayOfWeek;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -142,6 +143,75 @@ public class FieldOperationService {
                             Map.entry("price", fieldPrice)
                     );
                 })
+                .toList();
+    }
+
+    /** UC-63/64: explainable, rule-based availability assistant. */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> suggestSlots(LocalDate date, LocalTime preferredTime, Long fieldTypeId, BigDecimal maxPrice, Long customerId) {
+        LocalDate targetDate = date == null ? LocalDate.now().plusDays(1) : date;
+        AppUser customer = customerId == null ? null : support.userRepository.findById(customerId).orElse(null);
+        return support.slotRepository.findBySlotDate(targetDate).stream()
+                .filter(slot -> slot.getField().getStatus() == CommonStatus.active && slot.getStatus() == SlotStatus.available)
+                .filter(slot -> !support.bookingRepository.existsBySlotAndStatusIn(slot, DemoSupportService.ACTIVE_BOOKING_STATUSES))
+                .filter(slot -> fieldTypeId == null || Objects.equals(slot.getField().getFieldType().getFieldTypeId(), fieldTypeId))
+                .map(slot -> suggestionSummary(slot, preferredTime, maxPrice, customer))
+                .filter(item -> maxPrice == null || ((BigDecimal) item.get("price")).compareTo(maxPrice) <= 0)
+                .sorted(Comparator.<Map<String, Object>>comparingInt(item -> ((Number) item.get("score")).intValue()).reversed()
+                        .thenComparing(item -> (String) item.get("startTime")))
+                .limit(8)
+                .toList();
+    }
+
+    private Map<String, Object> suggestionSummary(Slot slot, LocalTime preferredTime, BigDecimal maxPrice, AppUser customer) {
+        BigDecimal price = support.calculateFieldPrice(slot);
+        List<String> reasons = new java.util.ArrayList<>();
+        int score = 100;
+        reasons.add("Available " + slot.getSlotDate() + " at " + slot.getStartTime());
+        if (preferredTime != null) {
+            long minutesAway = Math.abs(java.time.Duration.between(preferredTime, slot.getStartTime()).toMinutes());
+            score -= (int) Math.min(45, minutesAway / 10);
+            if (minutesAway <= 30) reasons.add("Matches your preferred time");
+        }
+        if (maxPrice != null) {
+            score += 10;
+            reasons.add("Within your budget");
+        }
+        List<String> promotionCodes = eligiblePromotionCodes(slot, customer, price);
+        if (!promotionCodes.isEmpty()) {
+            score += 15;
+            reasons.add("Eligible promotion: " + String.join(", ", promotionCodes));
+        }
+        return Map.<String, Object>ofEntries(
+                Map.entry("slotId", slot.getSlotId()), Map.entry("fieldId", slot.getField().getFieldId()),
+                Map.entry("fieldName", slot.getField().getFieldName()), Map.entry("fieldType", slot.getField().getFieldType().getTypeName()),
+                Map.entry("slotDate", slot.getSlotDate().toString()), Map.entry("startTime", slot.getStartTime().toString()),
+                Map.entry("endTime", slot.getEndTime().toString()), Map.entry("price", price), Map.entry("score", score),
+                Map.entry("reasons", reasons), Map.entry("eligiblePromotionCodes", promotionCodes)
+        );
+    }
+
+    private List<String> eligiblePromotionCodes(Slot slot, AppUser customer, BigDecimal price) {
+        String dayType = switch (slot.getSlotDate().getDayOfWeek()) {
+            case SATURDAY, SUNDAY -> "weekend";
+            default -> "weekday";
+        };
+        LocalDate date = slot.getSlotDate();
+        return support.promotionRepository.findByStatus(CommonStatus.active).stream()
+                .filter(promotion -> !date.isBefore(promotion.getStartDate()) && !date.isAfter(promotion.getEndDate()))
+                .filter(promotion -> promotion.getUsageLimit() == null || promotion.getUsedCount() < promotion.getUsageLimit())
+                .filter(promotion -> promotion.getMinBookingAmount() == null || price.compareTo(promotion.getMinBookingAmount()) >= 0)
+                .filter(promotion -> promotion.getApplicableFieldType() == null || Objects.equals(
+                        promotion.getApplicableFieldType().getFieldTypeId(), slot.getField().getFieldType().getFieldTypeId()))
+                .filter(promotion -> promotion.getApplicableExtraService() == null)
+                .filter(promotion -> promotion.getApplicableMembershipLevel() == null || (customer != null && Objects.equals(
+                        support.resolveEligibleMembershipLevel(customer, slot.getSlotDate()).getMembershipLevelId(),
+                        promotion.getApplicableMembershipLevel().getMembershipLevelId())))
+                .filter(promotion -> support.isBlank(promotion.getApplicableDayType()) || "all".equalsIgnoreCase(promotion.getApplicableDayType())
+                        || dayType.equalsIgnoreCase(promotion.getApplicableDayType()))
+                .filter(promotion -> promotion.getApplicableStartTime() == null || (!slot.getStartTime().isBefore(promotion.getApplicableStartTime())
+                        && !slot.getEndTime().isAfter(promotion.getApplicableEndTime())))
+                .map(Promotion::getPromotionCode)
                 .toList();
     }
 

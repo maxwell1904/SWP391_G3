@@ -6,6 +6,8 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.math.BigDecimal;
 
 @RestController
 @RequestMapping("/api")
@@ -67,6 +69,17 @@ public class FieldOperationController {
             @RequestParam(required = false) Long fieldTypeId
     ) {
         return fieldOperationService.searchSlots(date, fieldTypeId);
+    }
+
+    @GetMapping("/slots/suggestions")
+    public Object suggestedSlots(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime preferredTime,
+            @RequestParam(required = false) Long fieldTypeId,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) Long customerId
+    ) {
+        return fieldOperationService.suggestSlots(date, preferredTime, fieldTypeId, maxPrice, customerId);
     }
 
     @PostMapping("/slots/block")

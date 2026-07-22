@@ -35,6 +35,12 @@ public class MembershipLevel extends AuditEntity {
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
 
+    @Column(name = "qualification_period", nullable = false, length = 20)
+    private String qualificationPeriod = "lifetime";
+
+    @Column(name = "required_consecutive_periods", nullable = false)
+    private int requiredConsecutivePeriods = 1;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private CommonStatus status = CommonStatus.active;

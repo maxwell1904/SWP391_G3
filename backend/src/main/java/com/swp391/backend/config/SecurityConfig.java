@@ -84,6 +84,7 @@ public class SecurityConfig {
                                 "/api/fields/{fieldId}",
                                 "/api/field-types",
                                 "/api/slots/search",
+                                "/api/slots/suggestions",
                                 "/api/services",
                                 "/api/promotions",
                                 "/api/membership/levels",
