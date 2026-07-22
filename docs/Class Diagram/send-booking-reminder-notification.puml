@@ -4,13 +4,13 @@ skinparam classAttributeIconSize 0
 skinparam linetype polyline
 
 class BookingMaintenanceScheduler <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +maintainBookings() : void
     +sendUpcomingBookingReminders() : int
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -bookingRepository : BookingRepository
     -notificationRepository : NotificationRepository
     -systemSettingRepository : SystemSettingRepository
@@ -51,10 +51,10 @@ class Notification <<entity>> {
     -sentAt : LocalDateTime
 }
 
-BookingMaintenanceScheduler ..> DemoSupportService
-DemoSupportService ..> BookingRepository
-DemoSupportService ..> NotificationRepository
-DemoSupportService ..> SystemSettingRepository
+BookingMaintenanceScheduler ..> DomainSupportService
+DomainSupportService ..> BookingRepository
+DomainSupportService ..> NotificationRepository
+DomainSupportService ..> SystemSettingRepository
 BookingRepository --> Booking
 NotificationRepository --> Notification
 Notification --> Booking

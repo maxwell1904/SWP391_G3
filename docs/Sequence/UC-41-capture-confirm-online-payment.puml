@@ -39,13 +39,13 @@ PayRepo --> Service : 7. Payment
 deactivate PayRepo
 Service -> PayPal : 8. POST /v2/checkout/orders/{orderId}/capture
 activate PayPal
-PayPal --> Service : 9. capture status, id and amount
+PayPal --> Service : 9. capture status, id, gross amount,\nPayPal fee and provider net amount
 deactivate PayPal
 Service -> Service : 10. Validate COMPLETED, USD and exact amount
 activate Service
 deactivate Service
 alt Provider capture is valid
-  Service -> PayRepo : 11. save paid Payment
+  Service -> PayRepo : 11. save paid Payment with exact provider breakdown
   activate PayRepo
   PayRepo -> DB : 12. UPDATE payment; UPDATE booking; UPSERT invoice
   activate DB

@@ -16,6 +16,7 @@ participant "AdminPage" as UI
 participant "AccountController" as Controller
 participant "AccountService" as Service
 participant "AppUserRepository / RoleRepository" as Repo
+participant "VerificationEmailService" as Email
 database "Database" as DB
 
 == UC-08: Manage Staff Accounts ==
@@ -38,7 +39,7 @@ activate Controller
 Controller -> Service : 5. createStaff(request) / updateStaff(userId, request)
 activate Service
 
-Service -> Service : 6. requireAdmin(); validate unique email/phone/password
+Service -> Service : 6. requireAdmin(); validate unique identity\nand reject Admin password changes
 activate Service
 deactivate Service
 
@@ -54,9 +55,13 @@ alt Request is valid and authorized
   Repo --> Service : 10. Repository result
   deactivate Repo
 
-  Service -> Service : 11. Assign Staff role; hash password; persist
+  Service -> Service : 11. Assign Staff role; generate unknown credential;\nissue one-hour setup token
   activate Service
   deactivate Service
+  Service -> Email : 12. sendStaffInvitationEmail(staff)
+  activate Email
+  Email --> Service : 13. Delivery status
+  deactivate Email
 else Validation, authorization, or state rule fails
   note over Service,Controller
     Duplicate identity / invalid role -> HTTP 400
@@ -64,21 +69,21 @@ else Validation, authorization, or state rule fails
   end note
 end
 
-Service --> Controller : 12. Domain result or propagated error
+Service --> Controller : 14. Domain result or propagated error
 deactivate Service
 
-Controller -> Controller : 13. Serialize response
+Controller -> Controller : 15. Serialize response
 activate Controller
 deactivate Controller
 
-Controller --> UI : 14. HTTP 200 or mapped 4xx\nresponse body or error payload
+Controller --> UI : 16. HTTP 200 or mapped 4xx\nresponse body or error payload
 deactivate Controller
 
-UI -> UI : 15. loadStaff(); refreshAll()
+UI -> UI : 17. loadStaff(); refreshAll()
 activate UI
 deactivate UI
 
-UI --> User : 16. Show staff account saved
+UI --> User : 18. Show account and invitation-delivery status
 
 deactivate UI
 deactivate User

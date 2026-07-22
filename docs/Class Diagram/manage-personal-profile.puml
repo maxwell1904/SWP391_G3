@@ -10,13 +10,13 @@ class AccountController <<controller>> {
 }
 
 class AccountService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +updateProfile(userId : Long, request : ApiRequests.ProfileUpdate) : Map<String, Object>
     -requireSelfOrAdmin(userId : Long) : void
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -userRepository : AppUserRepository
 
     +getUser(userId : Long) : AppUser
@@ -55,8 +55,8 @@ class AppUser <<entity>> {
 AccountController ..> AccountService
 AccountController ..> ProfileUpdateDTO
 AccountService ..> ProfileUpdateDTO
-AccountService ..> DemoSupportService
-DemoSupportService ..> AppUserRepository
+AccountService ..> DomainSupportService
+DomainSupportService ..> AppUserRepository
 AppUserRepository --> AppUser
 AppUser -|> AuditEntity
 

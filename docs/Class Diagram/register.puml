@@ -12,7 +12,7 @@ class AccountController <<controller>> {
 }
 
 class AccountService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
     -verificationEmailService : VerificationEmailService
     -passwordEncoder : BCryptPasswordEncoder
     -jwtService : JwtService
@@ -24,7 +24,7 @@ class AccountService <<service>> {
     -validatePassword(password : String, confirmPassword : String) : void
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -userRepository : AppUserRepository
     -roleRepository : RoleRepository
     -customerMembershipRepository : CustomerMembershipRepository
@@ -126,13 +126,13 @@ class CustomerMembership <<entity>> {
 AccountController ..> AccountService
 AccountController ..> RegisterDTO
 AccountService ..> RegisterDTO
-AccountService ..> DemoSupportService
+AccountService ..> DomainSupportService
 AccountService ..> VerificationEmailService
 AccountService ..> JwtService
 VerificationEmailService ..> VerificationEmailDelivery
-DemoSupportService ..> AppUserRepository
-DemoSupportService ..> RoleRepository
-DemoSupportService ..> CustomerMembership
+DomainSupportService ..> AppUserRepository
+DomainSupportService ..> RoleRepository
+DomainSupportService ..> CustomerMembership
 AppUserRepository --> AppUser
 RoleRepository --> Role
 AppUser -|> AuditEntity

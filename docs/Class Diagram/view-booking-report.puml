@@ -10,12 +10,12 @@ class PromotionReportController <<controller>> {
 }
 
 class PromotionReportService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +reports() : Map<String, Object>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -bookingRepository : BookingRepository
 
     +money(value : BigDecimal) : BigDecimal
@@ -57,8 +57,8 @@ enum BookingStatus {
 }
 
 PromotionReportController ..> PromotionReportService
-PromotionReportService ..> DemoSupportService
-DemoSupportService ..> BookingRepository
+PromotionReportService ..> DomainSupportService
+DomainSupportService ..> BookingRepository
 BookingRepository --> Booking
 Booking --> Slot
 Slot --> FootballField

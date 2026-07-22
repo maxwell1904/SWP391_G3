@@ -11,13 +11,13 @@ class PromotionReportController <<controller>> {
 }
 
 class PromotionReportService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +membershipProgress(customerId : Long) : Map<String, Object>
     +membershipLevels(includeInactive : boolean) : List<Map<String, Object>>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -customerMembershipRepository : CustomerMembershipRepository
     -membershipLevelRepository : MembershipLevelRepository
 
@@ -76,12 +76,12 @@ enum CommonStatus {
 
 ' Relationships
 PromotionReportController ..> PromotionReportService
-PromotionReportService ..> DemoSupportService
-DemoSupportService ..> CustomerMembershipRepository
-DemoSupportService ..> MembershipLevelRepository
-DemoSupportService ..> CustomerMembership
-DemoSupportService ..> MembershipLevel
-DemoSupportService ..> AppUser
+PromotionReportService ..> DomainSupportService
+DomainSupportService ..> CustomerMembershipRepository
+DomainSupportService ..> MembershipLevelRepository
+DomainSupportService ..> CustomerMembership
+DomainSupportService ..> MembershipLevel
+DomainSupportService ..> AppUser
 CustomerMembershipRepository --> CustomerMembership
 MembershipLevelRepository --> MembershipLevel
 CustomerMembership --> AppUser

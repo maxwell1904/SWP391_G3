@@ -1491,6 +1491,24 @@ main.pageMain .section {
   color: #8f321d;
 }
 
+.refundRequestState {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(31, 111, 178, 0.22);
+  border-radius: 12px;
+  background: #f4f9fd;
+  padding: 12px;
+}
+
+.refundRequestState strong {
+  color: #1d5f91;
+}
+
+.refundRequestState small {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 .dangerButton {
   min-height: 42px;
   border: 0;
@@ -1818,12 +1836,37 @@ main.pageMain .section {
   background: var(--green-soft);
 }
 
-.bookingItem span,
-.dataRow span,
-.customerAdminRow span {
+.bookingItem > span,
+.dataRow > span,
+.customerAdminRow > span {
   min-width: 0;
   display: grid;
   gap: 4px;
+}
+
+.adminAuditList {
+  max-height: 520px;
+}
+
+.accessModeGuide {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(23, 111, 70, 0.16);
+  border-radius: 12px;
+  background: #f6faf6;
+  padding: 12px;
+}
+
+.accessModeGuide p {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.35fr) minmax(0, 1fr);
+  gap: 12px;
+  margin: 0;
+}
+
+.accessModeGuide span {
+  color: var(--muted);
+  line-height: 1.45;
 }
 
 .bookingItem small,

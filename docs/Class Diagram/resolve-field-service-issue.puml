@@ -10,14 +10,14 @@ class FieldOperationController <<controller>> {
 }
 
 class FieldOperationService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +updateIssueStatus(issueId : Long, request : ApiRequests.IssueStatusUpdate) : Map<String, Object>
     -requireOperator() : void
     -requireStaff(userId : Long) : AppUser
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -issueRepository : IssueRepository
     -notificationRepository : NotificationRepository
 
@@ -64,9 +64,9 @@ class Notification <<entity>> {
 FieldOperationController ..> FieldOperationService
 FieldOperationController ..> IssueStatusUpdateDTO
 FieldOperationService ..> IssueStatusUpdateDTO
-FieldOperationService ..> DemoSupportService
-DemoSupportService ..> IssueRepository
-DemoSupportService ..> NotificationRepository
+FieldOperationService ..> DomainSupportService
+DomainSupportService ..> IssueRepository
+DomainSupportService ..> NotificationRepository
 IssueRepository --> Issue
 NotificationRepository --> Notification
 Issue --> AppUser

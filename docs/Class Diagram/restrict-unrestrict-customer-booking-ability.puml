@@ -10,7 +10,7 @@ class AccountController <<controller>> {
 }
 
 class AccountService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
     -verificationEmailService : VerificationEmailService
 
     +updateRestriction(userId : Long, request : ApiRequests.RestrictionUpdate) : Map<String, Object>
@@ -20,13 +20,15 @@ class AccountService <<service>> {
 
 class VerificationEmailService <<service>> {
     +sendRestrictionEmail(user : AppUser, reason : String) : VerificationEmailDelivery
+    +sendBookingAccessRestoredEmail(user : AppUser) : VerificationEmailDelivery
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     +getUser(userId : Long) : AppUser
     +clean(value : String) : String
     +requireText(value : String, message : String) : void
     +userSummary(user : AppUser) : Map<String, Object>
+    +notifyUser(user : AppUser, booking : Booking, type : NotificationType, title : String, message : String) : void
 }
 
 class "ApiRequests.RestrictionUpdate" as RestrictionUpdateDTO <<dto>> {
@@ -58,7 +60,7 @@ AccountController ..> AccountService
 AccountController ..> RestrictionUpdateDTO
 AccountService ..> RestrictionUpdateDTO
 AccountService ..> VerificationEmailService
-AccountService ..> DemoSupportService
+AccountService ..> DomainSupportService
 AccountService ..> AppUserRepository
 VerificationEmailService ..> AppUser
 AppUserRepository --> AppUser

@@ -119,13 +119,13 @@ def fitted_size(image_path: Path, max_width: float = 6.35, max_height: float = 8
     return Inches(width_px * scale), Inches(height_px * scale)
 
 
-def add_diagram_after(heading: Paragraph, image_path: Path, alt_text: str) -> None:
+def add_diagram_after(heading: Paragraph, image_path: Path, alt_text: str, *, max_height: float = 8.0) -> None:
     paragraph = insert_paragraph_after(heading)
     paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
     paragraph.paragraph_format.space_before = Inches(0.04)
     paragraph.paragraph_format.space_after = Inches(0.08)
     paragraph.paragraph_format.keep_together = True
-    width, height = fitted_size(image_path)
+    width, height = fitted_size(image_path, max_height=max_height)
     run = paragraph.add_run()
     run.add_picture(str(image_path), width=width, height=height)
     for doc_pr in paragraph._p.xpath(".//wp:docPr"):
@@ -201,6 +201,7 @@ def main() -> None:
     parser.add_argument("output_docx", type=Path)
     parser.add_argument("--class-png-dir", type=Path, required=True)
     parser.add_argument("--sequence-png-dir", type=Path, required=True)
+    parser.add_argument("--package-png", type=Path)
     parser.add_argument(
         "--preserve-existing",
         action="store_true",
@@ -209,6 +210,29 @@ def main() -> None:
     args = parser.parse_args()
 
     document = Document(args.input_docx)
+    if args.package_png:
+        if not args.package_png.is_file():
+            raise FileNotFoundError(args.package_png)
+        package_heading = next(
+            paragraph for paragraph in document.paragraphs
+            if " ".join(paragraph.text.split()) == "1. Code Packages"
+        )
+        following = insert_paragraph_after(package_heading)
+        following.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        following.paragraph_format.space_before = Inches(0.04)
+        following.paragraph_format.space_after = Inches(0.08)
+        following.paragraph_format.keep_together = True
+        width, height = fitted_size(args.package_png, max_height=4.8)
+        run = following.add_run()
+        run.add_picture(str(args.package_png), width=width, height=height)
+        for doc_pr in following._p.xpath(".//wp:docPr"):
+            doc_pr.set("name", "Code Package Diagram")
+            doc_pr.set("title", "Code Package Diagram")
+            doc_pr.set("descr", "Code-first Java package dependencies")
+        for paragraph in list(document.paragraphs):
+            if " ".join(paragraph.text.split()) == "Package diagram will be inserted here during the diagram phase.":
+                remove_paragraph(paragraph)
+                break
     headings = heading_map(document)
     missing = [n for n in range(1, 65) if not {"class", "sequence"}.issubset(headings.get(n, {}))]
     if missing:

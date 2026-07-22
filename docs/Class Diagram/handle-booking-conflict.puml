@@ -4,14 +4,14 @@ skinparam classAttributeIconSize 0
 skinparam linetype polyline
 
 class BookingWorkflowService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +createBooking(request : ApiRequests.BookingCreate) : Map<String, Object>
     +reschedule(bookingId : Long, request : ApiRequests.BookingReschedule) : Map<String, Object>
     +updateBookingStatus(bookingId : Long, request : ApiRequests.BookingStatusUpdate) : Map<String, Object>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -bookingRepository : BookingRepository
 
     +validateSlotBookable(slot : Slot) : void
@@ -63,9 +63,9 @@ enum BookingStatus {
     + rejected
 }
 
-BookingWorkflowService ..> DemoSupportService
+BookingWorkflowService ..> DomainSupportService
 BookingWorkflowService ..> BookingRescheduleDTO
-DemoSupportService ..> BookingRepository
+DomainSupportService ..> BookingRepository
 BookingRepository --> Booking
 Booking --> Slot
 Booking --> BookingStatus

@@ -10,14 +10,14 @@ class AccountController <<controller>> {
 }
 
 class AccountService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
     -passwordEncoder : BCryptPasswordEncoder
     -jwtService : JwtService
 
     +login(request : ApiRequests.Login) : Map<String, Object>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -userRepository : AppUserRepository
 
     +requireText(value : String, message : String) : void
@@ -82,10 +82,10 @@ enum AccountStatus {
 AccountController ..> AccountService
 AccountController ..> LoginDTO
 AccountService ..> LoginDTO
-AccountService ..> DemoSupportService
+AccountService ..> DomainSupportService
 AccountService ..> BCryptPasswordEncoder
 AccountService ..> JwtService
-DemoSupportService ..> AppUserRepository
+DomainSupportService ..> AppUserRepository
 AppUserRepository --> AppUser
 AppUser -|> AuditEntity
 AppUser --> AccountStatus

@@ -5,9 +5,12 @@ dist/
 # Java
 target/
 backend/uploads/
+backend/data/
 .tools/
 *.class
 *.jar
+docs/generated/
+output/playwright/
 *.log
 
 # Python
@@ -25,5 +28,6 @@ __pycache__/
 
 # OS
 .DS_Store
+.~*
 
 .agent/

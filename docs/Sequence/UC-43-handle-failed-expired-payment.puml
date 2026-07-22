@@ -13,7 +13,7 @@ skinparam participant {
 
 actor "Scheduler" as Clock
 participant "BookingMaintenanceScheduler" as Scheduler
-participant "DemoSupportService" as Support
+participant "DomainSupportService" as Support
 participant "BookingRepository" as BookingRepo
 participant "NotificationRepository" as NotificationRepo
 database "Database" as DB

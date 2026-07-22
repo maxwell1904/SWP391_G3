@@ -3,7 +3,10 @@ spring:
     default: local
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:h2:mem:swp391;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH}
+    # The normal launcher supplies the Supabase URL. This file-backed H2 URL is
+    # only a resilient local fallback, but unlike an in-memory database it does
+    # not silently erase bookings whenever the backend restarts.
+    url: ${SPRING_DATASOURCE_URL:jdbc:h2:file:./data/goalzone;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;AUTO_SERVER=TRUE}
     username: ${SPRING_DATASOURCE_USERNAME:sa}
     password: ${SPRING_DATASOURCE_PASSWORD:}
     driver-class-name: ${SPRING_DATASOURCE_DRIVER:org.h2.Driver}
@@ -13,9 +16,9 @@ spring:
 
   jpa:
     hibernate:
-      # Local H2 is intentionally disposable. PostgreSQL overrides this to
-      # `validate` in application-postgres.yml.
-      ddl-auto: create-drop
+      # Local fallback data survives restarts. PostgreSQL overrides this to
+      # `validate` in application-postgres.yml and is managed by Flyway.
+      ddl-auto: update
     show-sql: false
     open-in-view: false
     properties:
@@ -23,8 +26,8 @@ spring:
         format_sql: true
 
   flyway:
-    # H2 remains code-first for fast, isolated local demo/test runs. The
-    # PostgreSQL profile owns its schema through db/migration/postgresql.
+    # The local fallback remains code-first. The PostgreSQL profile owns its
+    # schema through db/migration/postgresql.
     enabled: false
 
   h2:
@@ -70,7 +73,7 @@ app:
     mock-mode: ${PAYPAL_MOCK_MODE:false}
 
 jwt:
-  # A local fallback keeps demo accounts usable. Set JWT_SECRET in every
+  # A local fallback keeps development accounts usable. Set JWT_SECRET in every
   # shared, staging, or production environment.
   secret: ${JWT_SECRET:swp391_local_only_change_me_before_deployment}
   expiration: 86400000

@@ -24,10 +24,10 @@ import java.util.Map;
 @Service
 @Transactional
 public class PromotionReportService {
-    private final DemoSupportService support;
+    private final DomainSupportService support;
     private final BookingWorkflowService bookingWorkflowService;
 
-    public PromotionReportService(DemoSupportService support, BookingWorkflowService bookingWorkflowService) {
+    public PromotionReportService(DomainSupportService support, BookingWorkflowService bookingWorkflowService) {
         this.support = support;
         this.bookingWorkflowService = bookingWorkflowService;
     }
@@ -168,9 +168,19 @@ public class PromotionReportService {
                 .filter(refund -> bookingIds.contains(refund.getBooking().getBookingId()))
                 .toList();
         BigDecimal grossRevenue = payments.stream()
-                .filter(payment -> payment.getStatus() == PaymentStatus.paid)
+                .filter(this::isCollectedPayment)
                 .map(Payment::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal providerFees = payments.stream()
+                .filter(this::isCollectedPayment)
+                .map(Payment::getProviderFeeAmount)
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        long untrackedProviderFeeCount = payments.stream()
+                .filter(this::isCollectedPayment)
+                .filter(payment -> payment.getPaymentMethod() == com.swp391.backend.enums.PaymentMethod.paypal_sandbox)
+                .filter(payment -> payment.getProviderFeeAmount() == null)
+                .count();
         BigDecimal completedRefunds = refunds.stream()
                 .filter(refund -> refund.getStatus() == com.swp391.backend.enums.RefundStatus.completed)
                 .map(Refund::getRefundAmount)
@@ -217,9 +227,11 @@ public class PromotionReportService {
                 membershipDistribution.merge(membership.getMembershipLevel().getLevelName(), 1L, Long::sum));
 
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("totalRevenue", support.money(grossRevenue.subtract(completedRefunds)));
+        response.put("totalRevenue", support.money(grossRevenue.subtract(completedRefunds).subtract(providerFees)));
         response.put("grossRevenue", support.money(grossRevenue));
         response.put("refundTotal", support.money(completedRefunds));
+        response.put("providerFeeTotal", support.money(providerFees));
+        response.put("providerFeeUntrackedCount", untrackedProviderFeeCount);
         response.put("fieldRevenue", support.money(fieldValue));
         response.put("serviceRevenue", support.money(serviceValue));
         response.put("promotionDiscountTotal", support.money(promotionDiscount));
@@ -239,6 +251,12 @@ public class PromotionReportService {
         response.put("to", to == null ? null : to.toString());
         response.put("dateBasis", "slotDate");
         return response;
+    }
+
+    private boolean isCollectedPayment(Payment payment) {
+        return payment.getStatus() == PaymentStatus.paid
+                || payment.getStatus() == PaymentStatus.partially_refunded
+                || payment.getStatus() == PaymentStatus.refunded;
     }
 
     @Transactional(readOnly = true)

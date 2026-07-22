@@ -7,11 +7,11 @@ class FieldOperationController <<controller>> {
   +operationCalendar(date : LocalDate) : Object
 }
 class FieldOperationService <<service>> {
-  -support : DemoSupportService
+  -support : DomainSupportService
   +operationCalendar(date : LocalDate) : List<Map<String, Object>>
   -requireOperator() : void
 }
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
   -slotRepository : SlotRepository
   -bookingRepository : BookingRepository
   +slotSummary(slot : Slot) : Map<String, Object>
@@ -37,9 +37,9 @@ class Booking <<entity>> {
   -slot : Slot
 }
 FieldOperationController ..> FieldOperationService
-FieldOperationService ..> DemoSupportService
-DemoSupportService ..> SlotRepository
-DemoSupportService ..> BookingRepository
+FieldOperationService ..> DomainSupportService
+DomainSupportService ..> SlotRepository
+DomainSupportService ..> BookingRepository
 SlotRepository --> Slot
 BookingRepository --> Booking
 Booking --> Slot

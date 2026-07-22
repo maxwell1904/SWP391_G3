@@ -39,7 +39,7 @@ public class PayPalCheckoutService {
     public record RefundResult(String refundId, String status, String message) {
     }
 
-    private final DemoSupportService support;
+    private final DomainSupportService support;
     private final BookingWorkflowService bookingWorkflowService;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient = HttpClient.newHttpClient();
@@ -62,7 +62,7 @@ public class PayPalCheckoutService {
     @Value("${app.frontend-base-url:http://localhost:5173}")
     private String frontendBaseUrl;
 
-    public PayPalCheckoutService(DemoSupportService support, BookingWorkflowService bookingWorkflowService, ObjectMapper objectMapper) {
+    public PayPalCheckoutService(DomainSupportService support, BookingWorkflowService bookingWorkflowService, ObjectMapper objectMapper) {
         this.support = support;
         this.bookingWorkflowService = bookingWorkflowService;
         this.objectMapper = objectMapper;
@@ -134,9 +134,13 @@ public class PayPalCheckoutService {
 
         String captureId;
         String providerStatus;
+        BigDecimal providerFee;
+        BigDecimal providerNet;
         if (isMockMode()) {
             captureId = "MOCK-PAYPAL-CAPTURE-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase();
             providerStatus = "COMPLETED";
+            providerFee = BigDecimal.ZERO.setScale(2);
+            providerNet = payment.getAmount();
         } else {
             try {
                 JsonNode capture = captureRemoteOrder(orderId);
@@ -149,6 +153,9 @@ public class PayPalCheckoutService {
                 }
                 validateCaptureAmount(capture, payment);
                 captureId = findCaptureId(capture);
+                JsonNode captureNode = captureNode(capture);
+                providerFee = moneyFrom(captureNode.path("seller_receivable_breakdown").path("paypal_fee"), null);
+                providerNet = moneyFrom(captureNode.path("seller_receivable_breakdown").path("net_amount"), null);
             } catch (ApiException exception) {
                 throw exception;
             } catch (Exception exception) {
@@ -165,6 +172,8 @@ public class PayPalCheckoutService {
         payment.setStatus(PaymentStatus.paid);
         payment.setProviderCaptureId(captureId);
         payment.setProviderStatus(providerStatus);
+        payment.setProviderFeeAmount(providerFee);
+        payment.setProviderNetAmount(providerNet);
         payment.setTransactionCode(captureId);
         payment.setGatewayMessage(isMockMode() ? "Mock PayPal sandbox capture completed" : "PayPal capture completed");
         payment.setPaidAt(LocalDateTime.now());
@@ -205,7 +214,7 @@ public class PayPalCheckoutService {
 
     public RefundResult refundCapture(Payment payment, BigDecimal refundAmount, String requestId, String existingRefundId) {
         if (payment.getPaymentMethod() != PaymentMethod.paypal_sandbox
-                || payment.getStatus() != PaymentStatus.paid
+                || (payment.getStatus() != PaymentStatus.paid && payment.getStatus() != PaymentStatus.partially_refunded)
                 || support.isBlank(payment.getProviderCaptureId())) {
             return new RefundResult(null, "FAILED", "The payment has no refundable PayPal capture.");
         }
@@ -381,7 +390,7 @@ public class PayPalCheckoutService {
 
     private JsonNode captureRemoteOrder(String orderId) throws Exception {
         String accessToken = accessToken();
-        return sendJson("POST", paypalBaseUrl() + "/v2/checkout/orders/" + URLEncoder.encode(orderId, StandardCharsets.UTF_8) + "/capture", accessToken, "{}", null);
+        return sendJson("POST", paypalBaseUrl() + "/v2/checkout/orders/" + URLEncoder.encode(orderId, StandardCharsets.UTF_8) + "/capture", accessToken, "{}", null, true);
     }
 
     private String accessToken() throws Exception {
@@ -404,12 +413,20 @@ public class PayPalCheckoutService {
     }
 
     private JsonNode sendJson(String method, String url, String accessToken, String body, String requestId) throws Exception {
+        return sendJson(method, url, accessToken, body, requestId, false);
+    }
+
+    private JsonNode sendJson(String method, String url, String accessToken, String body, String requestId,
+                              boolean returnRepresentation) throws Exception {
         HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .header("Authorization", "Bearer " + accessToken)
                 .header("Content-Type", "application/json");
         if (!support.isBlank(requestId)) {
             builder.header("PayPal-Request-Id", requestId);
+        }
+        if (returnRepresentation) {
+            builder.header("Prefer", "return=representation");
         }
         HttpRequest request = "POST".equalsIgnoreCase(method)
                 ? builder.POST(HttpRequest.BodyPublishers.ofString(body)).build()
@@ -422,7 +439,7 @@ public class PayPalCheckoutService {
     }
 
     private void validateCaptureAmount(JsonNode capture, Payment payment) {
-        JsonNode amount = capture.path("purchase_units").path(0).path("payments").path("captures").path(0).path("amount");
+        JsonNode amount = captureNode(capture).path("amount");
         String capturedCurrency = amount.path("currency_code").asText();
         BigDecimal capturedAmount = new BigDecimal(amount.path("value").asText("0"));
         BigDecimal expected = toSettlementAmount(payment.getAmount());
@@ -432,11 +449,25 @@ public class PayPalCheckoutService {
     }
 
     private String findCaptureId(JsonNode capture) {
-        String captureId = capture.path("purchase_units").path(0).path("payments").path("captures").path(0).path("id").asText();
+        String captureId = captureNode(capture).path("id").asText();
         if (support.isBlank(captureId)) {
             throw support.badRequest("PayPal did not return a capture id");
         }
         return captureId;
+    }
+
+    private JsonNode captureNode(JsonNode orderCapture) {
+        return orderCapture.path("purchase_units").path(0).path("payments").path("captures").path(0);
+    }
+
+    private BigDecimal moneyFrom(JsonNode amountNode, BigDecimal fallback) {
+        String value = amountNode.path("value").asText("");
+        if (support.isBlank(value)) return fallback;
+        try {
+            return support.money(new BigDecimal(value));
+        } catch (NumberFormatException exception) {
+            return fallback;
+        }
     }
 
     private boolean isMockMode() {

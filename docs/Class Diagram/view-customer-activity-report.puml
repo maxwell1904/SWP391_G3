@@ -10,12 +10,12 @@ class PromotionReportController <<controller>> {
 }
 
 class PromotionReportService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +reports() : Map<String, Object>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -userRepository : AppUserRepository
     -bookingRepository : BookingRepository
     -customerMembershipRepository : CustomerMembershipRepository
@@ -60,10 +60,10 @@ class MembershipLevel <<entity>> {
 }
 
 PromotionReportController ..> PromotionReportService
-PromotionReportService ..> DemoSupportService
-DemoSupportService ..> AppUserRepository
-DemoSupportService ..> BookingRepository
-DemoSupportService ..> CustomerMembershipRepository
+PromotionReportService ..> DomainSupportService
+DomainSupportService ..> AppUserRepository
+DomainSupportService ..> BookingRepository
+DomainSupportService ..> CustomerMembershipRepository
 AppUserRepository --> AppUser
 BookingRepository --> Booking
 CustomerMembershipRepository --> CustomerMembership

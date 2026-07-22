@@ -12,14 +12,20 @@ class AccountController <<controller>> {
 }
 
 class AccountService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
     -passwordEncoder : BCryptPasswordEncoder
+    -verificationEmailService : VerificationEmailService
 
     +staff() : List<Map<String, Object>>
     +createStaff(request : ApiRequests.StaffUpsert) : Map<String, Object>
     +updateStaff(userId : Long, request : ApiRequests.StaffUpsert) : Map<String, Object>
     -validateStaffRequest(request : ApiRequests.StaffUpsert, creating : boolean, currentUserId : Long) : void
     -applyStaffRequest(staff : AppUser, request : ApiRequests.StaffUpsert, creating : boolean) : void
+    -issuePasswordReset(user : AppUser) : void
+}
+
+class VerificationEmailService <<service>> {
+    +sendStaffInvitationEmail(user : AppUser) : VerificationEmailDelivery
 }
 
 class "ApiRequests.StaffUpsert" as StaffUpsertDTO <<dto>> {
@@ -64,6 +70,7 @@ AccountController ..> StaffUpsertDTO
 AccountService ..> StaffUpsertDTO
 AccountService ..> AppUserRepository
 AccountService ..> RoleRepository
+AccountService ..> VerificationEmailService
 AppUserRepository --> AppUser
 RoleRepository --> Role
 AppUser --> Role

@@ -12,7 +12,7 @@ class PromotionReportController <<controller>> {
 }
 
 class PromotionReportService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +promotions(includeInactive : boolean) : List<Map<String, Object>>
     +createPromotion(request : ApiRequests.PromotionUpsert) : Map<String, Object>

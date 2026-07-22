@@ -21,7 +21,7 @@ class "ApiRequests.RefundCreate" as RefundCreateDTO <<dto>> {
 }
 
 class PaymentWorkflowService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
     -payPalCheckoutService : PayPalCheckoutService
 
     +createRefund(request : ApiRequests.RefundCreate) : Map<String, Object>
@@ -35,7 +35,7 @@ class PayPalCheckoutService <<service>> {
     +refundCapture(payment : Payment, refundAmount : BigDecimal, requestId : String, existingRefundId : String) : RefundResult
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -bookingRepository : BookingRepository
     -userRepository : AppUserRepository
     -paymentRepository : PaymentRepository
@@ -147,19 +147,19 @@ enum NotificationType {
 ' Relationships
 PaymentController ..> PaymentWorkflowService
 PaymentController ..> RefundCreateDTO
-PaymentWorkflowService ..> DemoSupportService
+PaymentWorkflowService ..> DomainSupportService
 PaymentWorkflowService ..> PayPalCheckoutService
 PaymentWorkflowService ..> RefundCreateDTO
-DemoSupportService ..> BookingRepository
-DemoSupportService ..> AppUserRepository
-DemoSupportService ..> PaymentRepository
-DemoSupportService ..> RefundRepository
-DemoSupportService ..> InvoiceRepository
-DemoSupportService ..> NotificationRepository
-DemoSupportService ..> Booking
-DemoSupportService ..> AppUser
-DemoSupportService ..> Payment
-DemoSupportService ..> Refund
+DomainSupportService ..> BookingRepository
+DomainSupportService ..> AppUserRepository
+DomainSupportService ..> PaymentRepository
+DomainSupportService ..> RefundRepository
+DomainSupportService ..> InvoiceRepository
+DomainSupportService ..> NotificationRepository
+DomainSupportService ..> Booking
+DomainSupportService ..> AppUser
+DomainSupportService ..> Payment
+DomainSupportService ..> Refund
 BookingRepository --> Booking
 AppUserRepository --> AppUser
 PaymentRepository --> Payment

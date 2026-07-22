@@ -14,13 +14,13 @@ class FieldOperationController <<controller>> {
 }
 
 class FieldOperationService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
     +suggestSlots(date : LocalDate, preferredTime : LocalTime, fieldTypeId : Long, maxPrice : BigDecimal, customerId : Long) : List<Map<String, Object>>
     -suggestionSummary(slot : Slot, preferredTime : LocalTime, maxPrice : BigDecimal, customer : AppUser) : Map<String, Object>
     -authenticatedSuggestionCustomer(customerId : Long) : AppUser
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -slotRepository : SlotRepository
     -bookingRepository : BookingRepository
     +calculateFieldPrice(slot : Slot) : BigDecimal
@@ -44,9 +44,9 @@ class Slot <<entity>> {
 
 AvailabilityAssistantPage ..> FieldOperationController
 FieldOperationController ..> FieldOperationService
-FieldOperationService ..> DemoSupportService
-DemoSupportService ..> SlotRepository
-DemoSupportService ..> BookingRepository
+FieldOperationService ..> DomainSupportService
+DomainSupportService ..> SlotRepository
+DomainSupportService ..> BookingRepository
 SlotRepository --> Slot
 BookingRepository --> Slot
 

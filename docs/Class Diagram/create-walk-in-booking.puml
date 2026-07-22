@@ -10,7 +10,7 @@ class BookingController <<controller>> {
 }
 
 class BookingWorkflowService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +createBooking(request : ApiRequests.BookingCreate) : Map<String, Object>
     -createBookingInternal(request : ApiRequests.BookingCreate) : Map<String, Object>
@@ -18,12 +18,12 @@ class BookingWorkflowService <<service>> {
 }
 
 class AccountService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +walkInCustomers() : List<Map<String, Object>>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -bookingRepository : BookingRepository
 
     +validateSlotBookable(slot : Slot) : void
@@ -76,9 +76,9 @@ class Slot <<entity>> {
 BookingController ..> BookingWorkflowService
 BookingController ..> BookingCreateDTO
 BookingWorkflowService ..> BookingCreateDTO
-BookingWorkflowService ..> DemoSupportService
-AccountService ..> DemoSupportService
-DemoSupportService ..> BookingRepository
+BookingWorkflowService ..> DomainSupportService
+AccountService ..> DomainSupportService
+DomainSupportService ..> BookingRepository
 BookingRepository --> Booking
 Booking --> Slot
 Booking --> AppUser

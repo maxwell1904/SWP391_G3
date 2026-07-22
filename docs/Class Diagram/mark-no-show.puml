@@ -10,12 +10,12 @@ class BookingController <<controller>> {
 }
 
 class BookingWorkflowService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +updateBookingStatus(bookingId : Long, request : ApiRequests.BookingStatusUpdate) : Map<String, Object>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -bookingRepository : BookingRepository
     -userRepository : AppUserRepository
 
@@ -85,11 +85,11 @@ enum BookingStatus {
 ' Relationships
 BookingController ..> BookingWorkflowService
 BookingController ..> BookingStatusUpdateDTO
-BookingWorkflowService ..> DemoSupportService
+BookingWorkflowService ..> DomainSupportService
 BookingWorkflowService ..> BookingStatusUpdateDTO
-DemoSupportService ..> BookingRepository
-DemoSupportService ..> AppUserRepository
-DemoSupportService ..> Booking
+DomainSupportService ..> BookingRepository
+DomainSupportService ..> AppUserRepository
+DomainSupportService ..> Booking
 BookingRepository --> Booking
 AppUserRepository --> AppUser
 Booking -|> AuditEntity

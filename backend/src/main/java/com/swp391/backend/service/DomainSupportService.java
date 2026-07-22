@@ -18,7 +18,7 @@ import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 
 @Service
-public class DemoSupportService {
+public class DomainSupportService {
     static final List<BookingStatus> ACTIVE_BOOKING_STATUSES = List.of(
             BookingStatus.pending,
             BookingStatus.confirmed,
@@ -45,7 +45,7 @@ public class DemoSupportService {
     final NotificationRepository notificationRepository;
     final SystemSettingRepository systemSettingRepository;
 
-    public DemoSupportService(
+    public DomainSupportService(
             RoleRepository roleRepository,
             AppUserRepository userRepository,
             MembershipLevelRepository membershipLevelRepository,
@@ -504,12 +504,18 @@ public class DemoSupportService {
     }
 
     String paymentStatus(Booking booking) {
+        BigDecimal grossPaid = paymentRepository.findByBooking_BookingIdOrderByPaymentIdDesc(booking.getBookingId()).stream()
+                .filter(payment -> payment.getStatus() == PaymentStatus.paid
+                        || payment.getStatus() == PaymentStatus.partially_refunded
+                        || payment.getStatus() == PaymentStatus.refunded)
+                .map(Payment::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal completedRefunds = refundRepository.findByBooking_BookingIdOrderByRefundIdDesc(booking.getBookingId()).stream()
                 .filter(refund -> refund.getStatus() == RefundStatus.completed)
                 .map(Refund::getRefundAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         if (completedRefunds.compareTo(BigDecimal.ZERO) > 0) {
-            return completedRefunds.compareTo(booking.getPaidAmount()) >= 0 ? "refunded" : "partially_refunded";
+            return completedRefunds.compareTo(grossPaid) >= 0 ? "refunded" : "partially_refunded";
         }
         if (booking.getStatus() == BookingStatus.expired) {
             return "expired";
@@ -542,6 +548,10 @@ public class DemoSupportService {
         map.put("amount", payment.getAmount());
         map.put("status", payment.getStatus().name());
         map.put("transactionCode", payment.getTransactionCode());
+        map.put("currency", payment.getCurrency());
+        map.put("providerFeeAmount", payment.getProviderFeeAmount());
+        map.put("providerNetAmount", payment.getProviderNetAmount());
+        map.put("providerFeeTracked", payment.getProviderFeeAmount() != null);
         map.put("gatewayMessage", payment.getGatewayMessage());
         map.put("paidAt", payment.getPaidAt());
         return map;
@@ -565,7 +575,9 @@ public class DemoSupportService {
     Map<String, Object> refundSummary(Refund refund) {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("refundId", refund.getRefundId());
+        map.put("bookingId", refund.getBooking().getBookingId());
         map.put("bookingCode", refund.getBooking().getBookingCode());
+        map.put("customer", refund.getBooking().getCustomer().getFullName());
         map.put("refundCode", refund.getRefundCode());
         map.put("refundAmount", refund.getRefundAmount());
         map.put("refundReason", refund.getRefundReason());

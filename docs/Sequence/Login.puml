@@ -16,7 +16,7 @@ participant "AuthPage" as UI
 participant "App.jsx" as App
 participant "AccountController" as Controller
 participant "AccountService" as Service
-participant "DemoSupportService" as Support
+participant "DomainSupportService" as Support
 participant "JwtService" as Jwt
 participant "AppUserRepository" as UserRepo
 database "Database" as DB

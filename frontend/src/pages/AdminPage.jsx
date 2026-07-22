@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Badge, Button, Group, Modal, Stack, Text } from '@mantine/core'
 import { Plus } from 'lucide-react'
-import { FieldControl, ImageUploadField, InfoPanel, PasswordField, WorkspaceHeader, WorkspaceTabs } from '../components/common'
+import { FieldControl, ImageUploadField, InfoPanel, WorkspaceHeader, WorkspaceTabs } from '../components/common'
 import { DataList, MetricGrid } from '../components/data'
+import { BillingDetails } from '../features/payments/components'
 import api from '../services/api'
 import { formatMoney, formatTimeRange } from '../utils/format'
 
@@ -41,14 +42,17 @@ const emptyStaffForm = {
   fullName: '',
   email: '',
   phone: '',
-  password: '',
   status: 'active'
 }
 
-const statusColor = status => status === 'active' ? 'green' : 'gray'
+const statusColor = status => status === 'active' ? 'green' : status === 'locked' ? 'red' : 'gray'
 
 export function AdminPage({
   reports,
+  bookings = [],
+  payments = [],
+  refunds = [],
+  issues = [],
   settings,
   fieldTypes,
   updateDepositSetting,
@@ -76,13 +80,16 @@ export function AdminPage({
   const [staffAccounts, setStaffAccounts] = useState([])
   const [selectedStaffId, setSelectedStaffId] = useState('new')
   const [staffForm, setStaffForm] = useState(emptyStaffForm)
-  const [staffPasswordVisible, setStaffPasswordVisible] = useState(false)
   const [customerEditor, setCustomerEditor] = useState({ opened: false, customer: null })
   const [customerProfileErrors, setCustomerProfileErrors] = useState({})
   const [customerActivity, setCustomerActivity] = useState(null)
   const [policyValues, setPolicyValues] = useState({})
   const [activePanel, setActivePanel] = useState('overview')
   const [reportRange, setReportRange] = useState({ from: '', to: '' })
+  const [selectedAuditBookingId, setSelectedAuditBookingId] = useState(null)
+  const [auditBookingDetail, setAuditBookingDetail] = useState(null)
+  const [auditBookingLoading, setAuditBookingLoading] = useState(false)
+  const [auditBookingError, setAuditBookingError] = useState('')
 
   const panelClass = panel => activePanel === panel ? '' : 'workspacePanelHidden'
 
@@ -107,9 +114,37 @@ export function AdminPage({
   useEffect(() => {
     const staff = staffAccounts.find(account => Number(account.userId) === Number(selectedStaffId))
     setStaffForm(staff ? {
-      fullName: staff.fullName || '', email: staff.email || '', phone: staff.phone || '', password: '', status: staff.status || 'active'
+      fullName: staff.fullName || '', email: staff.email || '', phone: staff.phone || '', status: staff.status || 'active'
     } : emptyStaffForm)
   }, [selectedStaffId, staffAccounts])
+
+  useEffect(() => {
+    if (!bookings.length) {
+      setSelectedAuditBookingId(null)
+      setAuditBookingDetail(null)
+      return
+    }
+    setSelectedAuditBookingId(current => bookings.some(booking => booking.bookingId === Number(current))
+      ? current
+      : bookings[0].bookingId)
+  }, [bookings])
+
+  useEffect(() => {
+    if (!selectedAuditBookingId) return undefined
+    let cancelled = false
+    setAuditBookingLoading(true)
+    setAuditBookingError('')
+    api.get(`/bookings/${selectedAuditBookingId}`)
+      .then(response => { if (!cancelled) setAuditBookingDetail(response.data) })
+      .catch(error => {
+        if (!cancelled) {
+          setAuditBookingDetail(null)
+          setAuditBookingError(error.response?.data?.error || 'Could not load booking invoice details.')
+        }
+      })
+      .finally(() => { if (!cancelled) setAuditBookingLoading(false) })
+    return () => { cancelled = true }
+  }, [selectedAuditBookingId])
 
   useEffect(() => {
     if (!adminFields.length) {
@@ -403,18 +438,19 @@ export function AdminPage({
   async function saveStaff() {
     try {
       const staff = staffAccounts.find(account => Number(account.userId) === Number(selectedStaffId))
-      if (staff) await api.put(`/account/staff/${staff.userId}`, staffForm)
-      else await api.post('/account/staff', staffForm)
+      const response = staff
+        ? await api.put(`/account/staff/${staff.userId}`, staffForm)
+        : await api.post('/account/staff', staffForm)
       await loadStaff()
       await refreshAll?.()
-      setFieldNotice(staff ? 'Staff account updated.' : 'Staff account created.')
+      setFieldNotice(staff ? 'Staff account updated.' : (response.data.message || 'Staff invitation sent.'))
     } catch (error) {
       setFieldNotice(error.response?.data?.error || 'Could not save staff account.')
     }
   }
 
   async function updateCustomerStatus(customer) {
-    const status = customer.status === 'active' ? 'inactive' : 'active'
+    const status = customer.status === 'active' ? 'locked' : 'active'
     try {
       await api.put(`/account/users/${customer.userId}/status`, { status })
       await refreshAll?.()
@@ -462,7 +498,7 @@ export function AdminPage({
       <WorkspaceHeader
         kicker="Admin workspace"
         title="Management and reports"
-        text="Review revenue, booking utilization, field setup, pricing, customer access, and lightweight deposit configuration."
+        text="Review revenue, booking utilization, field setup, pricing, customer access, and booking/refund policies."
         status={{
           label: 'Scope',
           value: 'Operations',
@@ -499,6 +535,8 @@ export function AdminPage({
           { value: 'venues', label: 'Fields & pricing' },
           { value: 'services', label: 'Services' },
           { value: 'access', label: 'People & access' },
+          { value: 'operations', label: 'Bookings & billing' },
+          { value: 'support', label: 'Issue audit' },
           { value: 'policies', label: 'Policies' }
         ]}
       />
@@ -702,6 +740,7 @@ export function AdminPage({
             ['Net revenue', formatMoney(reports?.totalRevenue)],
             ['Gross collected', formatMoney(reports?.grossRevenue)],
             ['Refunded', formatMoney(reports?.refundTotal)],
+            ['PayPal fees', formatMoney(reports?.providerFeeTotal)],
             ['Bookings', reports?.bookingCount || 0],
             ['Completed', reports?.completedCount || 0],
             ['Cancelled', reports?.cancelledCount || 0]
@@ -712,6 +751,59 @@ export function AdminPage({
             ['Promotion discounts', formatMoney(reports?.promotionDiscountTotal)],
             ['Membership discounts', formatMoney(reports?.membershipDiscountTotal)]
           ].map(([title, value]) => ({ title, meta: 'Booking portfolio', value }))} />
+          {Number(reports?.providerFeeUntrackedCount || 0) > 0 && (
+            <p className="panelHint">{reports.providerFeeUntrackedCount} legacy PayPal payment(s) do not have an exact processor-fee breakdown yet.</p>
+          )}
+        </InfoPanel>
+
+        <InfoPanel title="Booking & invoice register" className={`adminWidePanel ${panelClass('operations')}`}>
+          <p className="panelHint">Select a booking to inspect the full invoice, payment transactions, and refund trail.</p>
+          <div className="customerAdminList adminAuditList">
+            {bookings.map(booking => (
+              <button
+                type="button"
+                className={Number(selectedAuditBookingId) === Number(booking.bookingId) ? 'customerAdminRow selected' : 'customerAdminRow'}
+                key={booking.bookingId}
+                onClick={() => setSelectedAuditBookingId(booking.bookingId)}
+              >
+                <span>
+                  <strong>{booking.bookingCode} · {booking.customer}</strong>
+                  <small>{booking.fieldName} · {booking.slotDate} · {String(booking.startTime).slice(0, 5)}</small>
+                </span>
+                <span>
+                  <Badge color={booking.status === 'completed' ? 'green' : booking.status === 'cancelled' ? 'red' : 'blue'} variant="light">{booking.status}</Badge>
+                  <small>{formatMoney(booking.totalAmount)}</small>
+                </span>
+              </button>
+            ))}
+          </div>
+        </InfoPanel>
+
+        <InfoPanel title="Selected invoice & transactions" className={`adminWidePanel ${panelClass('operations')}`}>
+          <BillingDetails detail={auditBookingDetail} loading={auditBookingLoading} error={auditBookingError} />
+        </InfoPanel>
+
+        <InfoPanel title="Payment & refund control totals" className={`adminWidePanel ${panelClass('operations')}`}>
+          <MetricGrid metrics={[
+            ['Payment records', payments.length],
+            ['Refund cases', refunds.length],
+            ['Pending review', refunds.filter(refund => refund.status === 'requested').length],
+            ['Processing', refunds.filter(refund => ['approved', 'processing'].includes(refund.status)).length]
+          ]} />
+          <DataList items={refunds.slice(0, 10).map(refund => ({
+            title: `${refund.refundCode} · ${refund.bookingCode}`,
+            meta: refund.gatewayMessage || refund.refundReason || 'Refund case',
+            value: `${refund.status} · ${formatMoney(refund.refundAmount)}`
+          }))} />
+        </InfoPanel>
+
+        <InfoPanel title="Issue history" className={`adminWidePanel ${panelClass('support')}`}>
+          <p className="panelHint">This is the complete audit trail, including issues already resolved by staff.</p>
+          <DataList items={issues.map(issue => ({
+            title: issue.title,
+            meta: `${issue.reporter} · ${issue.bookingCode || issue.fieldName || issue.extraServiceName || 'General'}${issue.assignedStaff ? ` · ${issue.assignedStaff}` : ''}${issue.resolutionNote ? ` · ${issue.resolutionNote}` : ''}`,
+            value: issue.status
+          }))} />
         </InfoPanel>
 
         <InfoPanel title="Field utilization" className={`adminOverviewSecondary ${panelClass('overview')}`}>
@@ -775,6 +867,10 @@ export function AdminPage({
         </InfoPanel>
 
         <InfoPanel title="Customer accounts" className={panelClass('access')}>
+          <div className="accessModeGuide">
+            <p><strong>Restrict booking</strong><span>Customer can sign in and manage existing bookings, but cannot create a new one.</span></p>
+            <p><strong>Lock account</strong><span>Customer cannot sign in. Use this for security, fraud, or full account suspension.</span></p>
+          </div>
           <div className="customerAdminList">
             {customers.map(customer => (
               <div className="customerAdminRow" key={customer.userId}>
@@ -784,6 +880,10 @@ export function AdminPage({
                   <small>{customer.phone || 'no phone'}</small>
                   {customer.bookingRestricted && <small>{customer.restrictionReason || 'Booking restricted'}</small>}
                 </span>
+                <Group gap={6}>
+                  {customer.bookingRestricted && <Badge color="yellow" variant="light">Booking restricted</Badge>}
+                  <Badge color={statusColor(customer.status)} variant="light">{customer.status === 'locked' ? 'Sign-in locked' : customer.status}</Badge>
+                </Group>
                 <Button
                   variant={customer.bookingRestricted ? 'filled' : 'light'}
                   color={customer.bookingRestricted ? 'green' : 'red'}
@@ -800,7 +900,7 @@ export function AdminPage({
                   variant="light"
                   color={customer.status === 'active' ? 'red' : 'green'}
                   onClick={() => updateCustomerStatus(customer)}
-                >{customer.status === 'active' ? 'Lock' : 'Unlock'}</Button>
+                >{customer.status === 'active' ? 'Lock sign-in' : 'Unlock sign-in'}</Button>
               </div>
             ))}
           </div>
@@ -809,7 +909,7 @@ export function AdminPage({
         <InfoPanel title="Staff accounts" className={panelClass('access')}>
           <div className="customerAdminList">
             <button type="button" className={selectedStaffId === 'new' ? 'customerAdminRow selected' : 'customerAdminRow'} onClick={() => setSelectedStaffId('new')}>
-              <span><strong>New staff account</strong><small>Create a staff login and set its access status.</small></span>
+              <span><strong>New staff account</strong><small>Send an invitation so the staff member sets their own password.</small></span>
             </button>
             {staffAccounts.map(account => (
               <button type="button" className={Number(selectedStaffId) === Number(account.userId) ? 'customerAdminRow selected' : 'customerAdminRow'} key={account.userId} onClick={() => setSelectedStaffId(account.userId)}>
@@ -822,10 +922,10 @@ export function AdminPage({
             <FieldControl label="Full name"><input value={staffForm.fullName} onChange={event => setStaffForm(form => ({ ...form, fullName: event.target.value }))} /></FieldControl>
             <FieldControl label="Email"><input type="email" value={staffForm.email} onChange={event => setStaffForm(form => ({ ...form, email: event.target.value }))} /></FieldControl>
             <FieldControl label="Phone"><input value={staffForm.phone} onChange={event => setStaffForm(form => ({ ...form, phone: event.target.value }))} /></FieldControl>
-            <PasswordField label={selectedStaffId === 'new' ? 'Initial password' : 'New password (optional)'} value={staffForm.password} visible={staffPasswordVisible} onToggle={() => setStaffPasswordVisible(v => !v)} onChange={value => setStaffForm(form => ({ ...form, password: value }))} autoComplete="new-password" />
             <FieldControl label="Status"><select value={staffForm.status} onChange={event => setStaffForm(form => ({ ...form, status: event.target.value }))}><option value="active">Active</option><option value="inactive">Inactive</option></select></FieldControl>
           </div>
-          <Button color="green" onClick={saveStaff}>{selectedStaffId === 'new' ? 'Create staff account' : 'Save staff account'}</Button>
+          {selectedStaffId === 'new' && <p className="panelHint">GoalZone emails a one-time password setup link. Administrators cannot view or replace the staff member's password.</p>}
+          <Button color="green" onClick={saveStaff}>{selectedStaffId === 'new' ? 'Create & send invitation' : 'Save staff account'}</Button>
         </InfoPanel>
       </div>
 

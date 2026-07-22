@@ -1377,7 +1377,6 @@ function App() {
             setIssueDraft={setIssueDraft}
             createIssue={createIssue}
             issues={issues}
-            createRefund={createRefund}
             updateRefund={updateRefund}
             refunds={refunds}
             services={services}
@@ -1398,6 +1397,10 @@ function App() {
         {currentPage === 'admin' && isAdmin && (
           <AdminPage
             reports={reports}
+            bookings={bookings}
+            payments={payments}
+            refunds={refunds}
+            issues={issues}
             settings={settings}
             fieldTypes={fieldTypes}
             updateDepositSetting={updateDepositSetting}

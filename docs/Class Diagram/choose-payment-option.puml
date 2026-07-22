@@ -10,7 +10,7 @@ class PaymentController <<controller>> {
 }
 
 class PaymentWorkflowService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +capturePayment(request : ApiRequests.PaymentCapture) : Map<String, Object>
 }
@@ -23,7 +23,7 @@ class BookingWorkflowService <<service>> {
     +previewCheckout(request : ApiRequests.PromotionApply) : Map<String, Object>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -bookingRepository : BookingRepository
     -userRepository : AppUserRepository
     -paymentRepository : PaymentRepository
@@ -215,15 +215,15 @@ enum NotificationType {
 ' Relationships
 PaymentController ..> PaymentWorkflowService
 PaymentController ..> PaymentCaptureDTO
-PaymentWorkflowService ..> DemoSupportService
-PayPalCheckoutService ..> DemoSupportService
-BookingWorkflowService ..> DemoSupportService
+PaymentWorkflowService ..> DomainSupportService
+PayPalCheckoutService ..> DomainSupportService
+BookingWorkflowService ..> DomainSupportService
 PaymentWorkflowService ..> PaymentCaptureDTO
-DemoSupportService ..> BookingRepository
-DemoSupportService ..> AppUserRepository
-DemoSupportService ..> PaymentRepository
-DemoSupportService ..> NotificationRepository
-DemoSupportService ..> InvoiceRepository
+DomainSupportService ..> BookingRepository
+DomainSupportService ..> AppUserRepository
+DomainSupportService ..> PaymentRepository
+DomainSupportService ..> NotificationRepository
+DomainSupportService ..> InvoiceRepository
 BookingRepository --> Booking
 AppUserRepository --> AppUser
 PaymentRepository --> Payment

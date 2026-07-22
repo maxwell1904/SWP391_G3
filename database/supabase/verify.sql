@@ -10,6 +10,8 @@ declare
         'idx_slot_created_by',
         'idx_payment_booking_id',
         'idx_notification_user_id',
+        'idx_refund_work_queue',
+        'idx_issue_work_queue',
         'uk_refund_idempotency_key',
         'uk_refund_transaction_code'
     ];
@@ -18,6 +20,7 @@ declare
         'ex_slot_no_overlapping_time',
         'chk_booking_amounts',
         'chk_payment_method',
+        'chk_payment_provider_amounts',
         'chk_refund_amount'
     ];
 begin
@@ -35,6 +38,20 @@ begin
 end;
 $$;
 
+do $$
+begin
+    if not exists (
+        select 1 from information_schema.columns
+        where table_schema = current_schema() and table_name = 'payment' and column_name = 'provider_fee_amount'
+    ) or not exists (
+        select 1 from information_schema.columns
+        where table_schema = current_schema() and table_name = 'payment' and column_name = 'provider_net_amount'
+    ) then
+        raise exception 'PayPal processor fee columns are missing from payment';
+    end if;
+end;
+$$;
+
 select version, description, type, installed_on, success
 from flyway_schema_history
 order by installed_rank;
@@ -42,5 +59,5 @@ order by installed_rank;
 select indexname, indexdef
 from pg_indexes
 where schemaname = current_schema()
-  and indexname in ('ux_booking_active_slot', 'idx_slot_date_status', 'idx_slot_created_by', 'idx_payment_booking_id', 'idx_notification_user_id', 'uk_refund_idempotency_key', 'uk_refund_transaction_code')
+  and indexname in ('ux_booking_active_slot', 'idx_slot_date_status', 'idx_slot_created_by', 'idx_payment_booking_id', 'idx_notification_user_id', 'idx_refund_work_queue', 'idx_issue_work_queue', 'uk_refund_idempotency_key', 'uk_refund_transaction_code')
 order by indexname;
