@@ -1,0 +1,89 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Staff" as User
+participant "StaffPage" as UI
+participant "App.jsx" as App
+participant "FieldOperationController" as Controller
+participant "FieldOperationService" as Service
+participant "IssueRepository / NotificationRepository" as Repo
+database "Database" as DB
+
+== UC-23: Resolve Field or Service Issue ==
+
+User -> UI : 1. Choose issue status and resolution note
+activate User
+activate UI
+
+UI -> App : 2. updateIssue(issueId, status, note)
+activate App
+
+App -> App : 3. Validate UI state and build request
+activate App
+deactivate App
+
+App -> Controller : 4. PUT /api/issues/{issueId}/status
+activate Controller
+
+Controller -> Service : 5. updateIssueStatus(issueId, request)
+activate Service
+
+Service -> Service : 6. requireOperator; closing requires resolution note
+activate Service
+deactivate Service
+
+alt Request is valid and authorized
+  Service -> Repo : 7. findById(issueId); save notification
+  activate Repo
+
+  Repo -> DB : 8. SELECT/UPDATE issue; INSERT notification
+  activate DB
+  DB --> Repo : 9. Updated Issue
+  deactivate DB
+
+  Repo --> Service : 10. Repository result
+  deactivate Repo
+
+  Service -> Service : 11. Set status/resolvedAt and notify reporter
+  activate Service
+  deactivate Service
+else Validation, authorization, or state rule fails
+  note over Service,Controller
+    Unknown issue or missing closing note -> 404/400
+    The service propagates ApiException to ApiExceptionHandler.
+  end note
+end
+
+Service --> Controller : 12. Domain result or propagated error
+deactivate Service
+
+Controller -> Controller : 13. Serialize response
+activate Controller
+deactivate Controller
+
+Controller --> App : 14. HTTP 200 or mapped 4xx\nresponse body or error payload
+deactivate Controller
+
+App -> App : 15. refreshAll()
+activate App
+deactivate App
+
+App --> UI : 16. Show updated issue queue
+deactivate App
+
+UI --> User : 17. Updated screen or error feedback
+
+deactivate UI
+deactivate User
+
+@enduml

@@ -1,0 +1,73 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor Customer
+participant "PayPalCheckout" as UI
+participant "PaymentController" as Controller
+participant "PayPalCheckoutService" as Service
+participant "PaymentRepository" as PayRepo
+participant "BookingRepository" as BookingRepo
+participant "PayPal Orders v2" as PayPal
+database "Database" as DB
+
+== Capture/confirm online payment ==
+
+Customer -> UI : 1. Approve PayPal order
+activate Customer
+activate UI
+UI -> Controller : 2. POST /api/bookings/{id}/paypal/orders/{orderId}/capture
+activate Controller
+Controller -> Service : 3. captureOrder(bookingId, orderId, request)
+activate Service
+Service -> PayRepo : 4. findByProviderOrderId(orderId)
+activate PayRepo
+PayRepo -> DB : 5. SELECT payment WHERE provider_order_id=?
+activate DB
+DB --> PayRepo : 6. pending Payment
+deactivate DB
+PayRepo --> Service : 7. Payment
+deactivate PayRepo
+Service -> PayPal : 8. POST /v2/checkout/orders/{orderId}/capture
+activate PayPal
+PayPal --> Service : 9. capture status, id and amount
+deactivate PayPal
+Service -> Service : 10. Validate COMPLETED, USD and exact amount
+activate Service
+deactivate Service
+alt Provider capture is valid
+  Service -> PayRepo : 11. save paid Payment
+  activate PayRepo
+  PayRepo -> DB : 12. UPDATE payment; UPDATE booking; UPSERT invoice
+  activate DB
+  DB --> PayRepo : 13. committed rows
+  deactivate DB
+  PayRepo --> Service : 14. paid Payment
+  deactivate PayRepo
+  Service -> BookingRepo : 15. findById(bookingId)
+  activate BookingRepo
+  BookingRepo --> Service : 16. updated Booking
+  deactivate BookingRepo
+else Provider capture fails validation
+  Service -> Service : 11. Set failed fields and throw ApiException
+  activate Service
+  deactivate Service
+end
+Service --> Controller : 17. bookingDetail or error
+deactivate Service
+Controller --> UI : 18. HTTP response
+deactivate Controller
+UI --> Customer : 19. Show confirmation/invoice or failure
+deactivate UI
+deactivate Customer
+
+@enduml

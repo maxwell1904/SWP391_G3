@@ -34,6 +34,9 @@ public class PromotionReportService {
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> promotions(boolean includeInactive) {
+        if (includeInactive) {
+            requireAdmin();
+        }
         List<Promotion> promotions = includeInactive
                 ? support.promotionRepository.findAll()
                 : support.promotionRepository.findByStatus(CommonStatus.active);
@@ -101,6 +104,9 @@ public class PromotionReportService {
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> membershipLevels(boolean includeInactive) {
+        if (includeInactive) {
+            requireAdmin();
+        }
         return support.membershipLevelRepository.findAllByOrderByDisplayOrderAsc().stream()
                 .filter(level -> includeInactive || level.getStatus() == CommonStatus.active)
                 .map(support::membershipLevelSummary)
@@ -316,6 +322,12 @@ public class PromotionReportService {
         AppUser requester = currentUser();
         if (!requester.getUserId().equals(userId) && !"Admin".equalsIgnoreCase(requester.getRole().getRoleName())) {
             throw new ApiException(HttpStatus.FORBIDDEN, "You can only access your own account data");
+        }
+    }
+
+    private void requireAdmin() {
+        if (!"Admin".equalsIgnoreCase(currentUser().getRole().getRoleName())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Administrator access is required");
         }
     }
 

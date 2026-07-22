@@ -1,0 +1,74 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Customer / Staff" as Actor
+participant "AccountPage / StaffPage" as UI
+participant "App.jsx" as App
+participant "PaymentController" as Controller
+participant "PaymentWorkflowService" as Service
+participant "PaymentRepository" as Repo
+database "Database" as DB
+
+== View payment history ==
+
+Actor -> UI : 1. Open Payments section
+activate Actor
+activate UI
+
+UI -> App : 2. refreshAll()
+activate App
+
+App -> Controller : 3. GET /api/payments
+activate Controller
+
+Controller -> Service : 4. payments()
+activate Service
+
+Service -> Repo : 5. findByBooking_Customer... / findAllByOrderByPaymentIdDesc()
+activate Repo
+
+Repo -> DB : 6. SELECT payment ORDER BY payment_id DESC
+activate DB
+
+alt Customer owns payment or requester is operator
+  DB --> Repo : 7. Matching rows
+else No persisted transactions
+  DB --> Repo : 7. Empty result
+end
+deactivate DB
+
+Repo --> Service : 8. List<Payment>
+deactivate Repo
+
+Service -> Service : 9. paymentSummary() for each row
+activate Service
+deactivate Service
+
+alt Request is permitted
+  Service --> Controller : 10. payment summaries
+else Access or data validation fails
+  Service --> Controller : 10. ApiException
+end
+deactivate Service
+
+Controller --> App : 11. HTTP response
+deactivate Controller
+
+App --> UI : 12. setPayments(response.data)
+deactivate App
+
+UI --> Actor : 13. Show transaction history
+deactivate UI
+deactivate Actor
+
+@enduml

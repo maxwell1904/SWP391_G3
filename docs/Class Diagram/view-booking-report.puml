@@ -1,0 +1,67 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class PromotionReportController <<controller>> {
+    -promotionReportService : PromotionReportService
+
+    +reports() : Object
+}
+
+class PromotionReportService <<service>> {
+    -support : DemoSupportService
+
+    +reports() : Map<String, Object>
+}
+
+class DemoSupportService <<service>> {
+    -bookingRepository : BookingRepository
+
+    +money(value : BigDecimal) : BigDecimal
+}
+
+interface BookingRepository <<repository>> {
+    +findAll() : List<Booking>
+    +findByStatusIn(statuses : Collection<BookingStatus>) : List<Booking>
+}
+
+class Booking <<entity>> {
+    -bookingId : Long
+    -slot : Slot
+    -status : BookingStatus
+    -fieldPriceAmount : BigDecimal
+}
+
+class Slot <<entity>> {
+    -slotId : Long
+    -field : FootballField
+    -slotDate : LocalDate
+    -startTime : LocalTime
+}
+
+class FootballField <<entity>> {
+    -fieldId : Long
+    -fieldName : String
+}
+
+enum BookingStatus {
+    + pending
+    + confirmed
+    + checked_in
+    + completed
+    + cancelled
+    + no_show
+    + expired
+    + rejected
+}
+
+PromotionReportController ..> PromotionReportService
+PromotionReportService ..> DemoSupportService
+DemoSupportService ..> BookingRepository
+BookingRepository --> Booking
+Booking --> Slot
+Slot --> FootballField
+Booking --> BookingStatus
+
+@enduml

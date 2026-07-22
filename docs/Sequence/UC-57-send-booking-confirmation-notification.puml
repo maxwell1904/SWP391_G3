@@ -1,0 +1,68 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor Customer
+participant "BookingPage" as UI
+participant "App.jsx" as App
+participant "BookingController" as Controller
+participant "BookingWorkflowService" as Service
+participant "DemoSupportService" as Support
+participant "NotificationRepository" as Repo
+database "Database" as DB
+
+== Send booking confirmation notification ==
+
+Customer -> UI : 1. Submit online booking
+activate Customer
+activate UI
+UI -> App : 2. createBooking('online', option)
+activate App
+App -> Controller : 3. POST /api/bookings
+activate Controller
+Controller -> Service : 4. createBooking(request)
+activate Service
+Service -> Service : 5. Build pricing snapshots
+activate Service
+deactivate Service
+alt Online booking
+  Service -> Service : 5.1 Set status pending
+  activate Service
+  deactivate Service
+else Walk-in booking
+  Service -> Service : 5.1 Set status confirmed and confirmedAt
+  activate Service
+  deactivate Service
+end
+Service -> Support : 6. notifyUser(customer, booking, booking_confirmation, ...)
+activate Support
+Support -> Repo : 7. save(notification)
+activate Repo
+Repo -> DB : 8. INSERT notification(is_read=false, sent_at=NOW())
+activate DB
+DB --> Repo : 9. saved notification
+deactivate DB
+Repo --> Support : 10. Notification
+deactivate Repo
+Support --> Service : 11. "Booking created" notification persisted
+deactivate Support
+Service --> Controller : 12. bookingDetail
+deactivate Service
+Controller --> App : 13. HTTP 200
+deactivate Controller
+App --> UI : 14. Refresh notification bell
+deactivate App
+UI --> Customer : 15. Show booking notification
+deactivate UI
+deactivate Customer
+
+@enduml

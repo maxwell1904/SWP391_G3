@@ -630,6 +630,9 @@ class BacklogEndToEndApiTest {
         JsonNode changedLogin = login(email, "E2EChanged@123");
         String changedToken = token(changedLogin);
 
+        assertThat(exchange(auth(post("/api/account/logout"), changedToken), 200).path("message").asText()).contains("Signed out");
+        exchange(auth(get("/api/bookings"), changedToken), 403);
+
         JsonNode customerLogin = login("customer@goalzone.local");
         String customerToken = token(customerLogin);
         exchange(get("/api/settings"), 403);

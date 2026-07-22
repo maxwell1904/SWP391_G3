@@ -1,0 +1,71 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor Staff
+participant "StaffPage" as UI
+participant "App.jsx" as App
+participant "BookingController" as Controller
+participant "BookingWorkflowService" as Service
+participant "DemoSupportService" as Support
+participant "InvoiceRepository" as Repo
+database "Database" as DB
+
+== Generate booking invoice ==
+
+Staff -> UI : 1. Complete booking or edit billable services
+activate Staff
+activate UI
+UI -> App : 2. updateBooking() / updateBookingServices()
+activate App
+App -> Controller : 3. PUT booking status/services
+activate Controller
+Controller -> Service : 4. updateBookingStatus() / updateBookingServices()
+activate Service
+Service -> Support : 5. generateInvoice(booking)
+activate Support
+Support -> Repo : 6. findByBooking_BookingId(bookingId)
+activate Repo
+Repo -> DB : 7. SELECT invoice WHERE booking_id=?
+activate DB
+alt Invoice exists
+  DB --> Repo : 8. Invoice row
+else First invoice generation
+  DB --> Repo : 8. Empty
+end
+deactivate DB
+Repo --> Support : 9. Optional<Invoice>
+deactivate Repo
+Support -> Support : 10. Copy totals, discounts, paid and remaining
+activate Support
+deactivate Support
+Support -> Repo : 11. save(invoice)
+activate Repo
+Repo -> DB : 12. INSERT or UPDATE invoice
+activate DB
+DB --> Repo : 13. saved invoice
+deactivate DB
+Repo --> Support : 14. Invoice
+deactivate Repo
+Support --> Service : 15. invoice synchronized
+deactivate Support
+Service --> Controller : 16. bookingDetail with invoice
+deactivate Service
+Controller --> App : 17. HTTP 200
+deactivate Controller
+App --> UI : 18. Render BillingDetails
+deactivate App
+UI --> Staff : 19. Show current invoice
+deactivate UI
+deactivate Staff
+
+@enduml

@@ -802,18 +802,25 @@ function App() {
     }), 'Password changed')
   }
 
-  function logout() {
-    setCurrentUser(null)
-    setMembership(null)
-    setNotifications([])
-    setSelectedCustomerId(null)
-    setNotice('Signed out')
-    setActionPanel({
-      kind: 'success',
-      title: 'Signed out',
-      message: 'You are back in guest browsing mode.'
-    })
-    navigatePage('home')
+  async function logout() {
+    try {
+      await api.post('/account/logout')
+    } catch {
+      // Always clear the local session when an expired token or a temporary
+      // connection error prevents server-side revocation.
+    } finally {
+      setCurrentUser(null)
+      setMembership(null)
+      setNotifications([])
+      setSelectedCustomerId(null)
+      setNotice('Signed out')
+      setActionPanel({
+        kind: 'success',
+        title: 'Signed out',
+        message: 'You are back in guest browsing mode.'
+      })
+      navigatePage('home')
+    }
   }
 
   async function createBooking(source = 'online', option = 'deposit') {

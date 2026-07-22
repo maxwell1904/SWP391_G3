@@ -1,0 +1,74 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Customer / Staff" as Actor
+participant "BookingPage" as UI
+participant "App.jsx" as App
+participant "BookingController" as Controller
+participant "BookingWorkflowService" as Service
+participant "SlotRepository" as Repo
+database "Database" as DB
+
+== View checkout summary ==
+
+Actor -> UI : 1. Select slot, services and promotion
+activate Actor
+activate UI
+
+UI -> App : 2. Checkout preview useEffect
+activate App
+
+App -> Controller : 3. POST /api/bookings/checkout-preview\n{slotId, services, promotionCode, customerId}
+activate Controller
+
+Controller -> Service : 4. previewCheckout(request)
+activate Service
+
+Service -> Repo : 5. findById(slotId)
+activate Repo
+
+Repo -> DB : 6. SELECT slot, field_price, services and settings
+activate DB
+
+alt Pricing inputs are available
+  DB --> Repo : 7. Matching rows
+else Slot or pricing input is missing
+  DB --> Repo : 7. Empty result
+end
+deactivate DB
+
+Repo --> Service : 8. Slot and price inputs
+deactivate Repo
+
+Service -> Service : 9. calculateServiceTotal()\ncalculatePromotionDiscount()\ncalculateMembershipDiscount()\ncalculateDeposit()
+activate Service
+deactivate Service
+
+alt Request is permitted
+  Service --> Controller : 10. checkout totals in USD
+else Access or data validation fails
+  Service --> Controller : 10. ApiException
+end
+deactivate Service
+
+Controller --> App : 11. HTTP response
+deactivate Controller
+
+App --> UI : 12. setCheckoutPreview(response.data)
+deactivate App
+
+UI --> Actor : 13. Show field, services, discounts, total and deposit
+deactivate UI
+deactivate Actor
+
+@enduml

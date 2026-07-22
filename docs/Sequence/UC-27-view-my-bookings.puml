@@ -1,0 +1,89 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Customer" as User
+participant "AccountPage" as UI
+participant "App.jsx" as App
+participant "BookingController" as Controller
+participant "BookingWorkflowService" as Service
+participant "BookingRepository" as Repo
+database "Database" as DB
+
+== UC-27: View My Bookings ==
+
+User -> UI : 1. Open My bookings
+activate User
+activate UI
+
+UI -> App : 2. refreshAll(currentUser)
+activate App
+
+App -> App : 3. Validate UI state and build request
+activate App
+deactivate App
+
+App -> Controller : 4. GET /api/bookings?customerId={userId}
+activate Controller
+
+Controller -> Service : 5. bookings(customerId, null)
+activate Service
+
+Service -> Service : 6. Non-operator forced to own userId
+activate Service
+deactivate Service
+
+alt Request is valid and authorized
+  Service -> Repo : 7. findByCustomer_UserIdOrderByBookingIdDesc
+  activate Repo
+
+  Repo -> DB : 8. SELECT booking WHERE customer_id=? ORDER BY id DESC
+  activate DB
+  DB --> Repo : 9. Customer bookings
+  deactivate DB
+
+  Repo --> Service : 10. Repository result
+  deactivate Repo
+
+  Service -> Service : 11. Map bookingSummary()
+  activate Service
+  deactivate Service
+else Validation, authorization, or state rule fails
+  note over Service,Controller
+    Different customerId -> HTTP 403
+    The service propagates ApiException to ApiExceptionHandler.
+  end note
+end
+
+Service --> Controller : 12. Domain result or propagated error
+deactivate Service
+
+Controller -> Controller : 13. Serialize response
+activate Controller
+deactivate Controller
+
+Controller --> App : 14. HTTP 200 or mapped 4xx\nresponse body or error payload
+deactivate Controller
+
+App -> App : 15. setBookings(response.data)
+activate App
+deactivate App
+
+App --> UI : 16. Render current and past booking list
+deactivate App
+
+UI --> User : 17. Updated screen or error feedback
+
+deactivate UI
+deactivate User
+
+@enduml

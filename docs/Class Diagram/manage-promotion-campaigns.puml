@@ -1,0 +1,89 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class PromotionReportController <<controller>> {
+    -promotionReportService : PromotionReportService
+
+    +promotions(includeInactive : boolean) : Object
+    +createPromotion(request : ApiRequests.PromotionUpsert) : Object
+    +updatePromotion(promotionId : Long, request : ApiRequests.PromotionUpsert) : Object
+}
+
+class PromotionReportService <<service>> {
+    -support : DemoSupportService
+
+    +promotions(includeInactive : boolean) : List<Map<String, Object>>
+    +createPromotion(request : ApiRequests.PromotionUpsert) : Map<String, Object>
+    +updatePromotion(promotionId : Long, request : ApiRequests.PromotionUpsert) : Map<String, Object>
+    -applyPromotionFields(promotion : Promotion, request : ApiRequests.PromotionUpsert, currentId : Long) : void
+    -requireAdmin() : void
+}
+
+class ImageUploadController <<controller>> {
+    -imageStorageService : ImageStorageService
+
+    +upload(file : MultipartFile) : Map<String, String>
+}
+
+class ImageStorageService <<service>> {
+    -imageDirectory : Path
+
+    +store(file : MultipartFile) : String
+}
+
+class "ApiRequests.PromotionUpsert" as PromotionUpsertDTO <<dto>> {
+    -promotionCode : String
+    -promotionName : String
+    -bannerUrl : String
+    -discountType : String
+    -discountValue : BigDecimal
+    -maxDiscountAmount : BigDecimal
+    -minBookingAmount : BigDecimal
+    -usageLimit : Integer
+    -startDate : LocalDate
+    -endDate : LocalDate
+    -status : String
+    -applicableFieldTypeId : Long
+    -applicableExtraServiceId : Long
+    -applicableMembershipLevelId : Long
+    -applicableDayType : String
+    -applicableStartTime : String
+    -applicableEndTime : String
+    -stackable : Boolean
+}
+
+interface PromotionRepository <<repository>> {
+    +findByStatus(status : CommonStatus) : List<Promotion>
+    +findByPromotionCodeIgnoreCase(code : String) : Optional<Promotion>
+    +save(entity : Promotion) : Promotion
+}
+
+class Promotion <<entity>> {
+    -promotionId : Long
+    -promotionCode : String
+    -promotionName : String
+    -bannerUrl : String
+    -discountType : DiscountType
+    -discountValue : BigDecimal
+    -maxDiscountAmount : BigDecimal
+    -minBookingAmount : BigDecimal
+    -usageLimit : Integer
+    -usedCount : int
+    -startDate : LocalDate
+    -endDate : LocalDate
+    -applicableFieldType : FieldType
+    -applicableMembershipLevel : MembershipLevel
+    -applicableExtraService : ExtraService
+    -status : CommonStatus
+}
+
+PromotionReportController ..> PromotionReportService
+PromotionReportController ..> PromotionUpsertDTO
+PromotionReportService ..> PromotionUpsertDTO
+PromotionReportService ..> PromotionRepository
+ImageUploadController ..> ImageStorageService
+PromotionRepository --> Promotion
+
+@enduml

@@ -1,0 +1,65 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class FieldOperationController <<controller>> {
+    -fieldOperationService : FieldOperationService
+
+    +managedFieldPrices(fieldId : Long) : Object
+    +createFieldPrice(fieldId : Long, request : ApiRequests.FieldPriceUpsert) : Object
+    +updateFieldPrice(fieldPriceId : Long, request : ApiRequests.FieldPriceUpsert) : Object
+}
+
+class FieldOperationService <<service>> {
+    -support : DemoSupportService
+
+    +managedFieldPrices(fieldId : Long) : List<Map<String, Object>>
+    +createFieldPrice(fieldId : Long, request : ApiRequests.FieldPriceUpsert) : Map<String, Object>
+    +updateFieldPrice(fieldPriceId : Long, request : ApiRequests.FieldPriceUpsert) : Map<String, Object>
+    -applyFieldPriceRequest(price : FieldPrice, request : ApiRequests.FieldPriceUpsert) : void
+    -fieldPriceSummary(price : FieldPrice) : Map<String, Object>
+}
+
+class "ApiRequests.FieldPriceUpsert" as FieldPriceUpsertDTO <<dto>> {
+    -dayType : String
+    -startTime : String
+    -endTime : String
+    -price : BigDecimal
+    -effectiveFrom : LocalDate
+    -effectiveTo : LocalDate
+    -status : String
+}
+
+interface FieldPriceRepository <<repository>> {
+    +findByField_FieldId(fieldId : Long) : List<FieldPrice>
+    +findById(id : Long) : Optional<FieldPrice>
+    +save(entity : FieldPrice) : FieldPrice
+}
+
+class FieldPrice <<entity>> {
+    -fieldPriceId : Long
+    -field : FootballField
+    -dayType : String
+    -startTime : LocalTime
+    -endTime : LocalTime
+    -price : BigDecimal
+    -effectiveFrom : LocalDate
+    -effectiveTo : LocalDate
+    -status : CommonStatus
+}
+
+class FootballField <<entity>> {
+    -fieldId : Long
+    -fieldName : String
+    -status : CommonStatus
+}
+
+FieldOperationController ..> FieldOperationService
+FieldOperationController ..> FieldPriceUpsertDTO
+FieldOperationService ..> FieldPriceUpsertDTO
+FieldOperationService ..> FieldPriceRepository
+FieldPriceRepository --> FieldPrice
+FieldPrice --> FootballField
+
+@enduml

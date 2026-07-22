@@ -1,0 +1,62 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class BookingMaintenanceScheduler <<service>> {
+    -support : DemoSupportService
+
+    +maintainBookings() : void
+    +sendUpcomingBookingReminders() : int
+}
+
+class DemoSupportService <<service>> {
+    -bookingRepository : BookingRepository
+    -notificationRepository : NotificationRepository
+    -systemSettingRepository : SystemSettingRepository
+
+    +settingDecimal(key : String, fallback : BigDecimal) : BigDecimal
+    +notifyUser(user : AppUser, booking : Booking, type : NotificationType, title : String, message : String) : void
+}
+
+interface BookingRepository <<repository>> {
+    +findByStatusIn(statuses : Collection<BookingStatus>) : List<Booking>
+}
+
+interface NotificationRepository <<repository>> {
+    +existsByBooking_BookingIdAndNotificationType(bookingId : Long, type : NotificationType) : boolean
+    +save(entity : Notification) : Notification
+}
+
+interface SystemSettingRepository <<repository>> {
+    +findBySettingKey(settingKey : String) : Optional<SystemSetting>
+}
+
+class Booking <<entity>> {
+    -bookingId : Long
+    -customer : AppUser
+    -slot : Slot
+    -bookingCode : String
+    -status : BookingStatus
+}
+
+class Notification <<entity>> {
+    -notificationId : Long
+    -user : AppUser
+    -booking : Booking
+    -notificationType : NotificationType
+    -title : String
+    -message : String
+    -read : boolean
+    -sentAt : LocalDateTime
+}
+
+BookingMaintenanceScheduler ..> DemoSupportService
+DemoSupportService ..> BookingRepository
+DemoSupportService ..> NotificationRepository
+DemoSupportService ..> SystemSettingRepository
+BookingRepository --> Booking
+NotificationRepository --> Notification
+Notification --> Booking
+
+@enduml

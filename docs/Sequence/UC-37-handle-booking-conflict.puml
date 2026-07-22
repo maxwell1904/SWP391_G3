@@ -1,0 +1,67 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor Staff
+participant "StaffPage" as UI
+participant "App.jsx" as App
+participant "BookingController" as Controller
+participant "BookingWorkflowService" as Service
+participant "DemoSupportService" as Support
+participant "BookingRepository" as Repo
+database "Database" as DB
+
+== Handle booking conflict ==
+
+Staff -> UI : 1. Choose replacement slot for affected booking
+activate Staff
+activate UI
+UI -> App : 2. rescheduleBooking(newSlotId)
+activate App
+App -> Controller : 3. PUT /api/bookings/{bookingId}/reschedule
+activate Controller
+Controller -> Service : 4. reschedule(bookingId, request)
+activate Service
+Service -> Support : 5. getSlot(newSlotId)
+activate Support
+Support --> Service : 6. replacement Slot
+deactivate Support
+Service -> Support : 7. validateSlotBookable(newSlot)
+activate Support
+Support -> Repo : 8. existsBySlotAndStatusIn(slot, activeStatuses)
+activate Repo
+Repo -> DB : 9. SELECT EXISTS active booking for slot
+activate DB
+DB --> Repo : 10. conflict flag
+deactivate DB
+Repo --> Support : 11. true / false
+deactivate Repo
+alt Replacement slot is occupied
+  Support --> Service : 12. ApiException(CONFLICT)
+else Replacement slot is free
+  Support --> Service : 12. Validation passed
+end
+deactivate Support
+Service -> Service : 13. Reprice booking and preserve payment history
+activate Service
+deactivate Service
+Service --> Controller : 14. bookingDetail or conflict error
+deactivate Service
+Controller --> App : 15. HTTP response
+deactivate Controller
+App --> UI : 16. Refresh bookings and slots
+deactivate App
+UI --> Staff : 17. Show resolution or choose another slot
+deactivate UI
+deactivate Staff
+
+@enduml

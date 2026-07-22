@@ -1,0 +1,84 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class FieldOperationController <<controller>> {
+    -fieldOperationService : FieldOperationService
+
+    +managedFields() : Object
+    +createField(request : ApiRequests.FieldUpsert) : Object
+    +updateField(fieldId : Long, request : ApiRequests.FieldUpsert) : Object
+}
+
+class FieldOperationService <<service>> {
+    -support : DemoSupportService
+
+    +managedFields() : List<Map<String, Object>>
+    +createField(request : ApiRequests.FieldUpsert) : Map<String, Object>
+    +updateField(fieldId : Long, request : ApiRequests.FieldUpsert) : Map<String, Object>
+    -applyFieldRequest(field : FootballField, request : ApiRequests.FieldUpsert) : void
+}
+
+class ImageUploadController <<controller>> {
+    -imageStorageService : ImageStorageService
+
+    +upload(file : MultipartFile) : Map<String, String>
+    +image(filename : String) : ResponseEntity<Resource>
+}
+
+class ImageStorageService <<service>> {
+    -imageDirectory : Path
+
+    +store(file : MultipartFile) : String
+    +load(filename : String) : Resource
+}
+
+class "ApiRequests.FieldUpsert" as FieldUpsertDTO <<dto>> {
+    -fieldTypeId : Long
+    -fieldName : String
+    -description : String
+    -imageUrl : String
+    -location : String
+    -surfaceType : String
+    -status : String
+}
+
+interface FootballFieldRepository <<repository>> {
+    +findAll() : List<FootballField>
+    +save(entity : FootballField) : FootballField
+}
+
+interface FieldTypeRepository <<repository>> {
+    +findById(id : Long) : Optional<FieldType>
+}
+
+class FootballField <<entity>> {
+    -fieldId : Long
+    -fieldType : FieldType
+    -fieldName : String
+    -description : String
+    -imageUrl : String
+    -location : String
+    -surfaceType : String
+    -status : CommonStatus
+}
+
+class FieldType <<entity>> {
+    -fieldTypeId : Long
+    -typeName : String
+    -playerCapacity : Integer
+    -status : CommonStatus
+}
+
+FieldOperationController ..> FieldOperationService
+FieldOperationController ..> FieldUpsertDTO
+FieldOperationService ..> FieldUpsertDTO
+FieldOperationService ..> FootballFieldRepository
+FieldOperationService ..> FieldTypeRepository
+ImageUploadController ..> ImageStorageService
+FootballFieldRepository --> FootballField
+FieldTypeRepository --> FieldType
+FootballField --> FieldType
+
+@enduml

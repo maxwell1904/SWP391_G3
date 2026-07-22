@@ -1,0 +1,55 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class AccountController <<controller>> {
+    -accountService : AccountService
+
+    +logout() : Object
+}
+
+class AccountService <<service>> {
+    -support : DemoSupportService
+
+    +logout() : Map<String, Object>
+    -currentUser() : AppUser
+    -revokeAllTokens(user : AppUser) : void
+}
+
+class JwtAuthenticationFilter <<security>> {
+    -jwtService : JwtService
+    -userDetailsService : UserDetailsService
+
+    +doFilterInternal(request : HttpServletRequest, response : HttpServletResponse, chain : FilterChain) : void
+}
+
+class JwtService <<security>> {
+    +isTokenValid(token : String, user : SecurityUser) : boolean
+}
+
+class CustomUserDetailsService <<security>> {
+    -userRepository : AppUserRepository
+
+    +loadUserByUsername(username : String) : UserDetails
+}
+
+interface AppUserRepository <<repository>> {
+    +findByEmail(email : String) : Optional<AppUser>
+}
+
+class AppUser <<entity>> {
+    -userId : Long
+    -email : String
+    -status : AccountStatus
+    -authVersion : long
+}
+
+AccountController ..> AccountService
+AccountService ..> AppUser
+JwtAuthenticationFilter ..> JwtService
+JwtAuthenticationFilter ..> CustomUserDetailsService
+CustomUserDetailsService ..> AppUserRepository
+AppUserRepository --> AppUser
+
+@enduml

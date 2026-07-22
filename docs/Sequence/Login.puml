@@ -17,6 +17,7 @@ participant "App.jsx" as App
 participant "AccountController" as Controller
 participant "AccountService" as Service
 participant "DemoSupportService" as Support
+participant "JwtService" as Jwt
 participant "AppUserRepository" as UserRepo
 database "Database" as DB
 
@@ -111,47 +112,38 @@ opt Account not active
   App --> UI : 25.3 Show error toast
 end
 
-Service -> Service : 26. Check bookingRestricted
+Service -> Service : 26. Set lastLoginAt
 activate Service
 deactivate Service
 
-opt Account restricted
-  Service --> Controller : 27.1 Throw FORBIDDEN\n"Account is restricted"
-  Controller --> App : 27.2 HTTP 403
-  App --> UI : 27.3 Show error toast
-end
+Service -> Jwt : 27. generateToken(new SecurityUser(user))
+activate Jwt
+Jwt --> Service : 28. signed JWT
+deactivate Jwt
 
-Service -> Service : 28. Set lastLoginAt
-activate Service
-deactivate Service
-
-Service -> Service : 29. Generate JWT token
-activate Service
-deactivate Service
-
-Service -> Support : 30. userSummary(user)
+Service -> Support : 29. userSummary(user)
 activate Support
-Support --> Service : 31. {userId, fullName, role, ...}
+Support --> Service : 30. {userId, fullName, role, ...}
 deactivate Support
 
-Service --> Controller : 32. {token, user}
+Service --> Controller : 31. {token, user}
 deactivate Service
 
-Controller --> App : 33. HTTP 200
+Controller --> App : 32. HTTP 200
 deactivate Controller
 
-App -> App : 34. saveStoredToken(token)\nsetCurrentUser(user)\nClear login form
+App -> App : 33. saveStoredToken(token)\nsetCurrentUser(user)\nClear login form
 activate App
 deactivate App
 
-App -> App : 35. navigatePage(page)\nby role
+App -> App : 34. navigatePage(page)\nby role
 activate App
 deactivate App
 
-App --> UI : 36. Render role-based page
+App --> UI : 35. Render role-based page
 deactivate App
 
-UI --> Guest : 37. Navigate base on role
+UI --> Guest : 36. Navigate based on role
 deactivate UI
 deactivate Guest
 

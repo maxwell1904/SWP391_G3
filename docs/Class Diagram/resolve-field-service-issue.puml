@@ -1,0 +1,75 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class FieldOperationController <<controller>> {
+    -fieldOperationService : FieldOperationService
+
+    +updateIssueStatus(issueId : Long, request : ApiRequests.IssueStatusUpdate) : Object
+}
+
+class FieldOperationService <<service>> {
+    -support : DemoSupportService
+
+    +updateIssueStatus(issueId : Long, request : ApiRequests.IssueStatusUpdate) : Map<String, Object>
+    -requireOperator() : void
+    -requireStaff(userId : Long) : AppUser
+}
+
+class DemoSupportService <<service>> {
+    -issueRepository : IssueRepository
+    -notificationRepository : NotificationRepository
+
+    +notifyUser(user : AppUser, booking : Booking, type : NotificationType, title : String, message : String) : void
+    +issueSummary(issue : Issue) : Map<String, Object>
+}
+
+class "ApiRequests.IssueStatusUpdate" as IssueStatusUpdateDTO <<dto>> {
+    -status : String
+    -resolutionNote : String
+    -assignedStaffId : Long
+}
+
+interface IssueRepository <<repository>> {
+    +findById(id : Long) : Optional<Issue>
+    +save(entity : Issue) : Issue
+}
+
+interface NotificationRepository <<repository>> {
+    +save(entity : Notification) : Notification
+}
+
+class Issue <<entity>> {
+    -issueId : Long
+    -reporter : AppUser
+    -booking : Booking
+    -field : FootballField
+    -extraService : ExtraService
+    -assignedStaff : AppUser
+    -status : IssueStatus
+    -resolutionNote : String
+    -resolvedAt : LocalDateTime
+}
+
+class Notification <<entity>> {
+    -notificationId : Long
+    -user : AppUser
+    -booking : Booking
+    -notificationType : NotificationType
+    -title : String
+    -message : String
+}
+
+FieldOperationController ..> FieldOperationService
+FieldOperationController ..> IssueStatusUpdateDTO
+FieldOperationService ..> IssueStatusUpdateDTO
+FieldOperationService ..> DemoSupportService
+DemoSupportService ..> IssueRepository
+DemoSupportService ..> NotificationRepository
+IssueRepository --> Issue
+NotificationRepository --> Notification
+Issue --> AppUser
+Notification --> AppUser
+
+@enduml

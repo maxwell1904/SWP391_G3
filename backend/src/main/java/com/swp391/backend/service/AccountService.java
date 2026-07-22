@@ -294,6 +294,12 @@ public class AccountService {
                 .toList();
     }
 
+    public Map<String, Object> logout() {
+        AppUser user = currentUser();
+        revokeAllTokens(user);
+        return Map.of("message", "Signed out. This token has been revoked.");
+    }
+
     public Map<String, Object> updateStatus(Long userId, ApiRequests.AccountStatusUpdate request) {
         requireAdmin();
         AppUser user = support.getUser(userId);

@@ -1,0 +1,66 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class PromotionReportController <<controller>> {
+    -promotionReportService : PromotionReportService
+
+    +settings(group : String) : Object
+    +updateSetting(key : String, request : ApiRequests.SettingUpdate) : Object
+}
+
+class PromotionReportService <<service>> {
+    -support : DemoSupportService
+
+    +settings(group : String) : List<Map<String, Object>>
+    +updateSetting(key : String, request : ApiRequests.SettingUpdate) : Map<String, Object>
+    -validatePolicySetting(key : String, value : String) : void
+    -requireAdmin() : void
+}
+
+class DemoSupportService <<service>> {
+    -systemSettingRepository : SystemSettingRepository
+
+    +calculateCancellationPreview(booking : Booking) : Map<String, Object>
+    +settingDecimal(key : String, fallback : BigDecimal) : BigDecimal
+    +settingSummary(setting : SystemSetting) : Map<String, Object>
+}
+
+class "ApiRequests.SettingUpdate" as SettingUpdateDTO <<dto>> {
+    -settingValue : String
+    -updatedById : Long
+}
+
+interface SystemSettingRepository <<repository>> {
+    +findBySettingKey(settingKey : String) : Optional<SystemSetting>
+    +findBySettingGroupOrderBySettingKeyAsc(settingGroup : String) : List<SystemSetting>
+    +save(entity : SystemSetting) : SystemSetting
+}
+
+class SystemSetting <<entity>> {
+    -settingId : Long
+    -settingKey : String
+    -settingValue : String
+    -settingGroup : String
+    -description : String
+    -status : CommonStatus
+    -updatedBy : AppUser
+}
+
+class Booking <<entity>> {
+    -bookingId : Long
+    -slot : Slot
+    -status : BookingStatus
+    -paidAmount : BigDecimal
+}
+
+PromotionReportController ..> PromotionReportService
+PromotionReportController ..> SettingUpdateDTO
+PromotionReportService ..> SettingUpdateDTO
+PromotionReportService ..> DemoSupportService
+DemoSupportService ..> SystemSettingRepository
+DemoSupportService ..> Booking
+SystemSettingRepository --> SystemSetting
+
+@enduml

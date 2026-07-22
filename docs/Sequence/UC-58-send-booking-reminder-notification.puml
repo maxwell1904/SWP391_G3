@@ -1,0 +1,69 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor Scheduler
+participant "BookingMaintenanceScheduler" as Maintenance
+participant "DemoSupportService" as Support
+participant "BookingRepository" as BookingRepo
+participant "NotificationRepository" as NotificationRepo
+database "Database" as DB
+
+== Send booking reminder notification ==
+
+Scheduler -> Maintenance : 1. maintainBookings()
+activate Scheduler
+activate Maintenance
+Maintenance -> Maintenance : 2. sendUpcomingBookingReminders()
+activate Maintenance
+Maintenance -> Support : 3. settingDecimal(notification.booking_reminder_hours)
+activate Support
+Support --> Maintenance : 4. reminder window hours
+deactivate Support
+Maintenance -> BookingRepo : 5. findByStatusIn([pending, confirmed])
+activate BookingRepo
+BookingRepo -> DB : 6. SELECT reminder candidates
+activate DB
+DB --> BookingRepo : 7. bookings
+deactivate DB
+BookingRepo --> Maintenance : 8. List<Booking>
+deactivate BookingRepo
+loop Each candidate
+  Maintenance -> NotificationRepo : 9. existsByBooking...AndNotificationType(reminder)
+  activate NotificationRepo
+  NotificationRepo --> Maintenance : 10. duplicate flag
+  deactivate NotificationRepo
+  alt Starts in window and no reminder exists
+    Maintenance -> Support : 11. notifyUser(..., booking_reminder, ...)
+    activate Support
+    Support -> NotificationRepo : 12. save(notification)
+    activate NotificationRepo
+    NotificationRepo -> DB : 13. INSERT notification
+    activate DB
+    DB --> NotificationRepo : 14. saved row
+    deactivate DB
+    NotificationRepo --> Support : 15. Notification
+    deactivate NotificationRepo
+    Support --> Maintenance : 16. reminder persisted
+    deactivate Support
+  else Outside window or already reminded
+    Maintenance -> Maintenance : 11. Skip candidate
+    activate Maintenance
+    deactivate Maintenance
+  end
+end
+deactivate Maintenance
+Maintenance --> Scheduler : 17. sent count
+deactivate Maintenance
+deactivate Scheduler
+
+@enduml
