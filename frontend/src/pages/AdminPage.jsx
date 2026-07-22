@@ -873,34 +873,38 @@ export function AdminPage({
           </div>
           <div className="customerAdminList">
             {customers.map(customer => (
-              <div className="customerAdminRow" key={customer.userId}>
-                <span>
-                  <strong>{customer.fullName}</strong>
-                  <small>{customer.email}</small>
-                  <small>{customer.phone || 'no phone'}</small>
-                  {customer.bookingRestricted && <small>{customer.restrictionReason || 'Booking restricted'}</small>}
-                </span>
-                <Group gap={6}>
-                  {customer.bookingRestricted && <Badge color="yellow" variant="light">Booking restricted</Badge>}
-                  <Badge color={statusColor(customer.status)} variant="light">{customer.status === 'locked' ? 'Sign-in locked' : customer.status}</Badge>
-                </Group>
-                <Button
-                  variant={customer.bookingRestricted ? 'filled' : 'light'}
-                  color={customer.bookingRestricted ? 'green' : 'red'}
-                  onClick={() => customer.bookingRestricted
-                    ? updateCustomerRestriction(customer, false)
-                    : openRestrictionModal(customer)}
-                >
-                  {customer.bookingRestricted ? 'Restore' : 'Restrict'}
-                </Button>
-                <Button size="xs" variant="subtle" onClick={() => setCustomerEditor({ opened: true, customer: { ...customer } })}>Edit</Button>
-                <Button size="xs" variant="subtle" onClick={() => viewCustomerActivity(customer)}>Activity</Button>
-                <Button
-                  size="xs"
-                  variant="light"
-                  color={customer.status === 'active' ? 'red' : 'green'}
-                  onClick={() => updateCustomerStatus(customer)}
-                >{customer.status === 'active' ? 'Lock sign-in' : 'Unlock sign-in'}</Button>
+              <div className="customerAccountRow" key={customer.userId}>
+                <div className="customerAccountTop">
+                  <span>
+                    <strong>{customer.fullName}</strong>
+                    <small>{customer.email}</small>
+                    <small>{customer.phone || 'no phone'}</small>
+                    {customer.bookingRestricted && <small>{customer.restrictionReason || 'Booking restricted'}</small>}
+                  </span>
+                  <Group gap={6}>
+                    {customer.bookingRestricted && <Badge color="yellow" variant="light">Booking restricted</Badge>}
+                    <Badge color={statusColor(customer.status)} variant="light">{customer.status === 'locked' ? 'Sign-in locked' : customer.status}</Badge>
+                  </Group>
+                </div>
+                <div className="customerAccountActions">
+                  <Button
+                    variant={customer.bookingRestricted ? 'filled' : 'light'}
+                    color={customer.bookingRestricted ? 'green' : 'red'}
+                    onClick={() => customer.bookingRestricted
+                      ? updateCustomerRestriction(customer, false)
+                      : openRestrictionModal(customer)}
+                  >
+                    {customer.bookingRestricted ? 'Restore' : 'Restrict'}
+                  </Button>
+                  <Button size="xs" variant="subtle" onClick={() => setCustomerEditor({ opened: true, customer: { ...customer } })}>Edit</Button>
+                  <Button size="xs" variant="subtle" onClick={() => viewCustomerActivity(customer)}>Activity</Button>
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color={customer.status === 'active' ? 'red' : 'green'}
+                    onClick={() => updateCustomerStatus(customer)}
+                  >{customer.status === 'active' ? 'Lock' : 'Unlock'}<br />sign-in</Button>
+                </div>
               </div>
             ))}
           </div>
