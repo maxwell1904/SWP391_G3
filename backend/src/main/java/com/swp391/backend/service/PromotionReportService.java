@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -36,7 +37,14 @@ public class PromotionReportService {
         List<Promotion> promotions = includeInactive
                 ? support.promotionRepository.findAll()
                 : support.promotionRepository.findByStatus(CommonStatus.active);
-        return promotions.stream().map(support::promotionSummary).toList();
+        LocalDate today = LocalDate.now();
+        return promotions.stream()
+                .filter(promotion -> includeInactive
+                        || (!today.isBefore(promotion.getStartDate())
+                        && !today.isAfter(promotion.getEndDate())
+                        && (promotion.getUsageLimit() == null || promotion.getUsedCount() < promotion.getUsageLimit())))
+                .map(support::promotionSummary)
+                .toList();
     }
 
     // Backlog owner: AnPTT - UC-52 Manage promotion campaigns.
@@ -65,25 +73,36 @@ public class PromotionReportService {
         AppUser customer = support.getUser(customerId);
         CustomerMembership membership = support.customerMembershipRepository.findByCustomer_UserId(customerId)
                 .orElseThrow(() -> support.notFound("Membership not found"));
-        List<MembershipLevel> levels = support.membershipLevelRepository.findAllByOrderByDisplayOrderAsc();
+        List<MembershipLevel> levels = support.membershipLevelRepository.findAllByOrderByDisplayOrderAsc().stream()
+                .filter(level -> level.getStatus() == CommonStatus.active)
+                .toList();
+        MembershipLevel current = support.resolveEligibleMembershipLevel(customer, LocalDate.now());
         MembershipLevel next = levels.stream()
-                .filter(level -> level.getRequiredCompletedBookings() > membership.getCompletedBookingCount())
+                .filter(level -> level.getDisplayOrder() > current.getDisplayOrder())
                 .findFirst()
                 .orElse(null);
+        int progress = next == null ? 0 : support.membershipQualificationProgress(customer, next, LocalDate.now());
+        boolean weekly = next != null && "weekly".equalsIgnoreCase(next.getQualificationPeriod());
+        int target = next == null ? 0 : (weekly ? next.getRequiredConsecutivePeriods() : next.getRequiredCompletedBookings());
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("customer", support.userSummary(customer));
-        response.put("currentLevel", membership.getMembershipLevel().getLevelName());
+        response.put("currentLevel", current.getLevelName());
+        response.put("membershipLevel", support.membershipLevelSummary(current));
         response.put("completedBookingCount", membership.getCompletedBookingCount());
-        response.put("discountPercent", membership.getMembershipLevel().getDiscountPercent());
+        response.put("discountPercent", current.getDiscountPercent());
         response.put("nextLevel", next == null ? null : next.getLevelName());
-        response.put("bookingsToNextLevel", next == null ? 0 : next.getRequiredCompletedBookings() - membership.getCompletedBookingCount());
+        response.put("bookingsToNextLevel", next == null ? 0 : Math.max(0, target - progress));
+        response.put("nextLevelProgress", progress);
+        response.put("nextLevelTarget", target);
+        response.put("nextLevelQualificationPeriod", next == null ? null : next.getQualificationPeriod());
         response.put("levels", levels.stream().map(support::membershipLevelSummary).toList());
         return response;
     }
 
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> membershipLevels() {
+    public List<Map<String, Object>> membershipLevels(boolean includeInactive) {
         return support.membershipLevelRepository.findAllByOrderByDisplayOrderAsc().stream()
+                .filter(level -> includeInactive || level.getStatus() == CommonStatus.active)
                 .map(support::membershipLevelSummary)
                 .toList();
     }
@@ -117,13 +136,31 @@ public class PromotionReportService {
         level.setBenefitDescription(support.clean(request.benefitDescription()));
         level.setDisplayOrder(request.displayOrder() != null ? request.displayOrder() : 0);
         level.setStatus(support.parseEnum(CommonStatus.class, request.status(), CommonStatus.active));
+        String period = support.clean(request.qualificationPeriod());
+        period = period == null ? "lifetime" : period.toLowerCase();
+        if (!List.of("lifetime", "monthly", "weekly").contains(period)) {
+            throw support.badRequest("Qualification period must be lifetime, monthly, or weekly");
+        }
+        int consecutive = request.requiredConsecutivePeriods() == null ? 1 : request.requiredConsecutivePeriods();
+        if (consecutive < 1) throw support.badRequest("Consecutive periods must be at least one");
+        level.setQualificationPeriod(period);
+        level.setRequiredConsecutivePeriods(consecutive);
     }
 
     @Transactional(readOnly = true)
-    public Map<String, Object> reports() {
-        List<Booking> bookings = support.bookingRepository.findAll();
-        List<Payment> payments = support.paymentRepository.findAll();
-        List<Refund> refunds = support.refundRepository.findAll();
+    public Map<String, Object> reports(LocalDate from, LocalDate to) {
+        if (from != null && to != null && to.isBefore(from)) throw support.badRequest("Report end date cannot be before start date");
+        List<Booking> bookings = support.bookingRepository.findAll().stream()
+                .filter(booking -> from == null || !booking.getSlot().getSlotDate().isBefore(from))
+                .filter(booking -> to == null || !booking.getSlot().getSlotDate().isAfter(to))
+                .toList();
+        java.util.Set<Long> bookingIds = bookings.stream().map(Booking::getBookingId).collect(java.util.stream.Collectors.toSet());
+        List<Payment> payments = support.paymentRepository.findAll().stream()
+                .filter(payment -> bookingIds.contains(payment.getBooking().getBookingId()))
+                .toList();
+        List<Refund> refunds = support.refundRepository.findAll().stream()
+                .filter(refund -> bookingIds.contains(refund.getBooking().getBookingId()))
+                .toList();
         BigDecimal grossRevenue = payments.stream()
                 .filter(payment -> payment.getStatus() == PaymentStatus.paid)
                 .map(Payment::getAmount)
@@ -192,6 +229,9 @@ public class PromotionReportService {
         response.put("topCustomers", topCustomers);
         response.put("returningCustomerCount", returningCustomers);
         response.put("membershipDistribution", membershipDistribution);
+        response.put("from", from == null ? null : from.toString());
+        response.put("to", to == null ? null : to.toString());
+        response.put("dateBasis", "slotDate");
         return response;
     }
 

@@ -57,6 +57,7 @@ export function AdminPage({
   updateCustomerRestriction,
   refreshAll,
   navigatePage,
+  loadReports,
   showToast
 }) {
   const restrictedCustomers = customers.filter(customer => customer.bookingRestricted).length
@@ -81,6 +82,7 @@ export function AdminPage({
   const [customerActivity, setCustomerActivity] = useState(null)
   const [policyValues, setPolicyValues] = useState({})
   const [activePanel, setActivePanel] = useState('overview')
+  const [reportRange, setReportRange] = useState({ from: '', to: '' })
 
   const panelClass = panel => activePanel === panel ? '' : 'workspacePanelHidden'
 
@@ -478,6 +480,15 @@ export function AdminPage({
         <Button variant="light" onClick={() => navigatePage('promotions')}>Manage promotions</Button>
         <Button variant="light" onClick={() => navigatePage('membership-rules')}>Manage membership tiers</Button>
       </Group>
+
+      <InfoPanel title="Report date range" className={`adminWidePanel ${panelClass('overview')}`}>
+        <div className="buttonRow">
+          <FieldControl label="From"><input type="date" value={reportRange.from} onChange={e => setReportRange(range => ({ ...range, from: e.target.value }))} /></FieldControl>
+          <FieldControl label="To"><input type="date" value={reportRange.to} onChange={e => setReportRange(range => ({ ...range, to: e.target.value }))} /></FieldControl>
+          <Button onClick={() => loadReports?.(reportRange.from, reportRange.to)}>Apply range</Button>
+          <Button variant="light" onClick={() => { setReportRange({ from: '', to: '' }); loadReports?.('', '') }}>All time</Button>
+        </div>
+      </InfoPanel>
 
       <WorkspaceTabs
         value={activePanel}

@@ -1,4 +1,5 @@
 export { AccountPage } from './AccountPage'
+export { AvailabilityAssistantPage } from './AvailabilityAssistantPage'
 export { AdminPage } from './AdminPage'
 export { AuthPage } from './AuthPage'
 export { BookingPage } from './BookingPage'

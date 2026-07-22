@@ -22,7 +22,9 @@ export function MembershipRulesPage({ membershipLevels, currentUser, createMembe
       discountPercent: level.discountPercent || 0,
       benefitDescription: level.benefitDescription || '',
       displayOrder: level.displayOrder || 0,
-      status: level.status || 'active'
+      status: level.status || 'active',
+      qualificationPeriod: level.qualificationPeriod || 'lifetime',
+      requiredConsecutivePeriods: level.requiredConsecutivePeriods || 1
     })
     setIsEditing(true)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -43,7 +45,8 @@ export function MembershipRulesPage({ membershipLevels, currentUser, createMembe
       ...editForm,
       requiredCompletedBookings: Number(editForm.requiredCompletedBookings),
       discountPercent: Number(editForm.discountPercent),
-      displayOrder: Number(editForm.displayOrder)
+      displayOrder: Number(editForm.displayOrder),
+      requiredConsecutivePeriods: Number(editForm.requiredConsecutivePeriods)
     }
     if (editForm.membershipLevelId) {
       await updateMembershipLevel(editForm.membershipLevelId, payload)
@@ -79,6 +82,18 @@ export function MembershipRulesPage({ membershipLevels, currentUser, createMembe
               <FieldControl label="Display Order">
                 <input type="number" value={editForm.displayOrder} onChange={e => updateField('displayOrder', e.target.value)} />
               </FieldControl>
+              <FieldControl label="Qualification Period">
+                <select value={editForm.qualificationPeriod} onChange={e => updateField('qualificationPeriod', e.target.value)}>
+                  <option value="lifetime">Lifetime completed bookings</option>
+                  <option value="monthly">Completed bookings this month</option>
+                  <option value="weekly">Weekly consecutive streak</option>
+                </select>
+              </FieldControl>
+              {editForm.qualificationPeriod === 'weekly' && (
+                <FieldControl label="Consecutive Weeks Required">
+                  <input type="number" value={editForm.requiredConsecutivePeriods} onChange={e => updateField('requiredConsecutivePeriods', e.target.value)} min="1" />
+                </FieldControl>
+              )}
               <FieldControl label="Status">
                 <select value={editForm.status} onChange={e => updateField('status', e.target.value)}>
                   <option value="active">Active</option>
@@ -115,6 +130,7 @@ export function MembershipRulesPage({ membershipLevels, currentUser, createMembe
               </div>
               <dl className="tierAdminMetrics">
                 <div><dt>Threshold</dt><dd>{level.requiredCompletedBookings} bookings</dd></div>
+                <div><dt>Rule</dt><dd>{level.qualificationPeriod === 'weekly' ? `${level.requiredConsecutivePeriods} weeks in a row` : level.qualificationPeriod || 'lifetime'}</dd></div>
                 <div><dt>Discount</dt><dd>{level.discountPercent}% off</dd></div>
               </dl>
               <button type="button" className="ghostDarkButton" onClick={() => handleEdit(level)}>Edit tier</button>
@@ -136,6 +152,8 @@ function emptyForm() {
     discountPercent: 0,
     benefitDescription: '',
     displayOrder: 0,
-    status: 'active'
+    status: 'active',
+    qualificationPeriod: 'lifetime',
+    requiredConsecutivePeriods: 1
   }
 }

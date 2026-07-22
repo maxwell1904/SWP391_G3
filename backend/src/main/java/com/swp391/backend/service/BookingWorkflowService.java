@@ -280,10 +280,12 @@ public class BookingWorkflowService {
             Promotion promotion = applied.getPromotion();
             String slotDayType = newSlotDayType(slot);
             boolean membershipEligible = promotion.getApplicableMembershipLevel() == null
-                    || support.customerMembershipRepository.findByCustomer_UserId(booking.getCustomer().getUserId())
-                    .map(membership -> Objects.equals(membership.getMembershipLevel().getMembershipLevelId(), promotion.getApplicableMembershipLevel().getMembershipLevelId()))
-                    .orElse(false);
-            boolean remainsApplicable = (promotion.getMinBookingAmount() == null || baseAmount.compareTo(promotion.getMinBookingAmount()) >= 0)
+                    || Objects.equals(support.resolveEligibleMembershipLevel(booking.getCustomer(), slot.getSlotDate()).getMembershipLevelId(),
+                    promotion.getApplicableMembershipLevel().getMembershipLevelId());
+            boolean remainsApplicable = promotion.getStatus() == CommonStatus.active
+                    && !slot.getSlotDate().isBefore(promotion.getStartDate())
+                    && !slot.getSlotDate().isAfter(promotion.getEndDate())
+                    && (promotion.getMinBookingAmount() == null || baseAmount.compareTo(promotion.getMinBookingAmount()) >= 0)
                     && (promotion.getApplicableFieldType() == null
                     || Objects.equals(promotion.getApplicableFieldType().getFieldTypeId(), slot.getField().getFieldType().getFieldTypeId()))
                     && (promotion.getApplicableExtraService() == null

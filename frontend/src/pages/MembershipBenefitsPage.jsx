@@ -3,15 +3,11 @@ import { SectionIntro } from '../components/common'
 export function MembershipBenefitsPage({ membershipLevels, membership }) {
   const currentLevelId = membership?.membershipLevel?.membershipLevelId
   const bookingsCompleted = membership?.completedBookingCount || 0
-  const sortedLevels = [...membershipLevels].sort((a, b) => a.displayOrder - b.displayOrder)
-  let nextLevel = null
-  for (const level of sortedLevels) {
-    if (level.requiredCompletedBookings > bookingsCompleted) {
-      nextLevel = level
-      break
-    }
-  }
-  const progress = nextLevel ? Math.min(100, (bookingsCompleted / nextLevel.requiredCompletedBookings) * 100) : 100
+  const sortedLevels = membershipLevels.filter(level => level.status !== 'inactive').sort((a, b) => a.displayOrder - b.displayOrder)
+  const nextLevel = sortedLevels.find(level => level.levelName === membership?.nextLevel)
+  const progress = membership?.nextLevelTarget ? Math.min(100, ((membership?.nextLevelProgress || 0) / membership.nextLevelTarget) * 100) : 100
+  const progressLabel = membership?.nextLevelQualificationPeriod === 'weekly'
+    ? 'qualifying weeks' : membership?.nextLevelQualificationPeriod === 'monthly' ? 'bookings this month' : 'bookings'
 
   return (
     <section className="section limitWidth">
@@ -24,7 +20,7 @@ export function MembershipBenefitsPage({ membershipLevels, membership }) {
           <span className="membershipCountLabel">completed booking{bookingsCompleted === 1 ? '' : 's'}</span>
           {nextLevel ? (
             <div className="membershipProgressDetail">
-              <div><span>Next: {nextLevel.levelName}</span><span>{Math.max(0, nextLevel.requiredCompletedBookings - bookingsCompleted)} to go</span></div>
+              <div><span>Next: {nextLevel.levelName}</span><span>{membership.bookingsToNextLevel} {progressLabel} to go</span></div>
               <div className="membershipProgressTrack"><span style={{ width: `${progress}%` }} /></div>
             </div>
           ) : <p className="membershipComplete">Highest tier reached</p>}
@@ -42,7 +38,11 @@ export function MembershipBenefitsPage({ membershipLevels, membership }) {
                   <div className="tierTimelineContent">
                     <div className="tierTimelineTopline"><h4>{level.levelName}</h4>{isCurrent && <span>Current tier</span>}</div>
                     <strong>{level.discountPercent}% off</strong>
-                    <p>{level.requiredCompletedBookings === 0 ? 'Starting tier' : `${level.requiredCompletedBookings} completed bookings required`}</p>
+                    <p>{level.requiredCompletedBookings === 0 ? 'Starting tier' : level.qualificationPeriod === 'monthly'
+                      ? `${level.requiredCompletedBookings} completed bookings this month`
+                      : level.qualificationPeriod === 'weekly'
+                        ? `${level.requiredCompletedBookings} bookings/week for ${level.requiredConsecutivePeriods} consecutive weeks`
+                        : `${level.requiredCompletedBookings} completed bookings required`}</p>
                     <ul>{splitBenefits(level.benefitDescription).map(benefit => <li key={benefit}>{benefit}</li>)}</ul>
                   </div>
                 </li>

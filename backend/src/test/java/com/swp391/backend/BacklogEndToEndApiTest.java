@@ -397,6 +397,18 @@ class BacklogEndToEndApiTest {
     }
 
     @Test
+    void availabilityAssistantReturnsRankedAvailableSlots() throws Exception {
+        JsonNode suggestions = exchange(get("/api/slots/suggestions")
+                .param("date", LocalDate.now().plusDays(1).toString())
+                .param("preferredTime", "08:00"), 200);
+        assertThat(suggestions.isArray()).isTrue();
+        assertThat(suggestions).isNotEmpty();
+        assertThat(suggestions.get(0).path("slotId").asLong()).isPositive();
+        assertThat(suggestions.get(0).path("reasons")).isNotEmpty();
+        assertThat(suggestions.get(0).path("score").asInt()).isPositive();
+    }
+
+    @Test
     void administratorCanManageFieldsPricesServicesPeoplePoliciesMembershipPromotionsAndReports() throws Exception {
         JsonNode adminLogin = login("admin@goalzone.local");
         String adminToken = token(adminLogin);

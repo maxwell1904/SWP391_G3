@@ -13,6 +13,7 @@ import java.time.Duration;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 
 @Service
@@ -137,8 +138,8 @@ public class DemoSupportService {
         }
         Promotion promotion = promotionRepository.findByPromotionCodeIgnoreCase(promotionCode)
                 .orElseThrow(() -> badRequest("Promotion not found"));
-        LocalDate today = LocalDate.now();
-        if (promotion.getStatus() != CommonStatus.active || today.isBefore(promotion.getStartDate()) || today.isAfter(promotion.getEndDate())) {
+        LocalDate bookingDate = slot.getSlotDate();
+        if (promotion.getStatus() != CommonStatus.active || bookingDate.isBefore(promotion.getStartDate()) || bookingDate.isAfter(promotion.getEndDate())) {
             throw badRequest("Promotion is not active");
         }
         if (promotion.getUsageLimit() != null && promotion.getUsedCount() >= promotion.getUsageLimit()) {
@@ -157,9 +158,9 @@ public class DemoSupportService {
             }
         }
         if (promotion.getApplicableMembershipLevel() != null) {
-            boolean eligible = customer != null && customerMembershipRepository.findByCustomer_UserId(customer.getUserId())
-                    .map(membership -> Objects.equals(membership.getMembershipLevel().getMembershipLevelId(), promotion.getApplicableMembershipLevel().getMembershipLevelId()))
-                    .orElse(false);
+            boolean eligible = customer != null && Objects.equals(
+                    resolveEligibleMembershipLevel(customer, slot.getSlotDate()).getMembershipLevelId(),
+                    promotion.getApplicableMembershipLevel().getMembershipLevelId());
             if (!eligible) throw badRequest("Promotion is not valid for this membership level");
         }
         String slotDayType = slot.getSlotDate().getDayOfWeek() == DayOfWeek.SATURDAY || slot.getSlotDate().getDayOfWeek() == DayOfWeek.SUNDAY
@@ -187,9 +188,8 @@ public class DemoSupportService {
         if (customer == null || source != BookingSource.online) {
             return BigDecimal.ZERO;
         }
-        return customerMembershipRepository.findByCustomer_UserId(customer.getUserId())
-                .map(membership -> money(baseAmount.multiply(membership.getMembershipLevel().getDiscountPercent()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)))
-                .orElse(BigDecimal.ZERO);
+        MembershipLevel level = resolveEligibleMembershipLevel(customer, LocalDate.now());
+        return money(baseAmount.multiply(level.getDiscountPercent()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP));
     }
 
     BigDecimal calculateDeposit(BigDecimal total) {
@@ -316,15 +316,13 @@ public class DemoSupportService {
                 .filter(booking -> booking.getStatus() == BookingStatus.completed)
                 .count();
         membership.setCompletedBookingCount((int) completedCount);
-        membershipLevelRepository.findAllByOrderByDisplayOrderAsc().stream()
-                .filter(level -> completedCount >= level.getRequiredCompletedBookings())
-                .reduce((first, second) -> second)
-                .ifPresent(membership::setMembershipLevel);
+        membership.setMembershipLevel(resolveEligibleMembershipLevel(customer, LocalDate.now()));
         membership.setProgressNote("Updated after completed booking");
     }
 
     CustomerMembership attachDefaultMembership(AppUser customer) {
         MembershipLevel defaultLevel = membershipLevelRepository.findAllByOrderByDisplayOrderAsc().stream()
+                .filter(level -> level.getStatus() == CommonStatus.active)
                 .findFirst()
                 .orElseThrow(() -> serverError("Membership levels have not been seeded"));
         CustomerMembership membership = new CustomerMembership();
@@ -333,6 +331,53 @@ public class DemoSupportService {
         membership.setEffectiveFrom(LocalDate.now());
         membership.setProgressNote("Default membership");
         return customerMembershipRepository.save(membership);
+    }
+
+    boolean meetsMembershipRequirement(AppUser customer, MembershipLevel level, LocalDate referenceDate) {
+        String period = nvl(level.getQualificationPeriod(), "lifetime").toLowerCase(Locale.ROOT);
+        if ("weekly".equals(period)) {
+            return membershipQualificationProgress(customer, level, referenceDate) >= level.getRequiredConsecutivePeriods();
+        }
+        return membershipQualificationProgress(customer, level, referenceDate) >= level.getRequiredCompletedBookings();
+    }
+
+    MembershipLevel resolveEligibleMembershipLevel(AppUser customer, LocalDate referenceDate) {
+        return membershipLevelRepository.findAllByOrderByDisplayOrderAsc().stream()
+                .filter(level -> level.getStatus() == CommonStatus.active)
+                .filter(level -> meetsMembershipRequirement(customer, level, referenceDate))
+                .reduce((first, second) -> second)
+                .orElseGet(() -> attachDefaultMembership(customer).getMembershipLevel());
+    }
+
+    int membershipQualificationProgress(AppUser customer, MembershipLevel level, LocalDate referenceDate) {
+        String period = nvl(level.getQualificationPeriod(), "lifetime").toLowerCase(Locale.ROOT);
+        if ("monthly".equals(period)) {
+            return completedBookingsInRange(customer, referenceDate.withDayOfMonth(1),
+                    referenceDate.plusMonths(1).withDayOfMonth(1).minusDays(1));
+        }
+        if ("weekly".equals(period)) {
+            return qualifyingWeekStreak(customer, level.getRequiredCompletedBookings(), referenceDate);
+        }
+        return completedBookingsInRange(customer, null, null);
+    }
+
+    int completedBookingsInRange(AppUser customer, LocalDate from, LocalDate to) {
+        return (int) bookingRepository.findByCustomer_UserIdOrderByBookingIdDesc(customer.getUserId()).stream()
+                .filter(booking -> booking.getStatus() == BookingStatus.completed)
+                .filter(booking -> from == null || !booking.getSlot().getSlotDate().isBefore(from))
+                .filter(booking -> to == null || !booking.getSlot().getSlotDate().isAfter(to))
+                .count();
+    }
+
+    int qualifyingWeekStreak(AppUser customer, int minimumBookings, LocalDate referenceDate) {
+        LocalDate weekStart = referenceDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        int streak = 0;
+        for (int offset = 0; offset < 104; offset++) {
+            LocalDate start = weekStart.minusWeeks(offset);
+            if (completedBookingsInRange(customer, start, start.plusDays(6)) < minimumBookings) break;
+            streak++;
+        }
+        return streak;
     }
 
     void notifyUser(AppUser user, Booking booking, NotificationType type, String title, String message) {
@@ -567,8 +612,12 @@ public class DemoSupportService {
         map.put("membershipLevelId", level.getMembershipLevelId());
         map.put("levelName", level.getLevelName());
         map.put("requiredCompletedBookings", level.getRequiredCompletedBookings());
+        map.put("qualificationPeriod", level.getQualificationPeriod());
+        map.put("requiredConsecutivePeriods", level.getRequiredConsecutivePeriods());
         map.put("discountPercent", level.getDiscountPercent());
         map.put("benefitDescription", level.getBenefitDescription());
+        map.put("displayOrder", level.getDisplayOrder());
+        map.put("status", level.getStatus().name());
         return map;
     }
 
