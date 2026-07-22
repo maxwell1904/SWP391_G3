@@ -24,11 +24,6 @@ public class AccountController {
         return accountService.login(request);
     }
 
-    @PostMapping("/logout")
-    public Object logout() {
-        return accountService.logout();
-    }
-
     @PostMapping("/email/verify")
     public Object verifyEmail(@RequestBody ApiRequests.EmailVerification request) {
         return accountService.verifyEmail(request);
