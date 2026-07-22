@@ -1,7 +1,6 @@
 # Implemented Use Cases
 
-> Archived snapshot. Use `BACKLOG_CODE_FIRST_DELIVERY.md` and
-> `END_TO_END_QA_MATRIX.md` for the current code-first scope.
+> Archived snapshot. Do not use the Partial/Not implemented statuses below for RDS/SDS. Use `BACKLOG_CODE_FIRST_DELIVERY.md`, `END_TO_END_QA_MATRIX.md`, and `RDS_SDS_ALIGNMENT_AUDIT.md` for the integrated code-first scope.
 
 Last updated: 2026-06-11
 
@@ -101,8 +100,8 @@ Status meanings:
 | UC-60 | View revenue report | Done for demo | Admin sees paid revenue and booking counts. |
 | UC-61 | View booking report | Partial | Admin sees status counts and field utilization. More detailed trends/peak slots are missing. |
 | UC-62 | View customer activity report | Partial | Admin report includes top customers by booking count, but no dedicated customer activity report page. |
-| UC-63 | Ask smart assistant for available fields | Not implemented | Optional backlog item; intentionally not modelled yet. |
-| UC-64 | Get suggested available slots | Not implemented | Optional backlog item; intentionally not modelled yet. |
+| UC-63 | Ask smart assistant for available fields | Implemented | Rule-based `/assistant` smart form ranks live availability from date, preferred time, field type, budget, membership, and promotions. |
+| UC-64 | Get suggested available slots | Implemented | Ranked slots provide reasons and continue into the real booking flow with the selected slot revalidated. |
 
 ## Extensions Not Counted As Excel UCs
 

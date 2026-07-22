@@ -1,7 +1,6 @@
 # Backlog, RDS, and Code Gap Analysis
 
-> Archived analysis snapshot. Use `BACKLOG_CODE_FIRST_DELIVERY.md` and
-> `END_TO_END_QA_MATRIX.md` for the current verified state.
+> Archived pre-completion analysis. Its missing-feature statements are not current. Use `BACKLOG_CODE_FIRST_DELIVERY.md`, `END_TO_END_QA_MATRIX.md`, and `RDS_SDS_ALIGNMENT_AUDIT.md` for the integrated branch.
 
 Last updated: 2026-06-11
 

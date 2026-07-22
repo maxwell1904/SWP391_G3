@@ -248,3 +248,5 @@ Booking --> BookingStatus
 Notification --> NotificationType
 
 @enduml
+    +payPalConfig() : Object
+    +config() : Map<String, Object>

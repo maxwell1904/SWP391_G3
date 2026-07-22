@@ -39,6 +39,7 @@ class "ApiRequests.IssueCreate" as IssueCreateDTO <<dto>> {
 
 interface IssueRepository <<repository>> {
     +save(entity : Issue) : Issue
+    +findAllByOrderByIssueIdDesc() : List<Issue>
 }
 
 class AuditEntity <<entity>> {

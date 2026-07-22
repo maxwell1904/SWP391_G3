@@ -1,0 +1,61 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+actor "Customer" as Actor
+participant "AvailabilityAssistantPage" as Assistant
+participant "sessionStorage" as Storage
+participant "App.jsx" as App
+participant "FieldOperationController" as Controller
+participant "FieldOperationService" as Service
+database "Database" as DB
+
+== Continue from suggestion to booking ==
+
+Actor -> Assistant : 1. Choose Book this slot
+activate Actor
+activate Assistant
+Assistant -> Storage : 2. Store suggested slot id and date
+activate Storage
+Storage --> Assistant : 3. Stored
+deactivate Storage
+Assistant -> App : 4. navigatePage("booking")
+activate App
+App -> Storage : 5. Read pending suggestion
+activate Storage
+Storage --> App : 6. slotId and slotDate
+deactivate Storage
+App -> Controller : 7. GET /api/slots/search?date=slotDate
+activate Controller
+Controller -> Service : 8. searchSlots(slotDate, null)
+activate Service
+Service -> DB : 9. Load live slots and reservation state
+activate DB
+DB --> Service : 10. Slot summaries
+deactivate DB
+Service --> Controller : 11. Available slots
+deactivate Service
+Controller --> App : 12. HTTP 200
+deactivate Controller
+
+alt Suggested slot remains available
+  App -> App : 13. Select suggested slot and clear storage
+  activate App
+  deactivate App
+  App --> Assistant : 14. Render booking checkout with slot selected
+else Slot became unavailable
+  App -> App : 13. Select first available slot or none
+  activate App
+  deactivate App
+  App --> Assistant : 14. Render current availability
+end
+deactivate App
+Assistant --> Actor : 15. Continue real booking flow
+deactivate Assistant
+deactivate Actor
+
+@enduml

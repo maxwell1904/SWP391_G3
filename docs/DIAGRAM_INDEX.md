@@ -1,6 +1,6 @@
 # GoalZone Diagram Index
 
-This index is the stable code-first mapping used when inserting diagrams into the SDS. UC identifiers are not renumbered. UC-63 is Deferred and UC-64 is Removed, so neither has an implementation diagram.
+This index is the stable code-first mapping used when inserting diagrams into the SDS. UC identifiers are not renumbered. The integrated `develop` branch implements UC-63 and UC-64 as one rule-based availability-assistant journey backed by live slot data.
 
 | UC | Use case | Class diagram | Sequence diagram |
 |---|---|---|---|
@@ -66,11 +66,8 @@ This index is the stable code-first mapping used when inserting diagrams into th
 | UC-60 | View revenue report | `Class Diagram/view-revenue-report.puml` | `Sequence/UC-60-view-revenue-report.puml` |
 | UC-61 | View booking report | `Class Diagram/view-booking-report.puml` | `Sequence/UC-61-view-booking-report.puml` |
 | UC-62 | View customer activity report | `Class Diagram/view-customer-activity-report.puml` | `Sequence/UC-62-view-customer-activity-report.puml` |
-
-## Out-of-scope identifiers
-
-- UC-63 — Ask smart assistant for available fields: **Deferred**, no implementation diagram.
-- UC-64 — Get suggested available slots: **Removed**, no implementation diagram.
+| UC-63 | Ask smart assistant for available fields | `Class Diagram/ask-smart-assistant-for-available-fields.puml` | `Sequence/UC-63-ask-smart-assistant-for-available-fields.puml` |
+| UC-64 | Get suggested available slots | `Class Diagram/get-suggested-available-slots.puml` | `Sequence/UC-64-get-suggested-available-slots.puml` |
 
 ## Validation
 
@@ -81,4 +78,4 @@ python3 docs/audit_puml_diagrams.py
 java -jar /path/to/plantuml.jar --check-syntax "docs/Class Diagram" "docs/Sequence"
 ```
 
-The audit requires exactly 62 class diagrams and 62 sequence diagrams, declared lifelines only, and balanced activation/deactivation bars.
+The audit requires exactly 64 class diagrams and 64 sequence diagrams, declared lifelines only, and balanced activation/deactivation bars.

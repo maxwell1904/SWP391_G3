@@ -22,6 +22,13 @@ class VerificationEmailService <<service>> {
     +sendRestrictionEmail(user : AppUser, reason : String) : VerificationEmailDelivery
 }
 
+class DemoSupportService <<service>> {
+    +getUser(userId : Long) : AppUser
+    +clean(value : String) : String
+    +requireText(value : String, message : String) : void
+    +userSummary(user : AppUser) : Map<String, Object>
+}
+
 class "ApiRequests.RestrictionUpdate" as RestrictionUpdateDTO <<dto>> {
     -bookingRestricted : boolean
     -restrictionReason : String
@@ -51,6 +58,7 @@ AccountController ..> AccountService
 AccountController ..> RestrictionUpdateDTO
 AccountService ..> RestrictionUpdateDTO
 AccountService ..> VerificationEmailService
+AccountService ..> DemoSupportService
 AccountService ..> AppUserRepository
 VerificationEmailService ..> AppUser
 AppUserRepository --> AppUser

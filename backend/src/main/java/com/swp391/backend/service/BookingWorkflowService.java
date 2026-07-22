@@ -221,6 +221,12 @@ public class BookingWorkflowService {
         }
         support.validateSlotBookable(newSlot);
 
+        List<ApiRequests.ServiceSelection> currentServices = support.bookingServiceItemRepository
+                .findByBooking_BookingId(booking.getBookingId()).stream()
+                .map(item -> new ApiRequests.ServiceSelection(item.getExtraService().getExtraServiceId(), item.getQuantity()))
+                .toList();
+        support.calculateServiceTotal(currentServices, newSlot, booking.getBookingId());
+
         BigDecimal newFieldPrice = support.calculateFieldPrice(newSlot);
         BigDecimal baseAmount = newFieldPrice.add(booking.getServiceTotalAmount());
         BigDecimal promotionDiscount = recalculatePromotionDiscount(booking, newSlot, baseAmount);

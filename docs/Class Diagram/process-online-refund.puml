@@ -22,9 +22,17 @@ class "ApiRequests.RefundCreate" as RefundCreateDTO <<dto>> {
 
 class PaymentWorkflowService <<service>> {
     -support : DemoSupportService
+    -payPalCheckoutService : PayPalCheckoutService
 
     +createRefund(request : ApiRequests.RefundCreate) : Map<String, Object>
+    +updateRefundStatus(refundId : Long, request : ApiRequests.RefundStatusUpdate) : Map<String, Object>
     +refunds() : List<Map<String, Object>>
+    -processProviderRefund(refund : Refund) : void
+    -syncBookingAndInvoiceRefundAmounts(booking : Booking, newlyCompletedAmount : BigDecimal) : void
+}
+
+class PayPalCheckoutService <<service>> {
+    +refundCapture(payment : Payment, refundAmount : BigDecimal, requestId : String, existingRefundId : String) : RefundResult
 }
 
 class DemoSupportService <<service>> {
@@ -52,6 +60,7 @@ interface AppUserRepository <<repository>> {
 
 interface PaymentRepository <<repository>> {
     +findById(id : Long) : Optional<Payment>
+    +findByProviderCaptureId(providerCaptureId : String) : Optional<Payment>
 }
 
 interface RefundRepository <<repository>> {
@@ -139,6 +148,7 @@ enum NotificationType {
 PaymentController ..> PaymentWorkflowService
 PaymentController ..> RefundCreateDTO
 PaymentWorkflowService ..> DemoSupportService
+PaymentWorkflowService ..> PayPalCheckoutService
 PaymentWorkflowService ..> RefundCreateDTO
 DemoSupportService ..> BookingRepository
 DemoSupportService ..> AppUserRepository

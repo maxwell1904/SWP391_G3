@@ -24,6 +24,11 @@ export function AvailabilityAssistantPage({ fieldTypes, currentUser, navigatePag
     }
   }
 
+  function bookSuggestedSlot(slot) {
+    sessionStorage.setItem('goalzoneSuggestedSlot', JSON.stringify({ slotId: slot.slotId, slotDate: slot.slotDate }))
+    navigatePage('booking')
+  }
+
   return (
     <section className="section limitWidth">
       <SectionIntro kicker="Smart availability" title="Find the right field" text="Rule-based suggestions from live availability, your preferred time, budget, and eligible promotions." />
@@ -42,7 +47,7 @@ export function AvailabilityAssistantPage({ fieldTypes, currentUser, navigatePag
           <div className="promoCardFullTitle"><div><h3>{slot.fieldName}</h3><p className="promoEligibility">{slot.fieldType} · {slot.slotDate} · {slot.startTime.slice(0, 5)}–{slot.endTime.slice(0, 5)}</p></div><span className="promoDiscountBig">{formatMoney(slot.price)}</span></div>
           <ul>{slot.reasons.map(reason => <li key={reason}>{reason}</li>)}</ul>
           {slot.eligiblePromotionCodes.length > 0 && <p className="promoEligibility">Promotion codes: {slot.eligiblePromotionCodes.join(', ')}</p>}
-          <button type="button" className="primaryButton" onClick={() => { sessionStorage.setItem('goalzoneSuggestedSlotId', String(slot.slotId)); navigatePage('booking') }}>Book this slot</button>
+          <button type="button" className="primaryButton" onClick={() => bookSuggestedSlot(slot)}>Book this slot</button>
         </article>)}
       </div>
     </section>

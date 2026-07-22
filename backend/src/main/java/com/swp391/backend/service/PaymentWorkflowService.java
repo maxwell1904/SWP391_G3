@@ -187,7 +187,7 @@ public class PaymentWorkflowService {
         }
         Refund saved = support.refundRepository.save(refund);
         if (saved.getStatus() == RefundStatus.completed) {
-            syncInvoiceRefundAmount(saved.getBooking());
+            syncBookingAndInvoiceRefundAmounts(saved.getBooking(), saved.getRefundAmount());
         }
         String title = switch (saved.getStatus()) {
             case approved -> "Refund approved";
@@ -259,11 +259,22 @@ public class PaymentWorkflowService {
         return support.money(payment.getAmount().subtract(committed).max(BigDecimal.ZERO));
     }
 
-    private void syncInvoiceRefundAmount(Booking booking) {
+    private void syncBookingAndInvoiceRefundAmounts(Booking booking, BigDecimal newlyCompletedAmount) {
         BigDecimal completed = support.refundRepository.findByBooking_BookingIdOrderByRefundIdDesc(booking.getBookingId()).stream()
                 .filter(refund -> refund.getStatus() == RefundStatus.completed)
                 .map(Refund::getRefundAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal grossPaid = support.paymentRepository.findByBooking_BookingIdOrderByPaymentIdDesc(booking.getBookingId()).stream()
+                .filter(payment -> payment.getStatus() == PaymentStatus.paid)
+                .map(Payment::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal netPaid = support.money(grossPaid.subtract(completed).max(BigDecimal.ZERO));
+        booking.setPaidAmount(netPaid);
+        booking.setRefundableAmount(support.money(booking.getRefundableAmount().subtract(newlyCompletedAmount).max(BigDecimal.ZERO)));
+        if (booking.getStatus() != BookingStatus.cancelled) {
+            booking.setRemainingAmount(support.money(booking.getTotalAmount().subtract(netPaid).max(BigDecimal.ZERO)));
+        }
+        support.bookingRepository.save(booking);
         support.invoiceRepository.findByBooking_BookingId(booking.getBookingId()).ifPresent(invoice -> {
             invoice.setRefundAmount(support.money(completed));
             support.invoiceRepository.save(invoice);

@@ -15,6 +15,10 @@ class BookingWorkflowService <<service>> {
     +updateBookingStatus(bookingId : Long, request : ApiRequests.BookingStatusUpdate) : Map<String, Object>
 }
 
+class PayPalCheckoutService <<service>> {
+    +captureOrder(bookingId : Long, orderId : String, request : ApiRequests.PayPalOrderCapture) : Map<String, Object>
+}
+
 class DemoSupportService <<service>> {
     -bookingRepository : BookingRepository
     -userRepository : AppUserRepository
@@ -136,6 +140,8 @@ enum NotificationType {
 BookingController ..> BookingWorkflowService
 BookingController ..> BookingStatusUpdateDTO
 BookingWorkflowService ..> DemoSupportService
+PayPalCheckoutService ..> DemoSupportService
+PayPalCheckoutService ..> Booking
 BookingWorkflowService ..> BookingStatusUpdateDTO
 DemoSupportService ..> BookingRepository
 DemoSupportService ..> AppUserRepository

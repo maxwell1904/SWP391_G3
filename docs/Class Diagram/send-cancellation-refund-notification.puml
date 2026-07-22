@@ -25,6 +25,7 @@ class PaymentWorkflowService <<service>> {
     -support : DemoSupportService
 
     +createRefund(request : ApiRequests.RefundCreate) : Map<String, Object>
+    +updateRefundStatus(refundId : Long, request : ApiRequests.RefundStatusUpdate) : Map<String, Object>
 }
 
 class DemoSupportService <<service>> {

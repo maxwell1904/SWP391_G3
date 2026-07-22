@@ -84,8 +84,8 @@ smoke checks use the Customer, Staff and Admin workspaces in a real browser.
 | UC-60 | Pass | Revenue/discount/refund metrics are returned in the Admin report. |
 | UC-61 | Pass | Booking status, peak time, and field utilization metrics are returned in the Admin report. |
 | UC-62 | Pass | Returning customers, top customers, and membership distribution are returned in the Admin report. |
-| UC-63 | Deferred by scope | Smart assistant is intentionally not shipped; no fake/demo UI is left in the product. |
-| UC-64 | Removed by scope | Suggested-slot feature is removed from route, UI, API, and backlog implementation. |
+| UC-63 | Automated + UI | `/assistant` submits date/time/type/budget criteria to the live suggestion API; invalid dates, negative budgets, and foreign membership identities are rejected. |
+| UC-64 | Automated + UI | Ranked live slots include reasons/promotions; “Book this slot” transfers the slot date/id into the real booking checkout and revalidates availability. |
 
 `*` A real external provider must still be approved from a PayPal Sandbox buyer
 account / received in an actual inbox.  The configured credentials were

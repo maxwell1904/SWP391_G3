@@ -23,6 +23,7 @@ class DemoSupportService <<service>> {
 
 interface PaymentRepository <<repository>> {
     +findAllByOrderByPaymentIdDesc() : List<Payment>
+    +findByBooking_Customer_UserIdOrderByPaymentIdDesc(customerId : Long) : List<Payment>
     +findByBooking_BookingIdOrderByPaymentIdDesc(bookingId : Long) : List<Payment>
     +findByProviderOrderId(providerOrderId : String) : Optional<Payment>
     +findByProviderCaptureId(providerCaptureId : String) : Optional<Payment>

@@ -13,6 +13,7 @@ import java.time.Duration;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 
@@ -87,11 +88,17 @@ public class DemoSupportService {
     }
 
     void validateSlotBookable(Slot slot) {
+        if (slot.getField().getStatus() != CommonStatus.active) {
+            throw badRequest("The field is inactive and cannot be booked");
+        }
         if (slot.getStatus() == SlotStatus.blocked) {
             throw badRequest("Slot is blocked: " + nvl(slot.getBlockReason(), "unavailable"));
         }
         if (slot.getSlotDate().isBefore(LocalDate.now())) {
             throw badRequest("Past slots cannot be booked");
+        }
+        if (slot.getSlotDate().isEqual(LocalDate.now()) && !slot.getStartTime().isAfter(LocalTime.now())) {
+            throw badRequest("A slot that has already started cannot be booked");
         }
         if (bookingRepository.existsBySlotAndStatusIn(slot, ACTIVE_BOOKING_STATUSES)) {
             throw conflict("Slot already has an active booking. Please select another time.");
@@ -104,6 +111,8 @@ public class DemoSupportService {
                 : "weekday";
         return fieldPriceRepository.findByField_FieldId(slot.getField().getFieldId()).stream()
                 .filter(price -> price.getStatus() == CommonStatus.active)
+                .filter(price -> price.getEffectiveFrom() == null || !slot.getSlotDate().isBefore(price.getEffectiveFrom()))
+                .filter(price -> price.getEffectiveTo() == null || !slot.getSlotDate().isAfter(price.getEffectiveTo()))
                 .filter(price -> price.getDayType().equalsIgnoreCase(dayType) || price.getDayType().equalsIgnoreCase("all"))
                 .filter(price -> !slot.getStartTime().isBefore(price.getStartTime()) && !slot.getEndTime().isAfter(price.getEndTime()))
                 .findFirst()

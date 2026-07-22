@@ -33,6 +33,10 @@ class JwtService <<service>> {
     +generateToken(subject : String) : String
 }
 
+class BCryptPasswordEncoder <<service>> {
+    +matches(rawPassword : CharSequence, encodedPassword : String) : boolean
+}
+
 interface AppUserRepository <<repository>> {
     +findByEmail(email : String) : Optional<AppUser>
     +findByPhone(phone : String) : Optional<AppUser>
@@ -79,6 +83,7 @@ AccountController ..> AccountService
 AccountController ..> LoginDTO
 AccountService ..> LoginDTO
 AccountService ..> DemoSupportService
+AccountService ..> BCryptPasswordEncoder
 AccountService ..> JwtService
 DemoSupportService ..> AppUserRepository
 AppUserRepository --> AppUser

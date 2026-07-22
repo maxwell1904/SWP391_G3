@@ -7,6 +7,8 @@ class AccountController <<controller>> {
     -accountService : AccountService
 
     +register(@RequestBody ApiRequests.Register request) : Object
+    +verifyEmail(@RequestBody ApiRequests.EmailVerification request) : Object
+    +resendEmailVerification(@RequestBody ApiRequests.EmailVerificationResend request) : Object
 }
 
 class AccountService <<service>> {
@@ -16,6 +18,8 @@ class AccountService <<service>> {
     -jwtService : JwtService
 
     +register(request : ApiRequests.Register) : Map<String, Object>
+    +verifyEmail(request : ApiRequests.EmailVerification) : Map<String, Object>
+    +resendEmailVerification(request : ApiRequests.EmailVerificationResend) : Map<String, Object>
     -issueEmailVerification(user : AppUser) : void
     -validatePassword(password : String, confirmPassword : String) : void
 }

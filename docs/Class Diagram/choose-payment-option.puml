@@ -15,6 +15,14 @@ class PaymentWorkflowService <<service>> {
     +capturePayment(request : ApiRequests.PaymentCapture) : Map<String, Object>
 }
 
+class PayPalCheckoutService <<service>> {
+    +createOrder(bookingId : Long, request : ApiRequests.PayPalOrderCreate) : Map<String, Object>
+}
+
+class BookingWorkflowService <<service>> {
+    +previewCheckout(request : ApiRequests.PromotionApply) : Map<String, Object>
+}
+
 class DemoSupportService <<service>> {
     -bookingRepository : BookingRepository
     -userRepository : AppUserRepository
@@ -208,6 +216,8 @@ enum NotificationType {
 PaymentController ..> PaymentWorkflowService
 PaymentController ..> PaymentCaptureDTO
 PaymentWorkflowService ..> DemoSupportService
+PayPalCheckoutService ..> DemoSupportService
+BookingWorkflowService ..> DemoSupportService
 PaymentWorkflowService ..> PaymentCaptureDTO
 DemoSupportService ..> BookingRepository
 DemoSupportService ..> AppUserRepository

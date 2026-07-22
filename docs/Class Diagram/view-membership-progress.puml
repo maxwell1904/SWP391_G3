@@ -7,14 +7,14 @@ class PromotionReportController <<controller>> {
     -promotionReportService : PromotionReportService
 
     +membershipProgress(@PathVariable Long customerId) : Object
-    +membershipLevels() : Object
+    +membershipLevels(includeInactive : boolean) : Object
 }
 
 class PromotionReportService <<service>> {
     -support : DemoSupportService
 
     +membershipProgress(customerId : Long) : Map<String, Object>
-    +membershipLevels() : List<Map<String, Object>>
+    +membershipLevels(includeInactive : boolean) : List<Map<String, Object>>
 }
 
 class DemoSupportService <<service>> {
@@ -24,6 +24,8 @@ class DemoSupportService <<service>> {
     +getUser(userId : Long) : AppUser
     +userSummary(user : AppUser) : Map<String, Object>
     +membershipLevelSummary(level : MembershipLevel) : Map<String, Object>
+    +resolveEligibleMembershipLevel(customer : AppUser, referenceDate : LocalDate) : MembershipLevel
+    +membershipQualificationProgress(customer : AppUser, level : MembershipLevel, referenceDate : LocalDate) : int
 }
 
 interface CustomerMembershipRepository <<repository>> {
@@ -52,6 +54,8 @@ class MembershipLevel <<entity>> {
     -benefitDescription : String
     -displayOrder : int
     -status : CommonStatus
+    -qualificationPeriod : String
+    -requiredConsecutivePeriods : int
 }
 
 class AppUser <<entity>> {

@@ -85,13 +85,15 @@ CLASS_FILES = {
     60: "view-revenue-report.puml",
     61: "view-booking-report.puml",
     62: "view-customer-activity-report.puml",
+    63: "ask-smart-assistant-for-available-fields.puml",
+    64: "get-suggested-available-slots.puml",
 }
 
 
 SEQUENCE_FILES = {
     1: "Register-and-Verify-Email.puml",
     2: "Login.puml",
-    **{n: next(p.name for p in SEQUENCE_DIR.glob(f"UC-{n:02d}-*.puml")) for n in range(3, 63)},
+    **{n: next(p.name for p in SEQUENCE_DIR.glob(f"UC-{n:02d}-*.puml")) for n in range(3, 65)},
 }
 
 
@@ -155,7 +157,7 @@ def remove_existing_diagrams(document: Document, headings: dict[int, dict[str, P
     diagram_headings = {
         item[k]._p
         for uc, item in headings.items()
-        if uc <= 62
+        if uc <= 64
         for k in ("class", "sequence")
         if k in item
     }
@@ -208,14 +210,14 @@ def main() -> None:
 
     document = Document(args.input_docx)
     headings = heading_map(document)
-    missing = [n for n in range(1, 63) if not {"class", "sequence"}.issubset(headings.get(n, {}))]
+    missing = [n for n in range(1, 65) if not {"class", "sequence"}.issubset(headings.get(n, {}))]
     if missing:
         raise RuntimeError(f"SDS diagram headings missing for UCs: {missing}")
 
     removed = 0 if args.preserve_existing else remove_existing_diagrams(document, headings)
     inserted = 0
     preserved = 0
-    for uc in range(1, 63):
+    for uc in range(1, 65):
         class_png = args.class_png_dir / Path(CLASS_FILES[uc]).with_suffix(".png").name
         sequence_png = args.sequence_png_dir / Path(SEQUENCE_FILES[uc]).with_suffix(".png").name
         for path in (class_png, sequence_png):

@@ -116,6 +116,7 @@ public class PayPalCheckoutService {
     }
 
     // Backlog owner: AnNP - UC-40 Pay deposit/full amount via online payment sandbox.
+    @Transactional(noRollbackFor = ApiException.class)
     public Map<String, Object> captureOrder(Long bookingId, String orderId, ApiRequests.PayPalOrderCapture request) {
         Booking booking = onlineBookingOwnedByCustomer(bookingId, request.createdById());
         Payment payment = support.paymentRepository.findByProviderOrderId(orderId)

@@ -101,7 +101,7 @@ class BookingPolicyWorkflowServiceTest {
         Map<String, Object> created = createBooking();
         Long bookingId = ((Number) created.get("bookingId")).longValue();
         AppUser customer = userRepository.findByEmail("customer@goalzone.local").orElseThrow();
-        paymentWorkflowService.capturePayment(new ApiRequests.PaymentCapture(bookingId, customer.getUserId(),
+        Map<String, Object> paid = paymentWorkflowService.capturePayment(new ApiRequests.PaymentCapture(bookingId, customer.getUserId(),
                 "deposit", "cash", null, true));
         bookingWorkflowService.updateBookingStatus(bookingId, new ApiRequests.BookingStatusUpdate("cancelled", null, "Test cancellation"));
 
@@ -120,6 +120,10 @@ class BookingPolicyWorkflowServiceTest {
         assertThat(completed.get("paymentMethod")).isEqualTo("cash");
         assertThat(completed.get("providerStatus")).isEqualTo("MANUAL_CASH_REFUND");
         assertThat(String.valueOf(completed.get("transactionCode"))).startsWith("CASH-REFUND-");
+        Booking reconciled = bookingRepository.findById(bookingId).orElseThrow();
+        assertThat(reconciled.getRefundableAmount()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(reconciled.getPaidAmount()).isEqualByComparingTo(
+                ((BigDecimal) paid.get("paidAmount")).subtract((BigDecimal) completed.get("refundAmount")));
     }
 
     @Test

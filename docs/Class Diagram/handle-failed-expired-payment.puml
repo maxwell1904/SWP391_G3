@@ -52,6 +52,7 @@ class "ApiRequests.PaymentCapture" as PaymentCaptureDTO <<dto>> {
 
 interface BookingRepository <<repository>> {
     +findById(id : Long) : Optional<Booking>
+    +findByStatusIn(statuses : Collection<BookingStatus>) : List<Booking>
 }
 
 interface AppUserRepository <<repository>> {
@@ -216,6 +217,11 @@ enum NotificationType {
     + system
 }
 
+class BookingMaintenanceScheduler <<service>> {
+    +maintainBookings() : void
+    +expireUnpaidPendingBookings() : int
+}
+
 ' Relationships
 PaymentController ..> PaymentWorkflowService
 PaymentController ..> PayPalCheckoutService
@@ -223,6 +229,9 @@ PaymentController ..> PaymentCaptureDTO
 PaymentWorkflowService ..> DemoSupportService
 PaymentWorkflowService ..> PaymentCaptureDTO
 PayPalCheckoutService ..> DemoSupportService
+BookingMaintenanceScheduler ..> DemoSupportService
+BookingMaintenanceScheduler ..> BookingRepository
+BookingMaintenanceScheduler ..> PaymentRepository
 DemoSupportService ..> BookingRepository
 DemoSupportService ..> AppUserRepository
 DemoSupportService ..> PaymentRepository

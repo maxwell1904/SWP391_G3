@@ -44,12 +44,11 @@ Detailed acceptance evidence for every UC is maintained in
 - Image upload accepts JPEG/PNG/WebP/GIF up to 5 MB. Local filesystem storage
   is suitable for classroom deployment; use Supabase Storage/S3 for a
   multi-instance production deployment.
-- PostgreSQL schema changes are Flyway-owned (currently V1–V9) and Hibernate
+- PostgreSQL schema changes are Flyway-owned (currently V1–V10) and Hibernate
   runs with `ddl-auto=validate`. H2 remains disposable for local/test runs.
 
 ## Documents not to claim
 
-- No production/live-money PayPal certification.
 - No production/live-money PayPal certification; classroom delivery targets PayPal Sandbox.
 - No field review/rating module.
 - No chatbot/RAG or multi-promotion stacking; the availability assistant is rule-based.

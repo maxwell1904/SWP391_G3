@@ -28,6 +28,8 @@ class "ApiRequests.MembershipLevelUpsert" as MembershipLevelUpsertDTO <<dto>> {
     -benefitDescription : String
     -displayOrder : Integer
     -status : String
+    -qualificationPeriod : String
+    -requiredConsecutivePeriods : Integer
 }
 
 interface MembershipLevelRepository <<repository>> {
@@ -44,6 +46,8 @@ class MembershipLevel <<entity>> {
     -benefitDescription : String
     -displayOrder : int
     -status : CommonStatus
+    -qualificationPeriod : String
+    -requiredConsecutivePeriods : int
 }
 
 PromotionReportController ..> PromotionReportService

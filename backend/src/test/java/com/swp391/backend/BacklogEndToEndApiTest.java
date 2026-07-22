@@ -406,6 +406,21 @@ class BacklogEndToEndApiTest {
         assertThat(suggestions.get(0).path("slotId").asLong()).isPositive();
         assertThat(suggestions.get(0).path("reasons")).isNotEmpty();
         assertThat(suggestions.get(0).path("score").asInt()).isPositive();
+
+        exchange(get("/api/slots/suggestions")
+                .param("date", LocalDate.now().minusDays(1).toString()), 400);
+        exchange(get("/api/slots/suggestions")
+                .param("date", LocalDate.now().plusDays(1).toString())
+                .param("maxPrice", "-1"), 400);
+
+        JsonNode customerLogin = login("customer@goalzone.local");
+        exchange(get("/api/slots/suggestions")
+                .param("date", LocalDate.now().plusDays(1).toString())
+                .param("customerId", customerLogin.path("user").path("userId").asText()), 403);
+        JsonNode customerSuggestions = exchange(auth(get("/api/slots/suggestions")
+                .param("date", LocalDate.now().plusDays(1).toString())
+                .param("customerId", customerLogin.path("user").path("userId").asText()), token(customerLogin)), 200);
+        assertThat(customerSuggestions).isNotEmpty();
     }
 
     @Test
