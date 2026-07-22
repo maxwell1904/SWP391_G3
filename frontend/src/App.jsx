@@ -1353,6 +1353,7 @@ function App() {
             updateCustomerRestriction={updateCustomerRestriction}
             refreshAll={refreshAll}
             navigatePage={navigatePage}
+            showToast={(title, message, kind = 'success') => setActionPanel({ kind, title, message })}
           />
         )}
 

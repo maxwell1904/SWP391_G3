@@ -56,7 +56,8 @@ export function AdminPage({
   customers,
   updateCustomerRestriction,
   refreshAll,
-  navigatePage
+  navigatePage,
+  showToast
 }) {
   const restrictedCustomers = customers.filter(customer => customer.bookingRestricted).length
   const [adminFields, setAdminFields] = useState([])
@@ -437,8 +438,11 @@ export function AdminPage({
       setCustomerProfileErrors({})
       await refreshAll?.()
       setFieldNotice('Customer profile updated.')
+      showToast('Customer profile updated', 'The customer profile has been saved successfully.')
     } catch (error) {
-      setFieldNotice(error.response?.data?.error || 'Could not update customer profile.')
+      const message = error.response?.data?.error || 'Could not update customer profile.'
+      setFieldNotice(message)
+      showToast('Update failed', message, 'error')
     }
   }
 
@@ -759,13 +763,14 @@ export function AdminPage({
           </div>
         </InfoPanel>
 
-        <InfoPanel title="Customer booking access" className={panelClass('access')}>
+        <InfoPanel title="Customer accounts" className={panelClass('access')}>
           <div className="customerAdminList">
             {customers.map(customer => (
               <div className="customerAdminRow" key={customer.userId}>
                 <span>
                   <strong>{customer.fullName}</strong>
-                  <small title={`${customer.email} - ${customer.phone || 'no phone'}`}>{customer.email} - {customer.phone || 'no phone'}</small>
+                  <small>{customer.email}</small>
+                  <small>{customer.phone || 'no phone'}</small>
                   {customer.bookingRestricted && <small>{customer.restrictionReason || 'Booking restricted'}</small>}
                 </span>
                 <Button
