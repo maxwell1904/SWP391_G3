@@ -1830,6 +1830,10 @@ main.pageMain .section {
 .dataRow small,
 .customerAdminRow small {
   color: var(--muted);
+}
+
+.bookingItem small,
+.dataRow small {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

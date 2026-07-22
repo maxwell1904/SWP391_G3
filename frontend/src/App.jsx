@@ -1376,6 +1376,7 @@ function App() {
             refreshAll={refreshAll}
             navigatePage={navigatePage}
             loadReports={loadReports}
+            showToast={(title, message, kind = 'success') => setActionPanel({ kind, title, message })}
           />
         )}
 

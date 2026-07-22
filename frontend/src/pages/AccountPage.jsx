@@ -126,6 +126,30 @@ export function AccountPage({
               </div>
               <ChangePasswordForm onChangePassword={onChangePassword} />
             </InfoPanel>
+            <InfoPanel title="Account details" className={activePanel === 'profile' ? '' : 'workspacePanelHidden'}>
+              <div style={{ display: 'grid', gap: '14px', padding: '4px 0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--line)', paddingBottom: '8px' }}>
+                  <span style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>Role Level</span>
+                  <strong style={{ fontSize: '0.9rem' }}>{currentUser.role}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--line)', paddingBottom: '8px' }}>
+                  <span style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>Email Address</span>
+                  <strong style={{ fontSize: '0.9rem' }}>{currentUser.email}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--line)', paddingBottom: '8px' }}>
+                  <span style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>Verification</span>
+                  <strong style={{ fontSize: '0.9rem', color: currentUser.emailVerified ? 'var(--green)' : 'var(--orange)' }}>
+                    {currentUser.emailVerified ? 'Verified' : 'Pending'}
+                  </strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '4px' }}>
+                  <span style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>Last Login</span>
+                  <strong style={{ fontSize: '0.9rem' }}>
+                    {currentUser.lastLoginAt ? new Date(currentUser.lastLoginAt).toLocaleString() : 'Never'}
+                  </strong>
+                </div>
+              </div>
+            </InfoPanel>
             {!userBookings.length ? (
               <InfoPanel title="No bookings yet" className={activePanel === 'bookings' ? 'accountEmptyState' : 'workspacePanelHidden'}>
                 <p className="emptyText">Choose a field and available time to create your first booking.</p>
