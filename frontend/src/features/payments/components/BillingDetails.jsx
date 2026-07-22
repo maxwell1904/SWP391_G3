@@ -9,6 +9,7 @@ export function BillingDetails({ detail, loading, error }) {
 
   const invoice = detail.invoice
   const payments = detail.payments || []
+  const refunds = detail.refunds || []
 
   return (
     <div className="billingDetails">
@@ -47,6 +48,9 @@ export function BillingDetails({ detail, loading, error }) {
             <span>
               <strong>{payment.paymentCode} · {optionLabel(payment.paymentOption)}</strong>
               <small>{payment.paymentMethod.replaceAll('_', ' ')} · {formatDateTime(payment.paidAt)}</small>
+              {payment.providerFeeTracked && (
+                <small>Processor fee {formatMoney(payment.providerFeeAmount)} · provider net {formatMoney(payment.providerNetAmount)}</small>
+              )}
             </span>
             <span className="paymentRecordValue">
               <strong>{formatMoney(payment.amount)}</strong>
@@ -55,6 +59,24 @@ export function BillingDetails({ detail, loading, error }) {
           </div>
         )) : <p className="emptyText">No payment transactions yet.</p>}
       </div>
+      {refunds.length > 0 && (
+        <div className="paymentTimeline">
+          <h4>Refunds</h4>
+          {refunds.map(refund => (
+            <div className="paymentRecord" key={refund.refundId}>
+              <ReceiptText size={17} />
+              <span>
+                <strong>{refund.refundCode}</strong>
+                <small>{refund.paymentMethod?.replaceAll('_', ' ') || 'Payment'} · {refund.gatewayMessage || refund.refundReason || 'Refund case'}</small>
+              </span>
+              <span className="paymentRecordValue">
+                <strong>{formatMoney(refund.refundAmount)}</strong>
+                <small>{refund.status}</small>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

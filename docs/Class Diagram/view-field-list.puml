@@ -10,12 +10,12 @@ class FieldOperationController <<controller>> {
 }
 
 class FieldOperationService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +fields() : List<Map<String, Object>>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -fieldRepository : FootballFieldRepository
 
     +fieldSummary(field : FootballField) : Map<String, Object>
@@ -56,9 +56,9 @@ enum CommonStatus {
 
 ' Relationships
 FieldOperationController ..> FieldOperationService
-FieldOperationService ..> DemoSupportService
-DemoSupportService ..> FootballFieldRepository
-DemoSupportService ..> FootballField
+FieldOperationService ..> DomainSupportService
+DomainSupportService ..> FootballFieldRepository
+DomainSupportService ..> FootballField
 FootballFieldRepository --> FootballField
 FootballField --> FieldType
 FootballField --> CommonStatus

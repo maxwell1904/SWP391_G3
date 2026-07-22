@@ -15,9 +15,9 @@ import java.util.List;
 /** Background maintenance for UC-43 (unpaid holds) and UC-58 (booking reminders). */
 @Service
 public class BookingMaintenanceScheduler {
-    private final DemoSupportService support;
+    private final DomainSupportService support;
 
-    public BookingMaintenanceScheduler(DemoSupportService support) {
+    public BookingMaintenanceScheduler(DomainSupportService support) {
         this.support = support;
     }
 

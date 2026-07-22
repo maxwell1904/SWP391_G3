@@ -17,6 +17,7 @@ participant "App.jsx" as App
 participant "AccountController" as Controller
 participant "AccountService" as Service
 participant "AppUserRepository" as Repo
+participant "VerificationEmailService" as Email
 database "Database" as DB
 
 == UC-10: Restrict or Restore Customer Booking Ability ==
@@ -54,9 +55,17 @@ alt Request is valid and authorized
   Repo --> Service : 10. Repository result
   deactivate Repo
 
-  Service -> Service : 11. Set restriction; revoke tokens; send email
+  Service -> Service : 11. Set restriction; revoke tokens
   activate Service
   deactivate Service
+  Service -> DB : 12. INSERT restriction/restoration notification
+  activate DB
+  DB --> Service : 13. Notification stored
+  deactivate DB
+  Service -> Email : 14. Send restriction/restoration email
+  activate Email
+  Email --> Service : 15. Delivery status
+  deactivate Email
 else Validation, authorization, or state rule fails
   note over Service,Controller
     Non-customer or blank reason -> HTTP 400
@@ -64,24 +73,24 @@ else Validation, authorization, or state rule fails
   end note
 end
 
-Service --> Controller : 12. Domain result or propagated error
+Service --> Controller : 16. Domain result or propagated error
 deactivate Service
 
-Controller -> Controller : 13. Serialize response
+Controller -> Controller : 17. Serialize response
 activate Controller
 deactivate Controller
 
-Controller --> App : 14. HTTP 200 or mapped 4xx\nresponse body or error payload
+Controller --> App : 18. HTTP 200 or mapped 4xx\nresponse body or error payload
 deactivate Controller
 
-App -> App : 15. refreshAll()
+App -> App : 19. refreshAll()
 activate App
 deactivate App
 
-App --> UI : 16. Show restricted/restored status
+App --> UI : 20. Show access and delivery status
 deactivate App
 
-UI --> User : 17. Updated screen or error feedback
+UI --> User : 21. Updated screen or error feedback
 
 deactivate UI
 deactivate User

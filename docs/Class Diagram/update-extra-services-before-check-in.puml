@@ -10,13 +10,13 @@ class BookingController <<controller>> {
 }
 
 class BookingWorkflowService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +updateBookingServices(bookingId : Long, request : ApiRequests.BookingServicesUpdate) : Map<String, Object>
     -recalculatePromotionDiscount(booking : Booking, slot : Slot, baseAmount : BigDecimal, selectedServiceIds : List<Long>) : BigDecimal
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -bookingServiceItemRepository : BookingServiceItemRepository
     -invoiceRepository : InvoiceRepository
 
@@ -71,9 +71,9 @@ class Invoice <<entity>> {
 BookingController ..> BookingWorkflowService
 BookingController ..> BookingServicesUpdateDTO
 BookingWorkflowService ..> BookingServicesUpdateDTO
-BookingWorkflowService ..> DemoSupportService
-DemoSupportService ..> BookingServiceItemRepository
-DemoSupportService ..> InvoiceRepository
+BookingWorkflowService ..> DomainSupportService
+DomainSupportService ..> BookingServiceItemRepository
+DomainSupportService ..> InvoiceRepository
 BookingServiceItemRepository --> BookingServiceItem
 InvoiceRepository --> Invoice
 BookingServiceItem --> Booking

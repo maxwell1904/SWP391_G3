@@ -125,6 +125,46 @@ public class VerificationEmailService {
         }
     }
 
+    public VerificationEmailDelivery sendBookingAccessRestoredEmail(AppUser user) {
+        return sendAccountNotice(
+                user,
+                "Your GoalZone booking access has been restored",
+                "Hi " + user.getFullName() + ",\n\nYour GoalZone booking access has been restored. You can create bookings again.",
+                noticeHtml(user, "Booking access restored", "You can create GoalZone bookings again."),
+                "Booking access restoration email sent."
+        );
+    }
+
+    public VerificationEmailDelivery sendAccountStatusEmail(AppUser user, boolean locked) {
+        String subject = locked ? "Your GoalZone account has been locked" : "Your GoalZone account access has been restored";
+        String body = locked
+                ? "Your GoalZone account has been locked and cannot sign in. Contact an administrator if you need help."
+                : "Your GoalZone account is active again and you can sign in.";
+        return sendAccountNotice(
+                user,
+                subject,
+                "Hi " + user.getFullName() + ",\n\n" + body,
+                noticeHtml(user, locked ? "Account locked" : "Account access restored", body),
+                locked ? "Account lock email sent." : "Account restoration email sent."
+        );
+    }
+
+    public VerificationEmailDelivery sendStaffInvitationEmail(AppUser user) {
+        String link = passwordResetLink(user);
+        String plain = "Hi " + user.getFullName() + ",\n\n"
+                + "An administrator created a GoalZone staff account for you. Set your own password using this link:\n"
+                + link + "\n\nThe link expires in one hour.";
+        String html = "<div style=\"font-family:Arial,sans-serif;line-height:1.5;color:#17211b;max-width:560px\">"
+                + "<h2 style=\"margin:0 0 12px\">Your GoalZone staff account</h2>"
+                + "<p>Hi " + escapeHtml(user.getFullName()) + ",</p>"
+                + "<p>An administrator created a staff account for you. Set your own password to activate your login.</p>"
+                + "<p><a href=\"" + escapeHtml(link) + "\" style=\"display:inline-block;background:#167a42;color:#fff;"
+                + "padding:12px 18px;border-radius:6px;text-decoration:none;font-weight:700\">Set my password</a></p>"
+                + "<p style=\"color:#607062;font-size:13px\">This link expires in one hour.</p>"
+                + "</div>";
+        return sendAccountNotice(user, "Set up your GoalZone staff account", plain, html, "Staff invitation email sent.");
+    }
+
     public VerificationEmailDelivery sendVerificationEmail(AppUser user) {
         if (isBlank(smtpUsername) || isBlank(fromEmail)) {
             return new VerificationEmailDelivery(
@@ -230,6 +270,40 @@ public class VerificationEmailService {
                 + "<p style=\"margin:8px 0 0\">" + safeReason + "</p>"
                 + "</div>"
                 + "<p>Please contact GoalZone staff if you need support.</p>"
+                + "</div>";
+    }
+
+    private VerificationEmailDelivery sendAccountNotice(
+            AppUser user,
+            String subject,
+            String plainText,
+            String htmlText,
+            String sentMessage
+    ) {
+        if (isBlank(smtpUsername) || isBlank(fromEmail)) {
+            return new VerificationEmailDelivery(false, "not_configured", "Email was not sent because SMTP is not configured.");
+        }
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setTo(user.getEmail());
+            helper.setFrom(senderAddress());
+            helper.setSubject(subject);
+            helper.setText(plainText, htmlText);
+            mailSender.send(message);
+            return new VerificationEmailDelivery(true, "sent", sentMessage);
+        } catch (Exception exception) {
+            logMailFailure(exception);
+            throw new ApiException(org.springframework.http.HttpStatus.BAD_GATEWAY,
+                    "Could not send account email. Check SMTP settings and try again.");
+        }
+    }
+
+    private String noticeHtml(AppUser user, String heading, String message) {
+        return "<div style=\"font-family:Arial,sans-serif;line-height:1.5;color:#17211b;max-width:560px\">"
+                + "<h2 style=\"margin:0 0 12px\">" + escapeHtml(heading) + "</h2>"
+                + "<p>Hi " + escapeHtml(user.getFullName()) + ",</p>"
+                + "<p>" + escapeHtml(message) + "</p>"
                 + "</div>";
     }
 

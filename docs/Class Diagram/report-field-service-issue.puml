@@ -10,12 +10,12 @@ class FieldOperationController <<controller>> {
 }
 
 class FieldOperationService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +createIssue(request : ApiRequests.IssueCreate) : Map<String, Object>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -issueRepository : IssueRepository
 
     +requireText(value : String, message : String) : void
@@ -72,9 +72,9 @@ enum IssueStatus {
 FieldOperationController ..> FieldOperationService
 FieldOperationController ..> IssueCreateDTO
 FieldOperationService ..> IssueCreateDTO
-FieldOperationService ..> DemoSupportService
-DemoSupportService ..> IssueRepository
-DemoSupportService ..> Issue
+FieldOperationService ..> DomainSupportService
+DomainSupportService ..> IssueRepository
+DomainSupportService ..> Issue
 IssueRepository --> Issue
 Issue --> IssueStatus
 Issue -|> AuditEntity

@@ -14,13 +14,18 @@ class AccountController <<controller>> {
 }
 
 class AccountService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
+    -verificationEmailService : VerificationEmailService
 
     +users(roleName : String) : List<Map<String, Object>>
     +updateProfile(userId : Long, request : ApiRequests.ProfileUpdate) : Map<String, Object>
     +updateStatus(userId : Long, request : ApiRequests.AccountStatusUpdate) : Map<String, Object>
     +activity(userId : Long) : Map<String, Object>
     -requireAdmin() : void
+}
+
+class VerificationEmailService <<service>> {
+    +sendAccountStatusEmail(user : AppUser, locked : boolean) : VerificationEmailDelivery
 }
 
 class "ApiRequests.AccountStatusUpdate" as AccountStatusUpdateDTO <<dto>> {
@@ -57,6 +62,7 @@ AccountController ..> AccountService
 AccountController ..> AccountStatusUpdateDTO
 AccountService ..> AppUserRepository
 AccountService ..> BookingRepository
+AccountService ..> VerificationEmailService
 AppUserRepository --> AppUser
 BookingRepository --> Booking
 Booking --> AppUser

@@ -22,11 +22,11 @@ import java.util.UUID;
 @Service
 @Transactional
 public class PaymentWorkflowService {
-    private final DemoSupportService support;
+    private final DomainSupportService support;
     private final BookingWorkflowService bookingWorkflowService;
     private final PayPalCheckoutService payPalCheckoutService;
 
-    public PaymentWorkflowService(DemoSupportService support, BookingWorkflowService bookingWorkflowService,
+    public PaymentWorkflowService(DomainSupportService support, BookingWorkflowService bookingWorkflowService,
                                   PayPalCheckoutService payPalCheckoutService) {
         this.support = support;
         this.bookingWorkflowService = bookingWorkflowService;
@@ -56,6 +56,9 @@ public class PaymentWorkflowService {
         payment.setPaymentOption(paymentOption);
         payment.setPaymentMethod(method);
         payment.setAmount(amount);
+        payment.setCurrency("USD");
+        payment.setProviderFeeAmount(BigDecimal.ZERO.setScale(2));
+        payment.setProviderNetAmount(request.success() ? amount : BigDecimal.ZERO.setScale(2));
         payment.setCreatedBy(operator);
         payment.setStatus(request.success() ? PaymentStatus.paid : PaymentStatus.failed);
         payment.setGatewayMessage(request.success() ? "Cash payment recorded at the venue" : "Cash payment could not be collected at the venue");
@@ -106,8 +109,10 @@ public class PaymentWorkflowService {
     public Map<String, Object> createRefund(ApiRequests.RefundCreate request) {
         Booking booking = support.getBooking(request.bookingId());
         AppUser requester = currentUser();
-        boolean operator = isOperator(requester);
-        if (!operator && !booking.getCustomer().getUserId().equals(requester.getUserId())) {
+        if (!"Customer".equalsIgnoreCase(requester.getRole().getRoleName())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Refund requests must be submitted by the customer; staff review and process them");
+        }
+        if (!booking.getCustomer().getUserId().equals(requester.getUserId())) {
             throw new ApiException(HttpStatus.FORBIDDEN, "You can only request a refund for your own booking");
         }
         if (booking.getRefundableAmount().compareTo(BigDecimal.ZERO) <= 0) {
@@ -117,10 +122,7 @@ public class PaymentWorkflowService {
         refund.setBooking(booking);
         refund.setRefundCode("RF" + System.currentTimeMillis());
         refund.setIdempotencyKey("GZ-REFUND-" + UUID.randomUUID());
-        refund.setRequestedBy(operator && request.requestedById() != null ? support.getUser(request.requestedById()) : requester);
-        if (request.processedById() != null) {
-            refund.setProcessedBy(support.getUser(request.processedById()));
-        }
+        refund.setRequestedBy(requester);
         BigDecimal alreadyCommitted = support.refundRepository.findByBooking_BookingIdOrderByRefundIdDesc(booking.getBookingId()).stream()
                 .filter(existing -> existing.getStatus() != RefundStatus.rejected && existing.getStatus() != RefundStatus.failed)
                 .map(Refund::getRefundAmount)
@@ -137,14 +139,8 @@ public class PaymentWorkflowService {
         Refund savedRefund = support.refundRepository.save(refund);
         support.notifyUser(booking.getCustomer(), booking, NotificationType.refund, "Refund requested",
                 "Your refund request " + savedRefund.getRefundCode() + " is awaiting staff review.");
-        if (request.approveNow()) {
-            if (!operator) {
-                throw new ApiException(HttpStatus.FORBIDDEN, "Only staff or administrators may approve a refund");
-            }
-            updateRefundStatus(savedRefund.getRefundId(), new ApiRequests.RefundStatusUpdate("approved", request.processedById(), null));
-            return updateRefundStatus(savedRefund.getRefundId(), new ApiRequests.RefundStatusUpdate(
-                    savedRefund.getPayment().getPaymentMethod() == PaymentMethod.paypal_sandbox ? "processing" : "completed",
-                    request.processedById(), null));
+        if (request.approveNow() || request.processedById() != null) {
+            throw support.badRequest("Customers cannot approve or assign their own refund request");
         }
         return support.refundSummary(savedRefund);
     }
@@ -188,6 +184,7 @@ public class PaymentWorkflowService {
         Refund saved = support.refundRepository.save(refund);
         if (saved.getStatus() == RefundStatus.completed) {
             syncBookingAndInvoiceRefundAmounts(saved.getBooking(), saved.getRefundAmount());
+            syncPaymentRefundStatus(saved.getPayment());
         }
         String title = switch (saved.getStatus()) {
             case approved -> "Refund approved";
@@ -225,7 +222,8 @@ public class PaymentWorkflowService {
     private Payment resolveRefundPayment(Booking booking, Long requestedPaymentId, BigDecimal amount) {
         List<Payment> candidates = support.paymentRepository
                 .findByBooking_BookingIdOrderByPaymentIdDesc(booking.getBookingId()).stream()
-                .filter(payment -> payment.getStatus() == PaymentStatus.paid)
+                .filter(payment -> payment.getStatus() == PaymentStatus.paid
+                        || payment.getStatus() == PaymentStatus.partially_refunded)
                 .toList();
         if (requestedPaymentId != null) {
             Payment selected = candidates.stream()
@@ -264,16 +262,9 @@ public class PaymentWorkflowService {
                 .filter(refund -> refund.getStatus() == RefundStatus.completed)
                 .map(Refund::getRefundAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal grossPaid = support.paymentRepository.findByBooking_BookingIdOrderByPaymentIdDesc(booking.getBookingId()).stream()
-                .filter(payment -> payment.getStatus() == PaymentStatus.paid)
-                .map(Payment::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal netPaid = support.money(grossPaid.subtract(completed).max(BigDecimal.ZERO));
-        booking.setPaidAmount(netPaid);
+        // paidAmount is the gross amount collected. Refunds are tracked separately so invoices
+        // can show both the original receipt and the amount returned to the customer.
         booking.setRefundableAmount(support.money(booking.getRefundableAmount().subtract(newlyCompletedAmount).max(BigDecimal.ZERO)));
-        if (booking.getStatus() != BookingStatus.cancelled) {
-            booking.setRemainingAmount(support.money(booking.getTotalAmount().subtract(netPaid).max(BigDecimal.ZERO)));
-        }
         support.bookingRepository.save(booking);
         support.invoiceRepository.findByBooking_BookingId(booking.getBookingId()).ifPresent(invoice -> {
             invoice.setRefundAmount(support.money(completed));
@@ -281,9 +272,30 @@ public class PaymentWorkflowService {
         });
     }
 
+    private void syncPaymentRefundStatus(Payment payment) {
+        if (payment == null) return;
+        BigDecimal completed = support.refundRepository
+                .findByBooking_BookingIdOrderByRefundIdDesc(payment.getBooking().getBookingId()).stream()
+                .filter(refund -> refund.getPayment() != null && refund.getPayment().getPaymentId().equals(payment.getPaymentId()))
+                .filter(refund -> refund.getStatus() == RefundStatus.completed)
+                .map(Refund::getRefundAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (completed.compareTo(BigDecimal.ZERO) > 0) {
+            payment.setStatus(completed.compareTo(payment.getAmount()) >= 0
+                    ? PaymentStatus.refunded
+                    : PaymentStatus.partially_refunded);
+            support.paymentRepository.save(payment);
+        }
+    }
+
     @Transactional(readOnly = true)
     public List<Map<String, Object>> refunds() {
-        return support.refundRepository.findAllByOrderByRefundIdDesc().stream().map(support::refundSummary).toList();
+        AppUser requester = currentUser();
+        return support.refundRepository.findAllByOrderByRefundIdDesc().stream()
+                .filter(refund -> isOperator(requester)
+                        || refund.getBooking().getCustomer().getUserId().equals(requester.getUserId()))
+                .map(support::refundSummary)
+                .toList();
     }
 
     private AppUser currentUser() {

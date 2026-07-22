@@ -10,12 +10,12 @@ class BookingController <<controller>> {
 }
 
 class BookingWorkflowService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +createBooking(request : ApiRequests.BookingCreate) : Map<String, Object>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -extraServiceRepository : ExtraServiceRepository
     -bookingServiceItemRepository : BookingServiceItemRepository
 
@@ -104,11 +104,11 @@ class ExtraService <<entity>> {
 BookingController ..> BookingWorkflowService
 BookingController ..> BookingCreateDTO
 BookingWorkflowService ..> BookingCreateDTO
-BookingWorkflowService ..> DemoSupportService
+BookingWorkflowService ..> DomainSupportService
 BookingWorkflowService ..> ServiceSelectionDTO
-DemoSupportService ..> ExtraServiceRepository
-DemoSupportService ..> BookingServiceItemRepository
-DemoSupportService ..> Booking
+DomainSupportService ..> ExtraServiceRepository
+DomainSupportService ..> BookingServiceItemRepository
+DomainSupportService ..> Booking
 ExtraServiceRepository --> ExtraService
 BookingServiceItemRepository --> BookingServiceItem
 BookingServiceItem --> Booking

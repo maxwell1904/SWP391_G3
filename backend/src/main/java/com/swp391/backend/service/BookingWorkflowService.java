@@ -22,9 +22,9 @@ import java.util.Objects;
 @Service
 @Transactional
 public class BookingWorkflowService {
-    private final DemoSupportService support;
+    private final DomainSupportService support;
 
-    public BookingWorkflowService(DemoSupportService support) {
+    public BookingWorkflowService(DomainSupportService support) {
         this.support = support;
     }
 

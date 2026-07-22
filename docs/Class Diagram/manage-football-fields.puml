@@ -12,7 +12,7 @@ class FieldOperationController <<controller>> {
 }
 
 class FieldOperationService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +managedFields() : List<Map<String, Object>>
     +createField(request : ApiRequests.FieldUpsert) : Map<String, Object>

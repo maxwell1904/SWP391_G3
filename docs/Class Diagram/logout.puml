@@ -10,7 +10,7 @@ class AccountController <<controller>> {
 }
 
 class AccountService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +logout() : Map<String, Object>
     -currentUser() : AppUser

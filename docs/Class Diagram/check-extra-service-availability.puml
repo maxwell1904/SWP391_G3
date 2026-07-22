@@ -2,7 +2,7 @@
 skinparam classAttributeIconSize 0
 skinparam linetype polyline
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
   -extraServiceRepository : ExtraServiceRepository
   -bookingServiceItemRepository : BookingServiceItemRepository
   +calculateServiceTotal(selections : List<ServiceSelection>, slot : Slot, excludedBookingId : Long) : BigDecimal
@@ -27,9 +27,9 @@ class Slot <<entity>> {
   -startTime : LocalTime
   -endTime : LocalTime
 }
-DemoSupportService ..> ExtraServiceRepository
-DemoSupportService ..> BookingServiceItemRepository
-DemoSupportService ..> Slot
+DomainSupportService ..> ExtraServiceRepository
+DomainSupportService ..> BookingServiceItemRepository
+DomainSupportService ..> Slot
 ExtraServiceRepository --> ExtraService
 BookingServiceItemRepository --> ExtraService
 @enduml

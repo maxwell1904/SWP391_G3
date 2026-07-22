@@ -12,18 +12,18 @@ class PaymentController <<controller>> {
 }
 
 class PaymentWorkflowService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +capturePayment(request : ApiRequests.PaymentCapture) : Map<String, Object>
 }
 
 class PayPalCheckoutService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +cancelOrder(bookingId : Long, orderId : String) : Map<String, Object>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -bookingRepository : BookingRepository
     -paymentRepository : PaymentRepository
     -userRepository : AppUserRepository
@@ -226,22 +226,22 @@ class BookingMaintenanceScheduler <<service>> {
 PaymentController ..> PaymentWorkflowService
 PaymentController ..> PayPalCheckoutService
 PaymentController ..> PaymentCaptureDTO
-PaymentWorkflowService ..> DemoSupportService
+PaymentWorkflowService ..> DomainSupportService
 PaymentWorkflowService ..> PaymentCaptureDTO
-PayPalCheckoutService ..> DemoSupportService
-BookingMaintenanceScheduler ..> DemoSupportService
+PayPalCheckoutService ..> DomainSupportService
+BookingMaintenanceScheduler ..> DomainSupportService
 BookingMaintenanceScheduler ..> BookingRepository
 BookingMaintenanceScheduler ..> PaymentRepository
-DemoSupportService ..> BookingRepository
-DemoSupportService ..> AppUserRepository
-DemoSupportService ..> PaymentRepository
-DemoSupportService ..> NotificationRepository
-DemoSupportService ..> InvoiceRepository
-DemoSupportService ..> Booking
-DemoSupportService ..> Payment
-DemoSupportService ..> Notification
-DemoSupportService ..> Invoice
-DemoSupportService ..> AppUser
+DomainSupportService ..> BookingRepository
+DomainSupportService ..> AppUserRepository
+DomainSupportService ..> PaymentRepository
+DomainSupportService ..> NotificationRepository
+DomainSupportService ..> InvoiceRepository
+DomainSupportService ..> Booking
+DomainSupportService ..> Payment
+DomainSupportService ..> Notification
+DomainSupportService ..> Invoice
+DomainSupportService ..> AppUser
 BookingRepository --> Booking
 AppUserRepository --> AppUser
 PaymentRepository --> Payment

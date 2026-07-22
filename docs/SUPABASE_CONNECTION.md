@@ -1,10 +1,10 @@
 # Supabase / PostgreSQL setup
 
-The database is code-first only for local H2 demo/test runs. Supabase PostgreSQL is migration-first: Flyway creates and hardens the schema, then Hibernate runs with `ddl-auto=validate`. This keeps the code model and production-like schema from silently drifting.
+The normal runtime uses Supabase PostgreSQL and is migration-first: Flyway creates and hardens the schema, then Hibernate runs with `ddl-auto=validate`. This keeps the code model and database from silently drifting.
 
 ## Local H2
 
-Do nothing special. `scripts/run-backend.sh` starts the default `local` profile, disables Flyway, creates a disposable H2 schema, and runs the demo seeder.
+Use `scripts/run-backend.sh`. When `.env.local` contains a PostgreSQL URL, the launcher automatically activates the PostgreSQL/Flyway profile. Without Supabase variables it uses a file-backed H2 development database under `backend/data`, so records survive restarts. Automated tests supply their own disposable in-memory database.
 
 ## Supabase
 

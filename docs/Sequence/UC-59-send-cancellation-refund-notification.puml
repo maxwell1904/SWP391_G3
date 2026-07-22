@@ -16,7 +16,7 @@ participant "AccountPage / StaffPage" as UI
 participant "App.jsx" as App
 participant "BookingController / PaymentController" as Controller
 participant "BookingWorkflowService / PaymentWorkflowService" as Service
-participant "DemoSupportService" as Support
+participant "DomainSupportService" as Support
 participant "NotificationRepository" as Repo
 database "Database" as DB
 

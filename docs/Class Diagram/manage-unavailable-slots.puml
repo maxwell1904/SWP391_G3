@@ -11,7 +11,7 @@ class FieldOperationController <<controller>> {
 }
 
 class FieldOperationService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +blockSlot(request : ApiRequests.SlotBlock) : Map<String, Object>
     +unblockSlot(slotId : Long) : Map<String, Object>

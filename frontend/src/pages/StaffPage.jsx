@@ -24,7 +24,6 @@ export function StaffPage({
   setIssueDraft,
   createIssue,
   issues,
-  createRefund,
   refunds,
   updateRefund,
   services,
@@ -217,7 +216,11 @@ export function StaffPage({
             <Button
               className="wideAction"
               variant="outline"
-              disabled={!selectedBooking || Number(selectedBooking.remainingAmount) <= 0}
+              disabled={
+                !selectedBooking
+                || !['pending', 'confirmed', 'checked_in', 'completed'].includes(selectedBooking.status)
+                || Number(selectedBooking.remainingAmount) <= 0
+              }
               onClick={() => capturePayment('remaining')}
             >
               Remaining payment
@@ -288,7 +291,7 @@ export function StaffPage({
           ))}
         </InfoPanel>
         <InfoPanel title="Refunds" className={activePanel === 'support' ? '' : 'workspacePanelHidden'}>
-          <Button className="secondaryButton" disabled={!selectedBooking || Number(selectedBooking.refundableAmount) <= 0} onClick={createRefund}>Request refund for selected booking</Button>
+          <p className="panelHint">Customers submit refund requests. Staff verify the case, approve or reject it, then complete the cash or PayPal return.</p>
           <DataList items={refunds.map(refund => ({
             title: refund.refundCode,
             meta: `${refund.bookingCode} · ${refund.paymentMethod === 'paypal_sandbox' ? 'PayPal' : 'Cash'} · ${refund.gatewayMessage || refund.refundReason || 'support case'}`,

@@ -12,7 +12,7 @@ class PaymentController <<controller>> {
 }
 
 class PaymentWorkflowService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
     -payPalCheckoutService : PayPalCheckoutService
 
     +refunds() : List<Map<String, Object>>
@@ -22,6 +22,7 @@ class PaymentWorkflowService <<service>> {
     -resolveRefundPayment(booking : Booking, paymentId : Long, amount : BigDecimal) : Payment
     -ensureRefundCapacity(payment : Payment, amount : BigDecimal) : void
     -syncInvoiceRefundAmount(booking : Booking) : void
+    -syncPaymentRefundStatus(payment : Payment) : void
 }
 
 class PayPalCheckoutService <<service>> {
@@ -44,6 +45,8 @@ class Refund <<entity>> {
     -refundId : Long
     -booking : Booking
     -payment : Payment
+    -requestedBy : AppUser
+    -processedBy : AppUser
     -refundCode : String
     -refundAmount : BigDecimal
     -refundReason : String
@@ -59,6 +62,8 @@ class Payment <<entity>> {
     -booking : Booking
     -paymentMethod : PaymentMethod
     -amount : BigDecimal
+    -providerFeeAmount : BigDecimal
+    -providerNetAmount : BigDecimal
     -status : PaymentStatus
     -providerCaptureId : String
 }

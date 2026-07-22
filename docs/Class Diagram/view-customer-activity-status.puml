@@ -10,13 +10,13 @@ class AccountController <<controller>> {
 }
 
 class AccountService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +activity(userId : Long) : Map<String, Object>
     -requireSelfOrOperator(userId : Long) : void
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -bookingRepository : BookingRepository
     -issueRepository : IssueRepository
 
@@ -53,9 +53,9 @@ class Issue <<entity>> {
 }
 
 AccountController ..> AccountService
-AccountService ..> DemoSupportService
-DemoSupportService ..> BookingRepository
-DemoSupportService ..> IssueRepository
+AccountService ..> DomainSupportService
+DomainSupportService ..> BookingRepository
+DomainSupportService ..> IssueRepository
 BookingRepository --> Booking
 IssueRepository --> Issue
 Booking --> AppUser

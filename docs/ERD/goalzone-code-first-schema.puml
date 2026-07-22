@@ -1,0 +1,264 @@
+@startuml
+left to right direction
+skinparam monochrome true
+skinparam shadowing false
+skinparam linetype ortho
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 12
+hide circle
+
+entity role {
+  * role_id : bigint <<PK>>
+  --
+  role_name : varchar <<UQ>>
+  status : varchar
+}
+
+entity app_user {
+  * user_id : bigint <<PK>>
+  --
+  role_id : bigint <<FK>>
+  email : varchar <<UQ>>
+  phone : varchar <<UQ>>
+  status : varchar
+  booking_restricted : boolean
+  email_verified : boolean
+  auth_version : bigint
+}
+
+entity membership_level {
+  * membership_level_id : bigint <<PK>>
+  --
+  level_name : varchar <<UQ>>
+  required_completed_bookings : int
+  qualification_period : varchar
+  required_consecutive_periods : int
+  discount_percent : numeric
+  status : varchar
+}
+
+entity customer_membership {
+  * customer_membership_id : bigint <<PK>>
+  --
+  customer_id : bigint <<FK,UQ>>
+  membership_level_id : bigint <<FK>>
+  completed_booking_count : int
+  effective_from : date
+  effective_to : date
+}
+
+entity field_type {
+  * field_type_id : bigint <<PK>>
+  --
+  type_name : varchar <<UQ>>
+  player_capacity : int
+  status : varchar
+}
+
+entity field {
+  * field_id : bigint <<PK>>
+  --
+  field_type_id : bigint <<FK>>
+  field_name : varchar
+  image_url : varchar
+  location : varchar
+  surface_type : varchar
+  status : varchar
+}
+
+entity field_price {
+  * field_price_id : bigint <<PK>>
+  --
+  field_id : bigint <<FK>>
+  day_type : varchar
+  start_time : time
+  end_time : time
+  price : numeric
+  effective_from : date
+  effective_to : date
+  status : varchar
+}
+
+entity "slot" as slot_table {
+  * slot_id : bigint <<PK>>
+  --
+  field_id : bigint <<FK>>
+  created_by : bigint <<FK>>
+  slot_date : date
+  start_time : time
+  end_time : time
+  status : varchar
+  block_reason : varchar
+}
+
+entity booking {
+  * booking_id : bigint <<PK>>
+  --
+  customer_id : bigint <<FK>>
+  staff_id : bigint <<FK>>
+  slot_id : bigint <<FK>>
+  booking_code : varchar <<UQ>>
+  status : varchar
+  booking_source : varchar
+  total_amount : numeric
+  deposit_amount : numeric
+  paid_amount : numeric
+  remaining_amount : numeric
+  cancellation_fee_amount : numeric
+  refundable_amount : numeric
+}
+
+entity extra_service {
+  * extra_service_id : bigint <<PK>>
+  --
+  service_name : varchar
+  service_type : varchar
+  unit_price : numeric
+  stock_quantity : int
+  max_quantity_per_booking : int
+  status : varchar
+}
+
+entity booking_service {
+  * booking_service_id : bigint <<PK>>
+  --
+  booking_id : bigint <<FK>>
+  extra_service_id : bigint <<FK>>
+  quantity : int
+  unit_price : numeric
+  line_total : numeric
+}
+
+entity issue {
+  * issue_id : bigint <<PK>>
+  --
+  reporter_id : bigint <<FK>>
+  assigned_staff_id : bigint <<FK>>
+  booking_id : bigint <<FK>>
+  field_id : bigint <<FK>>
+  extra_service_id : bigint <<FK>>
+  status : varchar
+  resolution_note : text
+}
+
+entity promotion {
+  * promotion_id : bigint <<PK>>
+  --
+  promotion_code : varchar <<UQ>>
+  applicable_field_type_id : bigint <<FK>>
+  applicable_membership_level_id : bigint <<FK>>
+  applicable_extra_service_id : bigint <<FK>>
+  discount_type : varchar
+  discount_value : numeric
+  start_date : date
+  end_date : date
+  status : varchar
+}
+
+entity booking_promotion {
+  * booking_promotion_id : bigint <<PK>>
+  --
+  booking_id : bigint <<FK>>
+  promotion_id : bigint <<FK>>
+  promotion_code_snapshot : varchar
+  discount_amount : numeric
+}
+
+entity payment {
+  * payment_id : bigint <<PK>>
+  --
+  booking_id : bigint <<FK>>
+  created_by : bigint <<FK>>
+  payment_code : varchar <<UQ>>
+  payment_option : varchar
+  payment_method : varchar
+  amount : numeric
+  currency : varchar
+  provider_fee_amount : numeric
+  provider_net_amount : numeric
+  provider_order_id : varchar
+  provider_capture_id : varchar
+  status : varchar
+}
+
+entity invoice {
+  * invoice_id : bigint <<PK>>
+  --
+  booking_id : bigint <<FK,UQ>>
+  invoice_code : varchar <<UQ>>
+  total_amount : numeric
+  paid_amount : numeric
+  remaining_amount : numeric
+  refund_amount : numeric
+}
+
+entity refund {
+  * refund_id : bigint <<PK>>
+  --
+  booking_id : bigint <<FK>>
+  payment_id : bigint <<FK>>
+  requested_by : bigint <<FK>>
+  processed_by : bigint <<FK>>
+  refund_code : varchar <<UQ>>
+  refund_amount : numeric
+  status : varchar
+  provider_status : varchar
+  idempotency_key : varchar
+}
+
+entity notification {
+  * notification_id : bigint <<PK>>
+  --
+  user_id : bigint <<FK>>
+  booking_id : bigint <<FK>>
+  payment_id : bigint <<FK>>
+  refund_id : bigint <<FK>>
+  notification_type : varchar
+  is_read : boolean
+}
+
+entity system_setting {
+  * setting_id : bigint <<PK>>
+  --
+  updated_by : bigint <<FK>>
+  setting_key : varchar <<UQ>>
+  setting_value : varchar
+  setting_group : varchar
+  status : varchar
+}
+
+role ||--o{ app_user
+app_user ||--o| customer_membership
+membership_level ||--o{ customer_membership
+field_type ||--o{ field
+field ||--o{ field_price
+field ||--o{ slot_table
+app_user |o--o{ slot_table
+app_user ||--o{ booking
+app_user |o--o{ booking
+slot_table ||--o{ booking
+booking ||--o{ booking_service
+extra_service ||--o{ booking_service
+app_user ||--o{ issue
+app_user |o--o{ issue
+booking |o--o{ issue
+field |o--o{ issue
+extra_service |o--o{ issue
+field_type |o--o{ promotion
+membership_level |o--o{ promotion
+extra_service |o--o{ promotion
+booking ||--o{ booking_promotion
+promotion ||--o{ booking_promotion
+booking ||--o{ payment
+app_user |o--o{ payment
+booking ||--o| invoice
+booking ||--o{ refund
+payment |o--o{ refund
+app_user |o--o{ refund
+app_user |o--o{ refund
+app_user ||--o{ notification
+booking |o--o{ notification
+payment |o--o{ notification
+refund |o--o{ notification
+app_user |o--o{ system_setting
+@enduml
