@@ -924,10 +924,11 @@ export function AdminPage({
           </div>
           <div className="adminFormGrid compact">
             <FieldControl label="Full name"><input value={staffForm.fullName} onChange={event => setStaffForm(form => ({ ...form, fullName: event.target.value }))} /></FieldControl>
-            <FieldControl label="Email"><input type="email" value={staffForm.email} onChange={event => setStaffForm(form => ({ ...form, email: event.target.value }))} /></FieldControl>
+            <FieldControl label="Email"><input type="email" value={staffForm.email} onChange={event => setStaffForm(form => ({ ...form, email: event.target.value }))} disabled={selectedStaffId !== 'new'} /></FieldControl>
             <FieldControl label="Phone"><input value={staffForm.phone} onChange={event => setStaffForm(form => ({ ...form, phone: event.target.value }))} /></FieldControl>
             <FieldControl label="Status"><select value={staffForm.status} onChange={event => setStaffForm(form => ({ ...form, status: event.target.value }))}><option value="active">Active</option><option value="inactive">Inactive</option></select></FieldControl>
           </div>
+          {selectedStaffId !== 'new' && <p className="panelHint">* Email cannot be changed after account creation.</p>}
           {selectedStaffId === 'new' && <p className="panelHint">GoalZone emails a one-time password setup link. Administrators cannot view or replace the staff member's password.</p>}
           <Button color="green" onClick={saveStaff}>{selectedStaffId === 'new' ? 'Create & send invitation' : 'Save staff account'}</Button>
         </InfoPanel>
