@@ -2075,6 +2075,14 @@ main.pageMain .section {
   gap: 9px;
 }
 
+.reportRangeControls {
+  align-items: flex-end;
+}
+
+.reportRangeControls .fieldControl {
+  width: min(146px, 100%);
+}
+
 .buttonRow.noMargin {
   margin: 0;
 }
