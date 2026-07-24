@@ -147,6 +147,7 @@ public class SecurityConfig {
                         // Authenticated endpoints (Customers, Staff, Admin)
                         .requestMatchers(
                                 "/api/bookings/**",
+                                "/api/assistant/**",
                                 "/api/account/users/*/profile",
                                 "/api/account/users/*/password",
                                 "/api/membership/*/progress",

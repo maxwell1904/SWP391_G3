@@ -273,4 +273,8 @@ public final class ApiRequests {
             Integer requiredConsecutivePeriods
     ) {
     }
+
+    /** Natural-language request for UC-63. Availability is still resolved by the backend. */
+    public record AssistantAvailability(String question) {
+    }
 }

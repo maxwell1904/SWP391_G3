@@ -3436,3 +3436,148 @@ main.pageMain .section {
 .adminDestinationBar {
   margin: 0.75rem 0 1rem;
 }
+
+.assistantAskCard {
+  margin: 1.1rem 0;
+  padding: clamp(1.25rem, 3vw, 1.7rem);
+  border: 1px solid rgba(23, 111, 70, 0.18);
+  border-radius: 1.2rem;
+  background: radial-gradient(circle at 100% 0, rgba(212, 240, 220, 0.8), transparent 32%), linear-gradient(135deg, #f7fcf8 0%, #fffdf8 100%);
+  box-shadow: 0 18px 42px rgba(24, 69, 42, 0.08);
+}
+
+.assistantAskHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.assistantAskHeading { margin-bottom: 0.25rem; }
+.assistantAskHeading h2 { margin: 0.15rem 0 0; font-size: clamp(1.22rem, 2vw, 1.45rem); }
+.assistantSubheading { margin: 0 0 1rem; color: var(--muted); font-size: 0.9rem; }
+
+.assistantLiveBadge {
+  flex: 0 0 auto;
+  padding: 0.32rem 0.58rem;
+  border-radius: 999px;
+  background: #dff3e5;
+  color: var(--green-dark);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.assistantComposer {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 4.2rem;
+  padding: 0.45rem 0.5rem 0.45rem 0.85rem;
+  border: 1px solid rgba(23, 111, 70, 0.2);
+  border-radius: 0.95rem;
+  background: var(--white);
+  box-shadow: 0 1px 0 rgba(12, 43, 26, 0.04), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.assistantComposer:focus-within {
+  border-color: var(--green);
+  box-shadow: 0 0 0 4px rgba(16, 124, 65, 0.12);
+}
+
+.assistantSparkle {
+  display: grid;
+  width: 2.2rem;
+  height: 2.2rem;
+  place-items: center;
+  border-radius: 0.7rem;
+  color: var(--green-dark);
+  background: var(--green-soft);
+}
+
+.assistantComposer textarea {
+  display: block;
+  width: 100%;
+  min-height: 2.7rem;
+  max-height: 7rem;
+  margin: 0;
+  padding: 0.62rem 0;
+  border: 0;
+  outline: 0;
+  resize: none;
+  background: transparent;
+  color: var(--ink);
+  line-height: 1.45;
+}
+
+.assistantComposer textarea:focus { box-shadow: none; }
+.assistantComposer textarea::placeholder { color: #829286; opacity: 1; }
+
+.assistantSendButton {
+  display: inline-grid;
+  width: 3rem;
+  height: 3rem;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0.78rem;
+  background: var(--green);
+  color: var(--white);
+  box-shadow: 0 8px 18px rgba(16, 124, 65, 0.22);
+}
+
+.assistantSendButton:hover:not(:disabled) { background: var(--green-dark); }
+.assistantSendButton:disabled { opacity: 0.42; box-shadow: none; }
+.assistantLoadingDot { width: 0.85rem; height: 0.85rem; border: 2px solid rgba(255, 255, 255, 0.45); border-top-color: #fff; border-radius: 50%; animation: assistantSpin 700ms linear infinite; }
+
+.assistantPromptRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.85rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.assistantExample {
+  min-height: auto;
+  padding: 0.36rem 0.64rem;
+  border: 1px solid rgba(23, 111, 70, 0.15);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.74);
+  color: var(--green-dark);
+  font-size: 0.78rem;
+  font-weight: 760;
+  cursor: pointer;
+}
+.assistantExample:hover { border-color: rgba(23, 111, 70, 0.38); background: var(--green-soft); }
+.assistantHint { margin: 0.85rem 0 0; color: var(--muted); font-size: 0.79rem; line-height: 1.45; }
+
+.assistantResponse {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+  margin: 0 0 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(23, 111, 70, 0.16);
+  border-radius: 0.9rem;
+  background: rgba(234, 246, 238, 0.75);
+}
+
+.assistantResponse > span { display: grid; width: 2rem; height: 2rem; place-items: center; border-radius: 0.65rem; color: var(--green-dark); background: #d8f0e0; }
+.assistantResponse p { margin: 0.15rem 0 0; color: #244434; font-size: 0.92rem; line-height: 1.65; white-space: pre-line; }
+
+@keyframes assistantSpin { to { transform: rotate(360deg); } }
+
+@media (max-width: 560px) {
+  .assistantAskHeading { align-items: flex-start; flex-direction: column; }
+  .assistantLiveBadge { align-self: flex-start; }
+  .assistantComposer { gap: 0.5rem; padding-left: 0.55rem; }
+  .assistantSparkle { width: 1.9rem; height: 1.9rem; }
+}
