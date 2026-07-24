@@ -11,7 +11,8 @@ import java.util.Set;
 /**
  * PostgreSQL/Supabase is owned by Flyway.  Refuse Hibernate modes that can
  * create, alter, or drop that shared schema before JPA gets a connection.
- * Local H2 remains deliberately disposable for fast tests and demos.
+ * Local H2 remains a development fallback; automated tests override it with an
+ * isolated in-memory datasource.
  */
 public class PostgresDdlSafetyEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
 

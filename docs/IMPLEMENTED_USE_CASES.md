@@ -1,8 +1,8 @@
-# Implemented Use Cases
+# Implemented use cases
 
-> Archived snapshot. Use `BACKLOG_CODE_FIRST_DELIVERY.md` and
-> `END_TO_END_QA_MATRIX.md` for the current code-first scope.
+Status date: 2026-07-22
 
+<<<<<<< HEAD
 Last updated: 2026-06-11
 
 Source of truth: `../SWP391_G3_Backlog.xlsx`, sheet `Backlog`. The `Contribution` sheet has one owner/module mismatch for BaoNG, so the UC IDs below follow the `Backlog` sheet.
@@ -107,14 +107,20 @@ Status meanings:
 ## Extensions Not Counted As Excel UCs
 
 | Extension | Status | Notes |
+=======
+| Range | Status | Code-first note |
+>>>>>>> 327a19993fe956540087376c122302c65ddffcde
 | --- | --- | --- |
-| SMTP email verification link | Done | Implemented as a registration extension. Verification link is sent to the registered email address. |
-| Password visibility and strength validation | Done | Login/register forms have show-password controls and register enforces a password policy. |
-| Supabase-ready configuration | Done for setup | Runtime env supports Supabase PostgreSQL through `.env.local`; local demo can still run with H2. |
-| React feature folder split | Done | Frontend is split into app, components, features, pages, services, styles, and utils. |
+| UC-01–06 | Implemented | Registration/verification, login/logout, profile, self-owned password change and reset. |
+| UC-07 | Implemented | Admin customer directory/activity and active/locked sign-in status with notification. |
+| UC-08 | Implemented | Admin creates Staff identity/status; Staff receives invitation and owns the password. |
+| UC-09–10 | Implemented | Customer activity plus independent new-booking restriction/restoration. |
+| UC-11–23 | Implemented | Field catalogue/detail/search, image upload, pricing, slot operation, services and issue lifecycle. Reviews are excluded. |
+| UC-24–37 | Implemented | Online/walk-in creation, detail/history/calendar and guarded lifecycle, reschedule, cancellation/refund preview, no-show and conflict resolution. |
+| UC-38–50 | Implemented | Checkout, Customer PayPal Sandbox, Staff cash, payment history, invoice, refund request/processing and policy settings. |
+| UC-51–62 | Implemented | Promotions, membership rules/progress, notifications and Admin revenue/booking/customer reports. |
+| UC-63–64 | Implemented with scoped design | Rule-based availability assistant and ranked live slots. External LLM/RAG is optional. |
 
-## Notes For Demo
-
-- The app must not display task owner names or implementation comments in the UI.
-- The app starts on a public home/field browsing experience. Login is available from the header.
-- Use `docs/BACKLOG_RDS_CODE_GAP_ANALYSIS.md` for the current mismatch list before finalizing the RDS.
+Detailed acceptance criteria, roles, route/API paths and evidence are maintained
+in `END_TO_END_QA_MATRIX.md`. Scope decisions and non-overlapping UC definitions
+are maintained in `BACKLOG_CODE_FIRST_DELIVERY.md`.

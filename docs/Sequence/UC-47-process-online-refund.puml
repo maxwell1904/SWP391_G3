@@ -1,0 +1,72 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor Staff
+participant "StaffPage" as UI
+participant "App.jsx" as App
+participant "PaymentController" as Controller
+participant "PaymentWorkflowService" as Service
+participant "PayPalCheckoutService" as PayPalService
+participant "RefundRepository" as Repo
+participant "PayPal Payments v2" as PayPal
+database "Database" as DB
+
+== Process online refund ==
+
+Staff -> UI : 1. Click Send approved refund to PayPal
+activate Staff
+activate UI
+UI -> App : 2. updateRefund(refund, 'processing')
+activate App
+App -> Controller : 3. PUT /api/refunds/{refundId}/status
+activate Controller
+Controller -> Service : 4. updateRefundStatus(refundId, request)
+activate Service
+Service -> Repo : 5. findById(refundId)
+activate Repo
+Repo -> DB : 6. SELECT refund + captured payment
+activate DB
+DB --> Repo : 7. approved/processing/failed Refund
+deactivate DB
+Repo --> Service : 8. Refund
+deactivate Repo
+Service -> Service : 9. Validate providerProcessing transition
+activate Service
+deactivate Service
+Service -> PayPalService : 10. refundCapture(payment, amount, idempotencyKey, transactionCode)
+activate PayPalService
+PayPalService -> PayPal : 11. POST /v2/payments/captures/{captureId}/refund
+activate PayPal
+PayPal --> PayPalService : 12. COMPLETED / PENDING / FAILED
+deactivate PayPal
+PayPalService --> Service : 13. RefundResult
+deactivate PayPalService
+Service -> Repo : 14. save provider status and transaction id
+activate Repo
+Repo -> DB : 15. UPDATE refund; UPDATE invoice; INSERT notification
+activate DB
+DB --> Repo : 16. committed
+deactivate DB
+Repo --> Service : 17. saved Refund
+deactivate Repo
+Service --> Controller : 18. refundSummary
+deactivate Service
+Controller --> App : 19. HTTP 200
+deactivate Controller
+App --> UI : 20. Refresh refunds and billing
+deactivate App
+UI --> Staff : 21. Show provider truth
+deactivate UI
+deactivate Staff
+
+@enduml

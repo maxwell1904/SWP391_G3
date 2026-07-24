@@ -32,12 +32,12 @@ public class AccountService {
     private static final Pattern SPECIAL_PATTERN = Pattern.compile(".*[^A-Za-z0-9].*");
     private static final String PASSWORD_POLICY_MESSAGE = "Password must be at least 8 characters and include uppercase, lowercase, number, and special character.";
 
-    private final DemoSupportService support;
+    private final DomainSupportService support;
     private final VerificationEmailService verificationEmailService;
     private final BCryptPasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
-    public AccountService(DemoSupportService support, VerificationEmailService verificationEmailService, BCryptPasswordEncoder passwordEncoder, JwtService jwtService) {
+    public AccountService(DomainSupportService support, VerificationEmailService verificationEmailService, BCryptPasswordEncoder passwordEncoder, JwtService jwtService) {
         this.support = support;
         this.verificationEmailService = verificationEmailService;
         this.passwordEncoder = passwordEncoder;
@@ -226,7 +226,7 @@ public class AccountService {
 
     // Backlog owner: BonVT - UC-05 Change password.
     public Map<String, Object> changePassword(Long userId, ApiRequests.PasswordChange request) {
-        requireSelfOrAdmin(userId);
+        requireSelf(userId);
         AppUser user = support.getUser(userId);
         support.requireText(request.currentPassword(), "Current password is required");
         if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
@@ -260,6 +260,8 @@ public class AccountService {
             if (!support.isBlank(user.getEmail())) {
                 delivery = verificationEmailService.sendAccountLockEmail(user, reason);
             }
+            support.notifyUser(user, null, com.swp391.backend.enums.NotificationType.system,
+                    "Booking access restricted", "Reason: " + reason);
         } else {
             user.setStatus(AccountStatus.active);
             user.setAccountLocked(false);
@@ -301,6 +303,12 @@ public class AccountService {
                 .toList();
     }
 
+    public Map<String, Object> logout() {
+        AppUser user = currentUser();
+        revokeAllTokens(user);
+        return Map.of("message", "Signed out. This token has been revoked.");
+    }
+
     public Map<String, Object> updateStatus(Long userId, ApiRequests.AccountStatusUpdate request) {
         requireAdmin();
         AppUser user = support.getUser(userId);
@@ -311,13 +319,26 @@ public class AccountService {
             throw support.badRequest("Use the customer account lock endpoint");
         }
         AccountStatus status = support.parseEnum(AccountStatus.class, request.status(), user.getStatus());
+        if (status == AccountStatus.inactive && "Customer".equalsIgnoreCase(user.getRole().getRoleName())) {
+            throw support.badRequest("Customer sign-in access must be set to active or locked");
+        }
         user.setStatus(status);
         user.setAccountLocked(status == AccountStatus.locked);
         if (status != AccountStatus.locked) {
             user.setLockReason(null);
         }
         revokeAllTokens(user);
-        return support.userSummary(user);
+        VerificationEmailDelivery delivery = support.isBlank(user.getEmail()) ? null
+                : verificationEmailService.sendAccountStatusEmail(user, status != AccountStatus.active);
+        support.notifyUser(user, null, com.swp391.backend.enums.NotificationType.system,
+                status == AccountStatus.active ? "Account access restored" : "Account locked",
+                status == AccountStatus.active ? "Your account is active again." : "Your account can no longer sign in.");
+        Map<String, Object> response = new LinkedHashMap<>(support.userSummary(user));
+        if (delivery != null) {
+            response.put("emailDeliveryStatus", delivery.status());
+            response.put("message", delivery.message());
+        }
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -362,7 +383,14 @@ public class AccountService {
         AppUser staff = new AppUser();
         staff.setRole(staffRole);
         applyStaffRequest(staff, request, true);
-        return support.userSummary(support.userRepository.save(staff));
+        staff.setPasswordHash(passwordEncoder.encode(UUID.randomUUID() + "Aa1!"));
+        staff = support.userRepository.save(staff);
+        issuePasswordReset(staff);
+        VerificationEmailDelivery delivery = verificationEmailService.sendStaffInvitationEmail(staff);
+        Map<String, Object> response = new LinkedHashMap<>(support.userSummary(staff));
+        response.put("emailDeliveryStatus", delivery.status());
+        response.put("message", delivery.message());
+        return response;
     }
 
     public Map<String, Object> updateStaff(Long userId, ApiRequests.StaffUpsert request) {
@@ -372,10 +400,10 @@ public class AccountService {
             throw support.badRequest("The selected account is not a staff account");
         }
         validateStaffRequest(request, false, userId);
-        applyStaffRequest(staff, request, false);
         if (!support.isBlank(request.password())) {
-            revokeAllTokens(staff);
+            throw support.badRequest("Administrators cannot change a staff member's password; staff must change or reset it themselves");
         }
+        applyStaffRequest(staff, request, false);
         if (staff.getStatus() != AccountStatus.active) {
             revokeAllTokens(staff);
         }
@@ -394,11 +422,6 @@ public class AccountService {
                 .ifPresent(user -> { throw support.badRequest("Email already exists"); });
         support.userRepository.findByPhone(phone).filter(user -> !Objects.equals(user.getUserId(), currentUserId))
                 .ifPresent(user -> { throw support.badRequest("Phone already exists"); });
-        if (creating) {
-            validatePassword(request.password(), request.password());
-        } else if (!support.isBlank(request.password())) {
-            validatePassword(request.password(), request.password());
-        }
     }
 
     private void applyStaffRequest(AppUser staff, ApiRequests.StaffUpsert request, boolean creating) {
@@ -406,9 +429,6 @@ public class AccountService {
         staff.setEmail(support.clean(request.email()));
         staff.setPhone(support.clean(request.phone()));
         staff.setStatus(support.parseEnum(AccountStatus.class, request.status(), AccountStatus.active));
-        if (creating || !support.isBlank(request.password())) {
-            staff.setPasswordHash(passwordEncoder.encode(request.password()));
-        }
         if (creating) {
             staff.setEmailVerified(true);
         }
@@ -432,6 +452,12 @@ public class AccountService {
         AppUser requester = currentUser();
         if (!Objects.equals(requester.getUserId(), userId) && !"Admin".equalsIgnoreCase(requester.getRole().getRoleName())) {
             throw new ApiException(HttpStatus.FORBIDDEN, "You can only access your own account");
+        }
+    }
+
+    private void requireSelf(Long userId) {
+        if (!Objects.equals(currentUser().getUserId(), userId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "You can only change your own password");
         }
     }
 

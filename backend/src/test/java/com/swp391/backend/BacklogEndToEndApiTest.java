@@ -144,6 +144,13 @@ class BacklogEndToEndApiTest {
         JsonNode staffLogin = login("staff@goalzone.local");
         String staffToken = token(staffLogin);
         long staffId = userId(staffLogin);
+        assertThat(exchange(auth(post("/api/refunds")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of(
+                        "bookingId", bookingId,
+                        "refundReason", "Staff must review rather than request"
+                ))), staffToken), 403).path("error").asText())
+                .contains("submitted by the customer");
         JsonNode approvedRefund = exchange(auth(put("/api/refunds/" + refund.path("refundId").asLong() + "/status")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(Map.of("status", "approved", "processedById", staffId, "note", "Validated by E2E"))), staffToken), 200);
@@ -173,6 +180,16 @@ class BacklogEndToEndApiTest {
         assertThat(cancelled.path("status").asText()).isEqualTo("cancelled");
         assertThat(cancelled.path("refundableAmount").decimalValue())
                 .isEqualByComparingTo(cancellationPreview.path("refundableAmount").decimalValue());
+        assertThat(exchange(auth(post("/api/payments/capture")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of(
+                        "bookingId", cancellableBookingId,
+                        "createdById", staffId,
+                        "paymentOption", "remaining",
+                        "paymentMethod", "cash",
+                        "success", true
+                ))), staffToken), 400).path("error").asText())
+                .contains("cannot be captured");
         assertThat(exchange(auth(put("/api/bookings/" + cancellableBookingId + "/status")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(Map.of("status", "confirmed", "note", "Invalid transition"))), staffToken), 400)
@@ -406,6 +423,21 @@ class BacklogEndToEndApiTest {
         assertThat(suggestions.get(0).path("slotId").asLong()).isPositive();
         assertThat(suggestions.get(0).path("reasons")).isNotEmpty();
         assertThat(suggestions.get(0).path("score").asInt()).isPositive();
+
+        exchange(get("/api/slots/suggestions")
+                .param("date", LocalDate.now().minusDays(1).toString()), 400);
+        exchange(get("/api/slots/suggestions")
+                .param("date", LocalDate.now().plusDays(1).toString())
+                .param("maxPrice", "-1"), 400);
+
+        JsonNode customerLogin = login("customer@goalzone.local");
+        exchange(get("/api/slots/suggestions")
+                .param("date", LocalDate.now().plusDays(1).toString())
+                .param("customerId", customerLogin.path("user").path("userId").asText()), 403);
+        JsonNode customerSuggestions = exchange(auth(get("/api/slots/suggestions")
+                .param("date", LocalDate.now().plusDays(1).toString())
+                .param("customerId", customerLogin.path("user").path("userId").asText()), token(customerLogin)), 200);
+        assertThat(customerSuggestions).isNotEmpty();
     }
 
     @Test
@@ -627,6 +659,9 @@ class BacklogEndToEndApiTest {
                 .content(json(Map.of("currentPassword", "E2EReset@123", "newPassword", "E2EChanged@123", "confirmPassword", "E2EChanged@123"))), resetLoginToken), 200);
         JsonNode changedLogin = login(email, "E2EChanged@123");
         String changedToken = token(changedLogin);
+
+        assertThat(exchange(auth(post("/api/account/logout"), changedToken), 200).path("message").asText()).contains("Signed out");
+        exchange(auth(get("/api/bookings"), changedToken), 403);
 
         JsonNode customerLogin = login("customer@goalzone.local");
         String customerToken = token(customerLogin);

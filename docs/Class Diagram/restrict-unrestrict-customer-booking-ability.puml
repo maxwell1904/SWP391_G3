@@ -1,0 +1,69 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class AccountController <<controller>> {
+    -accountService : AccountService
+
+    +updateRestriction(userId : Long, request : ApiRequests.RestrictionUpdate) : Object
+}
+
+class AccountService <<service>> {
+    -support : DomainSupportService
+    -verificationEmailService : VerificationEmailService
+
+    +updateRestriction(userId : Long, request : ApiRequests.RestrictionUpdate) : Map<String, Object>
+    -requireAdmin() : void
+    -revokeAllTokens(user : AppUser) : void
+}
+
+class VerificationEmailService <<service>> {
+    +sendRestrictionEmail(user : AppUser, reason : String) : VerificationEmailDelivery
+    +sendBookingAccessRestoredEmail(user : AppUser) : VerificationEmailDelivery
+}
+
+class DomainSupportService <<service>> {
+    +getUser(userId : Long) : AppUser
+    +clean(value : String) : String
+    +requireText(value : String, message : String) : void
+    +userSummary(user : AppUser) : Map<String, Object>
+    +notifyUser(user : AppUser, booking : Booking, type : NotificationType, title : String, message : String) : void
+}
+
+class "ApiRequests.RestrictionUpdate" as RestrictionUpdateDTO <<dto>> {
+    -bookingRestricted : boolean
+    -restrictionReason : String
+}
+
+interface AppUserRepository <<repository>> {
+    +findById(id : Long) : Optional<AppUser>
+    +save(entity : AppUser) : AppUser
+}
+
+class AppUser <<entity>> {
+    -userId : Long
+    -role : Role
+    -email : String
+    -status : AccountStatus
+    -bookingRestricted : boolean
+    -restrictionReason : String
+    -authVersion : long
+}
+
+class Role <<entity>> {
+    -roleId : Long
+    -roleName : String
+}
+
+AccountController ..> AccountService
+AccountController ..> RestrictionUpdateDTO
+AccountService ..> RestrictionUpdateDTO
+AccountService ..> VerificationEmailService
+AccountService ..> DomainSupportService
+AccountService ..> AppUserRepository
+VerificationEmailService ..> AppUser
+AppUserRepository --> AppUser
+AppUser --> Role
+
+@enduml

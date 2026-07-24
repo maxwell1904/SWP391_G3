@@ -18,24 +18,24 @@ class BookingController <<controller>> {
 }
 
 class PaymentWorkflowService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +capturePayment(request : ApiRequests.PaymentCapture) : Map<String, Object>
 }
 
 class PayPalCheckoutService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +captureOrder(bookingId : Long, orderId : String, request : ApiRequests.PayPalOrderCapture) : Map<String, Object>
 }
 
 class BookingWorkflowService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +updateBookingStatus(bookingId : Long, request : ApiRequests.BookingStatusUpdate) : Map<String, Object>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -invoiceRepository : InvoiceRepository
 
     +generateInvoice(booking : Booking) : void
@@ -82,11 +82,11 @@ class AuditEntity <<entity>> {
 PaymentController ..> PaymentWorkflowService
 PaymentController ..> PayPalCheckoutService
 BookingController ..> BookingWorkflowService
-PaymentWorkflowService ..> DemoSupportService
-PayPalCheckoutService ..> DemoSupportService
-BookingWorkflowService ..> DemoSupportService
-DemoSupportService ..> InvoiceRepository
-DemoSupportService ..> Booking
+PaymentWorkflowService ..> DomainSupportService
+PayPalCheckoutService ..> DomainSupportService
+BookingWorkflowService ..> DomainSupportService
+DomainSupportService ..> InvoiceRepository
+DomainSupportService ..> Booking
 InvoiceRepository --> Invoice
 Invoice --> Booking
 Invoice -|> AuditEntity

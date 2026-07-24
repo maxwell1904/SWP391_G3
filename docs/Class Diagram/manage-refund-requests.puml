@@ -1,0 +1,80 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class PaymentController <<controller>> {
+    -paymentWorkflowService : PaymentWorkflowService
+
+    +refunds() : Object
+    +createRefund(request : ApiRequests.RefundCreate) : Object
+    +updateRefundStatus(refundId : Long, request : ApiRequests.RefundStatusUpdate) : Object
+}
+
+class PaymentWorkflowService <<service>> {
+    -support : DomainSupportService
+    -payPalCheckoutService : PayPalCheckoutService
+
+    +refunds() : List<Map<String, Object>>
+    +createRefund(request : ApiRequests.RefundCreate) : Map<String, Object>
+    +updateRefundStatus(refundId : Long, request : ApiRequests.RefundStatusUpdate) : Map<String, Object>
+    -processProviderRefund(refund : Refund) : void
+    -resolveRefundPayment(booking : Booking, paymentId : Long, amount : BigDecimal) : Payment
+    -ensureRefundCapacity(payment : Payment, amount : BigDecimal) : void
+    -syncInvoiceRefundAmount(booking : Booking) : void
+    -syncPaymentRefundStatus(payment : Payment) : void
+}
+
+class PayPalCheckoutService <<service>> {
+    +refundCapture(payment : Payment, refundAmount : BigDecimal, requestId : String, existingRefundId : String) : RefundResult
+}
+
+class "ApiRequests.RefundStatusUpdate" as RefundStatusUpdateDTO <<dto>> {
+    -status : String
+    -processedById : Long
+    -note : String
+}
+
+interface RefundRepository <<repository>> {
+    +findAllByOrderByRefundIdDesc() : List<Refund>
+    +findById(id : Long) : Optional<Refund>
+    +save(entity : Refund) : Refund
+}
+
+class Refund <<entity>> {
+    -refundId : Long
+    -booking : Booking
+    -payment : Payment
+    -requestedBy : AppUser
+    -processedBy : AppUser
+    -refundCode : String
+    -refundAmount : BigDecimal
+    -refundReason : String
+    -status : RefundStatus
+    -providerStatus : String
+    -idempotencyKey : String
+    -gatewayMessage : String
+    -processedAt : LocalDateTime
+}
+
+class Payment <<entity>> {
+    -paymentId : Long
+    -booking : Booking
+    -paymentMethod : PaymentMethod
+    -amount : BigDecimal
+    -providerFeeAmount : BigDecimal
+    -providerNetAmount : BigDecimal
+    -status : PaymentStatus
+    -providerCaptureId : String
+}
+
+PaymentController ..> PaymentWorkflowService
+PaymentController ..> RefundStatusUpdateDTO
+PaymentWorkflowService ..> RefundStatusUpdateDTO
+PaymentWorkflowService ..> PayPalCheckoutService
+PaymentWorkflowService ..> RefundRepository
+RefundRepository --> Refund
+Refund --> Payment
+Refund --> Booking
+
+@enduml

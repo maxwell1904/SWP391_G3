@@ -33,7 +33,7 @@ public class DataSeeder {
 
     @Bean
     @Order(2)
-    CommandLineRunner seedDemoData(
+    CommandLineRunner seedReferenceData(
             RoleRepository roleRepository,
             AppUserRepository userRepository,
             MembershipLevelRepository membershipLevelRepository,

@@ -1,0 +1,350 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/28.0.6 Chrome/138.0.7204.100 Electron/37.2.3 Safari/537.36" scale="1" border="0">
+  <diagram id="football-field-booking-crowfoot-diamond" name="Crowfoot Diamond ERD">
+    <mxGraphModel dx="1720" dy="379" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1700" pageHeight="1050" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="role" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=11;fontColor=#000000;align=center;verticalAlign=middle;" value="role" vertex="1">
+          <mxGeometry height="42" width="116" x="1540" y="1050" as="geometry" />
+        </mxCell>
+        <mxCell id="user" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=11;fontColor=#000000;align=center;verticalAlign=middle;" value="app_user" vertex="1">
+          <mxGeometry height="42" width="116" x="1345" y="1135" as="geometry" />
+        </mxCell>
+        <mxCell id="membership_level" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=11;fontColor=#000000;align=center;verticalAlign=middle;" value="membership_level" vertex="1">
+          <mxGeometry height="42" width="132" x="973" y="818" as="geometry" />
+        </mxCell>
+        <mxCell id="customer_membership" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=11;fontColor=#000000;align=center;verticalAlign=middle;" value="customer_membership" vertex="1">
+          <mxGeometry height="42" width="132" x="1186" y="914" as="geometry" />
+        </mxCell>
+        <mxCell id="field_type" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=11;fontColor=#000000;align=center;verticalAlign=middle;" value="field_type" vertex="1">
+          <mxGeometry height="42" width="116" x="760" y="1180" as="geometry" />
+        </mxCell>
+        <mxCell id="field" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=11;fontColor=#000000;align=center;verticalAlign=middle;" value="field" vertex="1">
+          <mxGeometry height="42" width="116" x="560" y="1285" as="geometry" />
+        </mxCell>
+        <mxCell id="field_price" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=11;fontColor=#000000;align=center;verticalAlign=middle;" value="field_price" vertex="1">
+          <mxGeometry height="42" width="116" x="514" y="1506" as="geometry" />
+        </mxCell>
+        <mxCell id="unavailable_slot" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=11;fontColor=#000000;align=center;verticalAlign=middle;" value="slot" vertex="1">
+          <mxGeometry height="42" width="132" x="376" y="1389" as="geometry" />
+        </mxCell>
+        <mxCell id="booking" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=11;fontColor=#000000;align=center;verticalAlign=middle;" value="booking" vertex="1">
+          <mxGeometry height="42" width="116" x="1257" y="1467" as="geometry" />
+        </mxCell>
+        <mxCell id="booking_service" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=11;fontColor=#000000;align=center;verticalAlign=middle;" value="booking_service" vertex="1">
+          <mxGeometry height="42" width="116" x="912" y="1180" as="geometry" />
+        </mxCell>
+        <mxCell id="extra_service" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=11;fontColor=#000000;align=center;verticalAlign=middle;" value="extra_service" vertex="1">
+          <mxGeometry height="42" width="116" x="962" y="1102" as="geometry" />
+        </mxCell>
+        <mxCell id="issue" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=11;fontColor=#000000;align=center;verticalAlign=middle;" value="issue" vertex="1">
+          <mxGeometry height="42" width="116" x="962" y="922" as="geometry" />
+        </mxCell>
+        <mxCell id="promotion" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=11;fontColor=#000000;align=center;verticalAlign=middle;" value="promotion" vertex="1">
+          <mxGeometry height="42" width="116" x="720" y="1285" as="geometry" />
+        </mxCell>
+        <mxCell id="booking_promotion" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=11;fontColor=#000000;align=center;verticalAlign=middle;" value="booking_promotion" vertex="1">
+          <mxGeometry height="42" width="132" x="866" y="1417" as="geometry" />
+        </mxCell>
+        <mxCell id="payment" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=11;fontColor=#000000;align=center;verticalAlign=middle;" value="payment" vertex="1">
+          <mxGeometry height="42" width="116" x="1565" y="1593" as="geometry" />
+        </mxCell>
+        <mxCell id="invoice" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=11;fontColor=#000000;align=center;verticalAlign=middle;" value="invoice" vertex="1">
+          <mxGeometry height="42" width="116" x="1248" y="1685" as="geometry" />
+        </mxCell>
+        <mxCell id="refund" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=11;fontColor=#000000;align=center;verticalAlign=middle;" value="refund" vertex="1">
+          <mxGeometry height="42" width="116" x="1750" y="1355" as="geometry" />
+        </mxCell>
+        <mxCell id="notification" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=11;fontColor=#000000;align=center;verticalAlign=middle;" value="notification" vertex="1">
+          <mxGeometry height="42" width="116" x="1540" y="1230" as="geometry" />
+        </mxCell>
+        <mxCell id="system_setting" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=11;fontColor=#000000;align=center;verticalAlign=middle;" value="system_setting" vertex="1">
+          <mxGeometry height="42" width="132" x="1360" y="760" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_1_assigned_role" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="assigned role" vertex="1">
+          <mxGeometry height="58" width="104" x="1373" y="1044" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_1_1" edge="1" parent="1" source="role" style="startArrow=ERone;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_1_assigned_role">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_1_2" edge="1" parent="1" source="user" style="startArrow=ERmany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;exitX=0.678;exitY=0.036;exitDx=0;exitDy=0;exitPerimeter=0;" target="rel_1_assigned_role">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1420" y="1130" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_3_has_membership" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="has membership" vertex="1">
+          <mxGeometry height="58" width="104" x="1200" y="1010" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_3_1" edge="1" parent="1" source="user" style="startArrow=ERone;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_3_has_membership">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_3_2" edge="1" parent="1" source="customer_membership" style="startArrow=ERzeroToOne;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_3_has_membership">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_4_classified_as" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="classified as" vertex="1">
+          <mxGeometry height="58" width="104" x="1200" y="810" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_4_1" edge="1" parent="1" source="customer_membership" style="startArrow=ERmany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_4_classified_as">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_4_2" edge="1" parent="1" source="membership_level" style="startArrow=ERone;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_4_classified_as">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_5_has_type" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="has type" vertex="1">
+          <mxGeometry height="58" width="104" x="610" y="1172" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_5_1" edge="1" parent="1" source="field_type" style="startArrow=ERone;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_5_has_type">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_5_2" edge="1" parent="1" source="field" style="startArrow=ERmany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;exitX=0.863;exitY=0.034;exitDx=0;exitDy=0;exitPerimeter=0;" target="rel_5_has_type">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_7_priced_by" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="priced by" vertex="1">
+          <mxGeometry height="58" width="104" x="520" y="1389" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_7_1" edge="1" parent="1" source="field" style="startArrow=ERone;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;exitX=0.115;exitY=0.959;exitDx=0;exitDy=0;exitPerimeter=0;" target="rel_7_priced_by">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="573" y="1360" />
+            </Array>
+            <mxPoint x="590" y="1380" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_7_2" edge="1" parent="1" source="field_price" style="startArrow=ERzeroToMany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_7_priced_by">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_8_blocks_field" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="has slot" vertex="1">
+          <mxGeometry height="58" width="104" x="390" y="1277" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_8_1" edge="1" parent="1" source="field" style="startArrow=ERone;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_8_blocks_field">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_8_2" edge="1" parent="1" source="unavailable_slot" style="startArrow=ERzeroToMany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_8_blocks_field">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_12_placed_by_customer" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="placed by customer" vertex="1">
+          <mxGeometry height="58" width="118" x="1280" y="1260" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_12_1" edge="1" parent="1" source="user" style="startArrow=ERone;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_12_placed_by_customer">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_12_2" edge="1" parent="1" source="booking" style="startArrow=ERzeroToMany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_12_placed_by_customer">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_13_handled_by_staff" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="handled by staff" vertex="1">
+          <mxGeometry height="58" width="118" x="1410" y="1277" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_13_1" edge="1" parent="1" source="user" style="startArrow=ERzeroToOne;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_13_handled_by_staff">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_13_2" edge="1" parent="1" source="booking" style="startArrow=ERzeroToMany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_13_handled_by_staff">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_14_reserves_field" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="reserved by&lt;br&gt;(max 1 active)" vertex="1">
+          <mxGeometry height="58" width="104" x="876" y="1567" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_14_1" edge="1" parent="1" source="unavailable_slot" style="startArrow=ERone;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" target="rel_14_reserves_field">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="440" y="1600" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_14_2" edge="1" parent="1" source="booking" style="startArrow=ERzeroToMany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_14_reserves_field">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_17_includes_service" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="includes service" vertex="1">
+          <mxGeometry height="58" width="118" x="1028" y="1318" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_17_1" edge="1" parent="1" source="booking" style="startArrow=ERone;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;exitX=0.103;exitY=-0.027;exitDx=0;exitDy=0;exitPerimeter=0;" target="rel_17_includes_service">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_17_2" edge="1" parent="1" source="booking_service" style="startArrow=ERzeroToMany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_17_includes_service">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1087" y="1200" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_18_references_service" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="references service" vertex="1">
+          <mxGeometry height="58" width="118" x="780" y="1094" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_18_1" edge="1" parent="1" source="extra_service" style="startArrow=ERone;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_18_references_service">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_18_2" edge="1" parent="1" source="booking_service" style="startArrow=ERzeroToMany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_18_references_service">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_19_reports_issue" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="reports issue" vertex="1">
+          <mxGeometry height="58" width="104" x="1200" y="1119" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_19_1" edge="1" parent="1" source="user" style="startArrow=ERone;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_19_reports_issue">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_19_2" edge="1" parent="1" source="issue" style="startArrow=ERzeroToMany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_19_reports_issue">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_20_references_booking" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="references booking" vertex="1">
+          <mxGeometry height="58" width="118" x="1162" y="1219" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_20_1" edge="1" parent="1" source="booking" style="startArrow=ERzeroToOne;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_20_references_booking">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_20_2" edge="1" parent="1" source="issue" style="startArrow=ERzeroToMany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_20_references_booking">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_21_references_field" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="references field" vertex="1">
+          <mxGeometry height="58" width="118" x="530" y="914" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_21_1" edge="1" parent="1" source="field" style="startArrow=ERzeroToOne;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;exitX=0.25;exitY=0;exitDx=0;exitDy=0;" target="rel_21_references_field">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_21_2" edge="1" parent="1" source="issue" style="startArrow=ERzeroToMany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_21_references_field">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_22_references_service" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="references service" vertex="1">
+          <mxGeometry height="58" width="118" x="962" y="1010" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_22_1" edge="1" parent="1" source="extra_service" style="startArrow=ERzeroToOne;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_22_references_service">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_22_2" edge="1" parent="1" source="issue" style="startArrow=ERzeroToMany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_22_references_service">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_25_applies_promotion" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="applies promotion" vertex="1">
+          <mxGeometry height="58" width="118" x="1061" y="1409" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_25_1" edge="1" parent="1" source="booking" style="startArrow=ERone;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_25_applies_promotion">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_25_2" edge="1" parent="1" source="booking_promotion" style="startArrow=ERzeroToMany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_25_applies_promotion">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_26_references_promotion" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="references promotion" vertex="1">
+          <mxGeometry height="58" width="118" x="873" y="1280" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_26_1" edge="1" parent="1" source="promotion" style="startArrow=ERone;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_26_references_promotion">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_26_2" edge="1" parent="1" source="booking_promotion" style="startArrow=ERzeroToMany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_26_references_promotion">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_32_paid_by" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="paid by" vertex="1">
+          <mxGeometry height="58" width="104" x="1373" y="1580" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_32_1" edge="1" parent="1" source="booking" style="startArrow=ERone;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_32_paid_by">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_32_2" edge="1" parent="1" source="payment" style="startArrow=ERzeroToMany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_32_paid_by">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_34_generates_invoice" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="generates invoice" vertex="1">
+          <mxGeometry height="58" width="118" x="1246" y="1567" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_34_1" edge="1" parent="1" source="booking" style="startArrow=ERone;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_34_generates_invoice">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_34_2" edge="1" parent="1" source="invoice" style="startArrow=ERzeroToOne;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_34_generates_invoice">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_36_may_refund" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="may refund" vertex="1">
+          <mxGeometry height="58" width="104" x="1900" y="1490" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_36_1" edge="1" parent="1" source="payment" style="startArrow=ERzeroToOne;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_36_may_refund">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_36_2" edge="1" parent="1" source="refund" style="startArrow=ERzeroToMany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_36_may_refund">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1950" y="1376" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_37_refunds_booking" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="refunds booking" vertex="1">
+          <mxGeometry height="58" width="118" x="1520" y="1459" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_37_1" edge="1" parent="1" source="booking" style="startArrow=ERone;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_37_refunds_booking">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_37_2" edge="1" parent="1" source="refund" style="startArrow=ERzeroToMany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_37_refunds_booking">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_39_sent_to_user" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="sent to user" vertex="1">
+          <mxGeometry height="58" width="104" x="1546" y="1135" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_39_1" edge="1" parent="1" source="user" style="startArrow=ERone;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_39_sent_to_user">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_39_2" edge="1" parent="1" source="notification" style="startArrow=ERzeroToMany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_39_sent_to_user">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_40_notifies_booking" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="notifies booking" vertex="1">
+          <mxGeometry height="58" width="118" x="1430" y="1389" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_40_1" edge="1" parent="1" source="booking" style="startArrow=ERzeroToOne;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_40_notifies_booking">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_40_2" edge="1" parent="1" source="notification" style="startArrow=ERzeroToMany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_40_notifies_booking">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_41_notifies_payment" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="notifies payment" vertex="1">
+          <mxGeometry height="58" width="118" x="1831" y="1593" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_41_1" edge="1" parent="1" source="payment" style="startArrow=ERzeroToOne;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_41_notifies_payment">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_41_2" edge="1" parent="1" source="notification" style="startArrow=ERzeroToMany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="rel_41_notifies_payment">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2040" y="1250" />
+              <mxPoint x="2040" y="1360" />
+              <mxPoint x="2040" y="1622" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_42_notifies_refund" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="notifies refund" vertex="1">
+          <mxGeometry height="58" width="118" x="1570" y="1351" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_42_1" edge="1" parent="1" source="refund" style="startArrow=ERzeroToOne;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_42_notifies_refund">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_42_2" edge="1" parent="1" source="notification" style="startArrow=ERzeroToMany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_42_notifies_refund">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_43_issue_assignee" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="assigned to staff" vertex="1">
+          <mxGeometry height="58" width="118" x="1110" y="1000" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_43_1" edge="1" parent="1" source="user" style="startArrow=ERzeroToOne;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_43_issue_assignee"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="edge_43_2" edge="1" parent="1" source="issue" style="startArrow=ERzeroToMany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_43_issue_assignee"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rel_44_slot_creator" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="created by" vertex="1">
+          <mxGeometry height="58" width="104" x="690" y="1420" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_44_1" edge="1" parent="1" source="user" style="startArrow=ERzeroToOne;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_44_slot_creator"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="edge_44_2" edge="1" parent="1" source="unavailable_slot" style="startArrow=ERzeroToMany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_44_slot_creator"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rel_45_payment_recorder" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="recorded by" vertex="1">
+          <mxGeometry height="58" width="104" x="1690" y="1670" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_45_1" edge="1" parent="1" source="user" style="startArrow=ERzeroToOne;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_45_payment_recorder"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="edge_45_2" edge="1" parent="1" source="payment" style="startArrow=ERzeroToMany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_45_payment_recorder"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rel_46_refund_requester" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="requested by" vertex="1">
+          <mxGeometry height="58" width="104" x="1810" y="1230" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_46_1" edge="1" parent="1" source="user" style="startArrow=ERone;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_46_refund_requester"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="edge_46_2" edge="1" parent="1" source="refund" style="startArrow=ERzeroToMany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_46_refund_requester"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rel_47_refund_processor" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="processed by" vertex="1">
+          <mxGeometry height="58" width="104" x="1870" y="1330" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_47_1" edge="1" parent="1" source="user" style="startArrow=ERzeroToOne;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_47_refund_processor"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="edge_47_2" edge="1" parent="1" source="refund" style="startArrow=ERzeroToMany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_47_refund_processor"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="rel_48_setting_editor" parent="1" style="rhombus;whiteSpace=wrap;html=1;strokeColor=#000000;fillColor=#ffffff;fontSize=10;fontColor=#000000;align=center;verticalAlign=middle;" value="updated by" vertex="1">
+          <mxGeometry height="58" width="104" x="1390" y="860" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_48_1" edge="1" parent="1" source="user" style="startArrow=ERzeroToOne;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_48_setting_editor"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="edge_48_2" edge="1" parent="1" source="system_setting" style="startArrow=ERzeroToMany;startFill=0;endArrow=none;html=1;rounded=0;strokeColor=#000000;noEdgeStyle=1;" target="rel_48_setting_editor"><mxGeometry relative="1" as="geometry" /></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

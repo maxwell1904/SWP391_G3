@@ -1,0 +1,89 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "User" as User
+participant "AccountPage" as UI
+participant "App.jsx" as App
+participant "AccountController" as Controller
+participant "AccountService" as Service
+participant "AppUserRepository" as Repo
+database "Database" as DB
+
+== UC-03: Logout ==
+
+User -> UI : 1. Click "Sign out"
+activate User
+activate UI
+
+UI -> App : 2. logout()
+activate App
+
+App -> App : 3. Validate UI state and build request
+activate App
+deactivate App
+
+App -> Controller : 4. POST /api/account/logout
+activate Controller
+
+Controller -> Service : 5. logout()
+activate Service
+
+Service -> Service : 6. currentUser(); revokeAllTokens(user)
+activate Service
+deactivate Service
+
+alt Request is valid and authorized
+  Service -> Repo : 7. current authenticated AppUser
+  activate Repo
+
+  Repo -> DB : 8. JWT filter SELECT app_user\nWHERE email = ?
+  activate DB
+  DB --> Repo : 9. AppUser with authVersion
+  deactivate DB
+
+  Repo --> Service : 10. Repository result
+  deactivate Repo
+
+  Service -> Service : 11. Increment authVersion; transaction dirty-check
+  activate Service
+  deactivate Service
+else Validation, authorization, or state rule fails
+  note over Service,Controller
+    Missing or revoked JWT -> HTTP 401
+    The service propagates ApiException to ApiExceptionHandler.
+  end note
+end
+
+Service --> Controller : 12. Domain result or propagated error
+deactivate Service
+
+Controller -> Controller : 13. Serialize response
+activate Controller
+deactivate Controller
+
+Controller --> App : 14. HTTP 200 or mapped 4xx\nresponse body or error payload
+deactivate Controller
+
+App -> App : 15. Clear session, membership and notifications
+activate App
+deactivate App
+
+App --> UI : 16. Navigate to HomePage as guest
+deactivate App
+
+UI --> User : 17. Updated screen or error feedback
+
+deactivate UI
+deactivate User
+
+@enduml

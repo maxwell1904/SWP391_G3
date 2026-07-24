@@ -10,12 +10,12 @@ class FieldOperationController <<controller>> {
 }
 
 class FieldOperationService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +searchSlots(date : LocalDate, fieldTypeId : Long) : List<Map<String, Object>>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -slotRepository : SlotRepository
     -fieldPriceRepository : FieldPriceRepository
     -bookingRepository : BookingRepository
@@ -95,13 +95,13 @@ enum SlotStatus {
 
 ' Relationships
 FieldOperationController ..> FieldOperationService
-FieldOperationService ..> DemoSupportService
-DemoSupportService ..> SlotRepository
-DemoSupportService ..> BookingRepository
-DemoSupportService ..> FieldPriceRepository
-DemoSupportService ..> Slot
-DemoSupportService ..> FootballField
-DemoSupportService ..> FieldPrice
+FieldOperationService ..> DomainSupportService
+DomainSupportService ..> SlotRepository
+DomainSupportService ..> BookingRepository
+DomainSupportService ..> FieldPriceRepository
+DomainSupportService ..> Slot
+DomainSupportService ..> FootballField
+DomainSupportService ..> FieldPrice
 SlotRepository --> Slot
 BookingRepository --> Booking
 FieldPriceRepository --> FieldPrice

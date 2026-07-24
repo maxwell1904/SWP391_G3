@@ -1,0 +1,74 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class PromotionReportController <<controller>> {
+    -promotionReportService : PromotionReportService
+
+    +reports() : Object
+}
+
+class PromotionReportService <<service>> {
+    -support : DomainSupportService
+
+    +reports() : Map<String, Object>
+}
+
+class DomainSupportService <<service>> {
+    -userRepository : AppUserRepository
+    -bookingRepository : BookingRepository
+    -customerMembershipRepository : CustomerMembershipRepository
+}
+
+interface AppUserRepository <<repository>> {
+    +findAll() : List<AppUser>
+}
+
+interface BookingRepository <<repository>> {
+    +findByCustomer_UserIdOrderByBookingIdDesc(customerId : Long) : List<Booking>
+}
+
+interface CustomerMembershipRepository <<repository>> {
+    +findAll() : List<CustomerMembership>
+    +findByCustomer_UserId(customerId : Long) : Optional<CustomerMembership>
+}
+
+class AppUser <<entity>> {
+    -userId : Long
+    -role : Role
+    -fullName : String
+}
+
+class Booking <<entity>> {
+    -bookingId : Long
+    -customer : AppUser
+    -status : BookingStatus
+}
+
+class CustomerMembership <<entity>> {
+    -customerMembershipId : Long
+    -customer : AppUser
+    -membershipLevel : MembershipLevel
+    -completedBookingCount : int
+}
+
+class MembershipLevel <<entity>> {
+    -membershipLevelId : Long
+    -levelName : String
+    -discountPercent : BigDecimal
+}
+
+PromotionReportController ..> PromotionReportService
+PromotionReportService ..> DomainSupportService
+DomainSupportService ..> AppUserRepository
+DomainSupportService ..> BookingRepository
+DomainSupportService ..> CustomerMembershipRepository
+AppUserRepository --> AppUser
+BookingRepository --> Booking
+CustomerMembershipRepository --> CustomerMembership
+Booking --> AppUser
+CustomerMembership --> AppUser
+CustomerMembership --> MembershipLevel
+
+@enduml

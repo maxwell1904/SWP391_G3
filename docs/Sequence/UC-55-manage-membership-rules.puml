@@ -1,0 +1,83 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Admin" as Actor
+participant "MembershipRulesPage" as UI
+participant "App.jsx" as App
+participant "PromotionReportController" as Controller
+participant "PromotionReportService" as Service
+participant "MembershipLevelRepository" as Repo
+database "Database" as DB
+
+== Manage membership rules ==
+
+Actor -> UI : 1. Create or edit membership tier
+activate Actor
+activate UI
+
+UI -> App : 2. createMembershipLevel(payload) / updateMembershipLevel(id,payload)
+activate App
+
+App -> Controller : 3. POST /api/membership/levels or PUT /api/membership/levels/{id}
+activate Controller
+
+Controller -> Service : 4. createMembershipLevel(request) / updateMembershipLevel(id,request)
+activate Service
+
+Service -> Repo : 5. findAllByOrderByDisplayOrderAsc()
+activate Repo
+
+Repo -> DB : 6. SELECT membership_level ORDER BY display_order
+activate DB
+DB --> Repo : 7. Current record(s)
+deactivate DB
+Repo --> Service : 8. Domain object(s)
+deactivate Repo
+
+Service -> Service : 9. Require Admin\nvalidate level name, threshold, discount and status
+activate Service
+deactivate Service
+
+alt Validation fails
+  Service -> Service : 10. Build ApiException
+  activate Service
+  deactivate Service
+else Validation succeeds
+  Service -> Repo : 10. save(level)
+  activate Repo
+  Repo -> DB : 11. INSERT or UPDATE membership_level
+  activate DB
+  DB --> Repo : 12. Saved row(s)
+  deactivate DB
+  Repo --> Service : 13. Saved domain object
+  deactivate Repo
+end
+
+Service --> Controller : 14. membershipLevelSummary or error
+deactivate Service
+
+Controller --> App : 15. HTTP response
+deactivate Controller
+
+App -> App : 16. refreshAll()
+activate App
+deactivate App
+
+App --> UI : 17. Refresh ordered tier list
+deactivate App
+
+UI --> Actor : 18. Show saved membership rule
+deactivate UI
+deactivate Actor
+
+@enduml

@@ -16,18 +16,19 @@ class PaymentController <<controller>> {
 }
 
 class BookingWorkflowService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +updateBookingStatus(bookingId : Long, request : ApiRequests.BookingStatusUpdate) : Map<String, Object>
 }
 
 class PaymentWorkflowService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +createRefund(request : ApiRequests.RefundCreate) : Map<String, Object>
+    +updateRefundStatus(refundId : Long, request : ApiRequests.RefundStatusUpdate) : Map<String, Object>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -notificationRepository : NotificationRepository
 
     +notifyUser(user : AppUser, booking : Booking, type : NotificationType, title : String, message : String) : void
@@ -75,12 +76,12 @@ enum NotificationType {
 ' Relationships
 BookingController ..> BookingWorkflowService
 PaymentController ..> PaymentWorkflowService
-BookingWorkflowService ..> DemoSupportService
-PaymentWorkflowService ..> DemoSupportService
-DemoSupportService ..> NotificationRepository
-DemoSupportService ..> Notification
-DemoSupportService ..> AppUser
-DemoSupportService ..> Booking
+BookingWorkflowService ..> DomainSupportService
+PaymentWorkflowService ..> DomainSupportService
+DomainSupportService ..> NotificationRepository
+DomainSupportService ..> Notification
+DomainSupportService ..> AppUser
+DomainSupportService ..> Booking
 NotificationRepository --> Notification
 Notification --> AppUser
 Notification --> Booking

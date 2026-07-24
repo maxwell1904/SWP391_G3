@@ -10,12 +10,12 @@ class BookingController <<controller>> {
 }
 
 class BookingWorkflowService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +previewCheckout(request : ApiRequests.PromotionApply) : Map<String, Object>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -userRepository : AppUserRepository
     -slotRepository : SlotRepository
     -extraServiceRepository : ExtraServiceRepository
@@ -210,16 +210,16 @@ enum SlotStatus {
 ' Relationships
 BookingController ..> BookingWorkflowService
 BookingController ..> PromotionApplyDTO
-BookingWorkflowService ..> DemoSupportService
+BookingWorkflowService ..> DomainSupportService
 BookingWorkflowService ..> PromotionApplyDTO
 BookingWorkflowService ..> ServiceSelectionDTO
 
-DemoSupportService ..> AppUserRepository
-DemoSupportService ..> SlotRepository
-DemoSupportService ..> ExtraServiceRepository
-DemoSupportService ..> FieldPriceRepository
-DemoSupportService ..> PromotionRepository
-DemoSupportService ..> CustomerMembershipRepository
+DomainSupportService ..> AppUserRepository
+DomainSupportService ..> SlotRepository
+DomainSupportService ..> ExtraServiceRepository
+DomainSupportService ..> FieldPriceRepository
+DomainSupportService ..> PromotionRepository
+DomainSupportService ..> CustomerMembershipRepository
 
 AppUserRepository --> AppUser
 SlotRepository --> Slot

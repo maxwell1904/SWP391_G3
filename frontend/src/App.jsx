@@ -60,6 +60,7 @@ function App() {
   const [fieldTypeFilter, setFieldTypeFilter] = useState('')
   const [fieldFilter, setFieldFilter] = useState('')
   const [selectedSlotId, setSelectedSlotId] = useState(null)
+  const [suggestedSlotId, setSuggestedSlotId] = useState(null)
   const [selectedBookingId, setSelectedBookingId] = useState(null)
   const [selectedCustomerId, setSelectedCustomerId] = useState(null)
   const [selectedStaffId, setSelectedStaffId] = useState(null)
@@ -161,11 +162,34 @@ function App() {
   }, [searchDate, fieldTypeFilter])
 
   useEffect(() => {
+    if (currentPage !== 'booking') return
+    const storedSuggestion = sessionStorage.getItem('goalzoneSuggestedSlot')
+    if (!storedSuggestion) return
+    try {
+      const suggestion = JSON.parse(storedSuggestion)
+      if (!suggestion.slotId || !suggestion.slotDate) throw new Error('Invalid slot suggestion')
+      setSuggestedSlotId(Number(suggestion.slotId))
+      setSearchDate(suggestion.slotDate)
+      setFieldTypeFilter('')
+      setFieldFilter('')
+    } catch {
+      sessionStorage.removeItem('goalzoneSuggestedSlot')
+    }
+  }, [currentPage])
+
+  useEffect(() => {
+    const suggestedSlot = bookingSlots.find(slot => slot.slotId === Number(suggestedSlotId) && slot.available)
+    if (suggestedSlot) {
+      setSelectedSlotId(suggestedSlot.slotId)
+      setSuggestedSlotId(null)
+      sessionStorage.removeItem('goalzoneSuggestedSlot')
+      return
+    }
     const firstAvailable = bookingSlots.find(slot => slot.available)
     setSelectedSlotId(current => bookingSlots.some(slot => slot.slotId === Number(current) && slot.available)
       ? current
       : firstAvailable?.slotId || null)
-  }, [bookingSlots])
+  }, [bookingSlots, suggestedSlotId])
 
   useEffect(() => {
     if (currentPage !== 'verifyEmail') return undefined
@@ -802,18 +826,25 @@ function App() {
     }), 'Password changed')
   }
 
-  function logout() {
-    setCurrentUser(null)
-    setMembership(null)
-    setNotifications([])
-    setSelectedCustomerId(null)
-    setNotice('Signed out')
-    setActionPanel({
-      kind: 'success',
-      title: 'Signed out',
-      message: 'You are back in guest browsing mode.'
-    })
-    navigatePage('home')
+  async function logout() {
+    try {
+      await api.post('/account/logout')
+    } catch {
+      // Always clear the local session when an expired token or a temporary
+      // connection error prevents server-side revocation.
+    } finally {
+      setCurrentUser(null)
+      setMembership(null)
+      setNotifications([])
+      setSelectedCustomerId(null)
+      setNotice('Signed out')
+      setActionPanel({
+        kind: 'success',
+        title: 'Signed out',
+        message: 'You are back in guest browsing mode.'
+      })
+      navigatePage('home')
+    }
   }
 
   async function createBooking(source = 'online', option = 'deposit') {
@@ -1346,7 +1377,6 @@ function App() {
             setIssueDraft={setIssueDraft}
             createIssue={createIssue}
             issues={issues}
-            createRefund={createRefund}
             updateRefund={updateRefund}
             refunds={refunds}
             services={services}
@@ -1367,6 +1397,10 @@ function App() {
         {currentPage === 'admin' && isAdmin && (
           <AdminPage
             reports={reports}
+            bookings={bookings}
+            payments={payments}
+            refunds={refunds}
+            issues={issues}
             settings={settings}
             fieldTypes={fieldTypes}
             updateDepositSetting={updateDepositSetting}

@@ -1,0 +1,89 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Staff" as User
+participant "BookingPage" as UI
+participant "App.jsx" as App
+participant "BookingController / PaymentController" as Controller
+participant "BookingWorkflowService / PaymentWorkflowService" as Service
+participant "BookingRepository / PaymentRepository" as Repo
+database "Database" as DB
+
+== UC-25: Create Walk-in Booking ==
+
+User -> UI : 1. Select customer/slot and record walk-in booking
+activate User
+activate UI
+
+UI -> App : 2. createBooking('walk_in', option)
+activate App
+
+App -> App : 3. Validate UI state and build request
+activate App
+deactivate App
+
+App -> Controller : 4. POST /api/bookings then\nPOST /api/payments/capture
+activate Controller
+
+Controller -> Service : 5. createBooking(request) / capturePayment(request)
+activate Service
+
+Service -> Service : 6. Operator role; active customer; cash only
+activate Service
+deactivate Service
+
+alt Request is valid and authorized
+  Service -> Repo : 7. save(booking); save(payment)
+  activate Repo
+
+  Repo -> DB : 8. INSERT booking; INSERT payment; UPSERT invoice
+  activate DB
+  DB --> Repo : 9. Confirmed booking with cash payment
+  deactivate DB
+
+  Repo --> Service : 10. Repository result
+  deactivate Repo
+
+  Service -> Service : 11. Assign staff, price booking, capture deposit/full
+  activate Service
+  deactivate Service
+else Validation, authorization, or state rule fails
+  note over Service,Controller
+    Slot conflict or invalid cash amount -> HTTP 400
+    The service propagates ApiException to ApiExceptionHandler.
+  end note
+end
+
+Service --> Controller : 12. Domain result or propagated error
+deactivate Service
+
+Controller -> Controller : 13. Serialize response
+activate Controller
+deactivate Controller
+
+Controller --> App : 14. HTTP 200 or mapped 4xx\nresponse body or error payload
+deactivate Controller
+
+App -> App : 15. setSelectedBookingDetail; refreshAll()
+activate App
+deactivate App
+
+App --> UI : 16. Navigate to StaffPage with receipt
+deactivate App
+
+UI --> User : 17. Updated screen or error feedback
+
+deactivate UI
+deactivate User
+
+@enduml

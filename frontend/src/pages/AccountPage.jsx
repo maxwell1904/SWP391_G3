@@ -351,6 +351,7 @@ function BookingChangeActions({ booking, preview, availableSlots, onPreview, onC
   if (!booking || !['pending', 'confirmed', 'cancelled'].includes(booking.status)) return null
   const cancellable = booking.status === 'pending' || booking.status === 'confirmed'
   const cancellationReviewed = preview?.bookingId === booking.bookingId
+  const existingRefund = (booking.refunds || []).find(refund => !['rejected', 'failed'].includes(refund.status))
   return (
     <div className="profileForm" style={{ marginTop: '1rem' }}>
       {cancellable && (
@@ -377,10 +378,17 @@ function BookingChangeActions({ booking, preview, availableSlots, onPreview, onC
           <button className="secondaryButton" disabled={!slotId} onClick={() => onReschedule(slotId)}>Reschedule booking</button>
         </>
       )}
-      {Number(booking.refundableAmount) > 0 && (
+      {Number(booking.refundableAmount) > 0 && !existingRefund && (
         <button className="primaryButton" onClick={onRefund}>
           {booking.status === 'cancelled' ? 'Request cancellation refund' : 'Request reschedule refund'} ({formatMoney(booking.refundableAmount)})
         </button>
+      )}
+      {existingRefund && (
+        <div className="refundRequestState" aria-live="polite">
+          <strong>{existingRefund.refundCode}</strong>
+          <span>Refund {String(existingRefund.status).replaceAll('_', ' ')} · {formatMoney(existingRefund.refundAmount)}</span>
+          {existingRefund.gatewayMessage && <small>{existingRefund.gatewayMessage}</small>}
+        </div>
       )}
     </div>
   )

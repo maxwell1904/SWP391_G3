@@ -13,7 +13,7 @@ class PaymentController <<controller>> {
 }
 
 class PayPalCheckoutService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
     -bookingWorkflowService : BookingWorkflowService
 
     +createOrder(bookingId : Long, request : ApiRequests.PayPalOrderCreate) : Map<String, Object>
@@ -21,7 +21,7 @@ class PayPalCheckoutService <<service>> {
     +cancelOrder(bookingId : Long, orderId : String) : Map<String, Object>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -bookingRepository : BookingRepository
     -userRepository : AppUserRepository
     -paymentRepository : PaymentRepository
@@ -218,14 +218,14 @@ enum NotificationType {
 PaymentController ..> PayPalCheckoutService
 PaymentController ..> PayPalOrderCreateDTO
 PaymentController ..> PayPalOrderCaptureDTO
-PayPalCheckoutService ..> DemoSupportService
+PayPalCheckoutService ..> DomainSupportService
 PayPalCheckoutService ..> PayPalOrderCreateDTO
 PayPalCheckoutService ..> PayPalOrderCaptureDTO
-DemoSupportService ..> BookingRepository
-DemoSupportService ..> AppUserRepository
-DemoSupportService ..> PaymentRepository
-DemoSupportService ..> NotificationRepository
-DemoSupportService ..> InvoiceRepository
+DomainSupportService ..> BookingRepository
+DomainSupportService ..> AppUserRepository
+DomainSupportService ..> PaymentRepository
+DomainSupportService ..> NotificationRepository
+DomainSupportService ..> InvoiceRepository
 
 BookingRepository --> Booking
 AppUserRepository --> AppUser
@@ -248,3 +248,5 @@ Booking --> BookingStatus
 Notification --> NotificationType
 
 @enduml
+    +payPalConfig() : Object
+    +config() : Map<String, Object>

@@ -10,13 +10,13 @@ class FieldOperationController <<controller>> {
 }
 
 class FieldOperationService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +fieldDetail(fieldId : Long) : Map<String, Object>
     -nextAvailableSlots(fieldId : Long) : List<Map<String, Object>>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -fieldRepository : FootballFieldRepository
     -fieldPriceRepository : FieldPriceRepository
     -slotRepository : SlotRepository
@@ -44,6 +44,10 @@ interface SlotRepository <<repository>> {
 
 interface ExtraServiceRepository <<repository>> {
     +findByStatus(status : CommonStatus) : List<ExtraService>
+}
+
+interface BookingRepository <<repository>> {
+    +existsBySlotAndStatusIn(slot : Slot, statuses : Collection<BookingStatus>) : boolean
 }
 
 class AuditEntity <<entity>> {
@@ -118,19 +122,21 @@ enum SlotStatus {
 
 ' Relationships
 FieldOperationController ..> FieldOperationService
-FieldOperationService ..> DemoSupportService
-DemoSupportService ..> FootballFieldRepository
-DemoSupportService ..> FieldPriceRepository
-DemoSupportService ..> SlotRepository
-DemoSupportService ..> ExtraServiceRepository
-DemoSupportService ..> FootballField
-DemoSupportService ..> FieldPrice
-DemoSupportService ..> Slot
-DemoSupportService ..> ExtraService
+FieldOperationService ..> DomainSupportService
+DomainSupportService ..> FootballFieldRepository
+DomainSupportService ..> FieldPriceRepository
+DomainSupportService ..> SlotRepository
+DomainSupportService ..> ExtraServiceRepository
+DomainSupportService ..> BookingRepository
+DomainSupportService ..> FootballField
+DomainSupportService ..> FieldPrice
+DomainSupportService ..> Slot
+DomainSupportService ..> ExtraService
 FootballFieldRepository --> FootballField
 FieldPriceRepository --> FieldPrice
 SlotRepository --> Slot
 ExtraServiceRepository --> ExtraService
+BookingRepository --> Slot
 FootballField --> FieldType
 FieldPrice --> FootballField
 Slot --> FootballField

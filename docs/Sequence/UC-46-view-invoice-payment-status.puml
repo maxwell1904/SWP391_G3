@@ -1,0 +1,74 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Customer / Staff" as Actor
+participant "AccountPage / StaffPage" as UI
+participant "App.jsx" as App
+participant "BookingController" as Controller
+participant "BookingWorkflowService" as Service
+participant "InvoiceRepository" as Repo
+database "Database" as DB
+
+== View invoice/payment status ==
+
+Actor -> UI : 1. Open booking billing details
+activate Actor
+activate UI
+
+UI -> App : 2. setSelectedBookingId(bookingId)
+activate App
+
+App -> Controller : 3. GET /api/bookings/{bookingId}
+activate Controller
+
+Controller -> Service : 4. bookingDetail(bookingId)
+activate Service
+
+Service -> Repo : 5. findByBooking_BookingId(bookingId)
+activate Repo
+
+Repo -> DB : 6. SELECT invoice, payments and refunds for booking
+activate DB
+
+alt Billing records exist
+  DB --> Repo : 7. Matching rows
+else No invoice or transaction yet
+  DB --> Repo : 7. Empty result
+end
+deactivate DB
+
+Repo --> Service : 8. invoice/payments/refunds
+deactivate Repo
+
+Service -> Service : 9. requireBookingVisible()\npaymentStatus(booking)\nassemble detail
+activate Service
+deactivate Service
+
+alt Request is permitted
+  Service --> Controller : 10. booking detail with billing data
+else Access or data validation fails
+  Service --> Controller : 10. ApiException
+end
+deactivate Service
+
+Controller --> App : 11. HTTP response
+deactivate Controller
+
+App --> UI : 12. setSelectedBookingDetail(response.data)
+deactivate App
+
+UI --> Actor : 13. Show paid, remaining, refund and transaction status
+deactivate UI
+deactivate Actor
+
+@enduml

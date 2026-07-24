@@ -1,6 +1,6 @@
-# AnPTT demo guide — UC-51 to UC-64
+# AnPTT QA guide — UC-51 to UC-64
 
-This guide follows the original AnPTT backlog. Use local mode for the demo so
+This guide follows the original AnPTT backlog. Use Supabase-backed local runtime for verification so
 the new membership-period migration is available without changing the shared
 Supabase database.
 
@@ -125,7 +125,7 @@ after two completed bookings per week for two consecutive weeks.
 1. Stay in the Admin overview.
 2. Show booking count, completed/cancelled/no-show totals, booking status
    breakdown, peak start times, and field utilization.
-3. Change the date range to demonstrate that these figures follow slot date.
+3. Change the date range to verify that these figures follow slot date.
 
 ## UC-62 — Customer activity report
 

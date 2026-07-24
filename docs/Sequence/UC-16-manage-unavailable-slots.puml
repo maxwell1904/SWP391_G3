@@ -1,0 +1,86 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Staff" as User
+participant "StaffPage" as UI
+participant "FieldOperationController" as Controller
+participant "FieldOperationService" as Service
+participant "SlotRepository / BookingRepository" as Repo
+database "Database" as DB
+
+== UC-16: Manage Unavailable Slots ==
+
+User -> UI : 1. Block or unblock a field time
+activate User
+activate UI
+
+UI -> UI : 2. blockSlot() / unblockSlot(slotId)
+activate UI
+deactivate UI
+
+UI -> UI : 3. Validate form/filter state
+activate UI
+deactivate UI
+
+UI -> Controller : 4. POST /api/slots/block\nPUT /api/slots/{slotId}/unblock
+activate Controller
+
+Controller -> Service : 5. blockSlot(request) / unblockSlot(slotId)
+activate Service
+
+Service -> Service : 6. requireOperator; valid range; no active booking
+activate Service
+deactivate Service
+
+alt Request is valid and authorized
+  Service -> Repo : 7. findByField...; existsBySlotAndStatusIn; save
+  activate Repo
+
+  Repo -> DB : 8. SELECT/INSERT/UPDATE slot; check booking
+  activate DB
+  DB --> Repo : 9. Blocked or available Slot
+  deactivate DB
+
+  Repo --> Service : 10. Repository result
+  deactivate Repo
+
+  Service -> Service : 11. Store reason/creator or clear block metadata
+  activate Service
+  deactivate Service
+else Validation, authorization, or state rule fails
+  note over Service,Controller
+    Booked slot or invalid state -> HTTP 400
+    The service propagates ApiException to ApiExceptionHandler.
+  end note
+end
+
+Service --> Controller : 12. Domain result or propagated error
+deactivate Service
+
+Controller -> Controller : 13. Serialize response
+activate Controller
+deactivate Controller
+
+Controller --> UI : 14. HTTP 200 or mapped 4xx\nresponse body or error payload
+deactivate Controller
+
+UI -> UI : 15. reloadCalendar()
+activate UI
+deactivate UI
+
+UI --> User : 16. Refresh operational calendar
+
+deactivate UI
+deactivate User
+
+@enduml

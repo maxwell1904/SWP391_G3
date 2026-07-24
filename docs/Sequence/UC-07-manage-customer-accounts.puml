@@ -1,0 +1,95 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Admin" as User
+participant "AdminPage" as UI
+participant "AccountController" as Controller
+participant "AccountService" as Service
+participant "AppUserRepository" as Repo
+participant "VerificationEmailService" as Email
+database "Database" as DB
+
+== UC-07: Manage Customer Accounts ==
+
+User -> UI : 1. Open People & access; edit or lock a customer
+activate User
+activate UI
+
+UI -> UI : 2. saveCustomerProfile() / updateCustomerStatus()
+activate UI
+deactivate UI
+
+UI -> UI : 3. Validate form/filter state
+activate UI
+deactivate UI
+
+UI -> Controller : 4. GET /api/account/users\nPUT /api/account/users/{id}/profile|status
+activate Controller
+
+Controller -> Service : 5. users(role) / updateProfile() / updateStatus()
+activate Service
+
+Service -> Service : 6. requireAdmin(); prevent self-lock
+activate Service
+deactivate Service
+
+alt Request is valid and authorized
+  Service -> Repo : 7. findAll() / findById(userId)
+  activate Repo
+
+  Repo -> DB : 8. SELECT / UPDATE app_user
+  activate DB
+  DB --> Repo : 9. Customer accounts
+  deactivate DB
+
+  Repo --> Service : 10. Repository result
+  deactivate Repo
+
+  Service -> Service : 11. Apply active/locked status; revoke tokens
+  activate Service
+  deactivate Service
+  Service -> DB : 12. INSERT account-status notification
+  activate DB
+  DB --> Service : 13. Notification stored
+  deactivate DB
+  Service -> Email : 14. sendAccountStatusEmail(customer, locked)
+  activate Email
+  Email --> Service : 15. Delivery status
+  deactivate Email
+else Validation, authorization, or state rule fails
+  note over Service,Controller
+    Non-admin or self-lock -> 403/400
+    The service propagates ApiException to ApiExceptionHandler.
+  end note
+end
+
+Service --> Controller : 16. Domain result or propagated error
+deactivate Service
+
+Controller -> Controller : 17. Serialize response
+activate Controller
+deactivate Controller
+
+Controller --> UI : 18. HTTP 200 or mapped 4xx\nresponse body or error payload
+deactivate Controller
+
+UI -> UI : 19. Reload users with refreshAll()
+activate UI
+deactivate UI
+
+UI --> User : 20. Show sign-in and delivery status
+
+deactivate UI
+deactivate User
+
+@enduml

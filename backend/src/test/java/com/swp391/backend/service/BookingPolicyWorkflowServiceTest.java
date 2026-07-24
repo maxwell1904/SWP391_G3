@@ -36,7 +36,7 @@ class BookingPolicyWorkflowServiceTest {
     @Autowired private SlotRepository slotRepository;
     @Autowired private BookingRepository bookingRepository;
     @Autowired private ExtraServiceRepository extraServiceRepository;
-    @Autowired private DemoSupportService support;
+    @Autowired private DomainSupportService support;
 
     @BeforeEach
     void signInAsAdminForProtectedWorkflowCalls() {
@@ -101,14 +101,16 @@ class BookingPolicyWorkflowServiceTest {
         Map<String, Object> created = createBooking();
         Long bookingId = ((Number) created.get("bookingId")).longValue();
         AppUser customer = userRepository.findByEmail("customer@goalzone.local").orElseThrow();
-        paymentWorkflowService.capturePayment(new ApiRequests.PaymentCapture(bookingId, customer.getUserId(),
+        Map<String, Object> paid = paymentWorkflowService.capturePayment(new ApiRequests.PaymentCapture(bookingId, customer.getUserId(),
                 "deposit", "cash", null, true));
         bookingWorkflowService.updateBookingStatus(bookingId, new ApiRequests.BookingStatusUpdate("cancelled", null, "Test cancellation"));
 
+        authenticate(customer);
         Map<String, Object> refund = paymentWorkflowService.createRefund(new ApiRequests.RefundCreate(
                 bookingId, null, customer.getUserId(), null, null, "Test request", false));
         assertThat(refund.get("status")).isEqualTo("requested");
 
+        authenticate(userRepository.findByEmail("admin@goalzone.local").orElseThrow());
         Map<String, Object> approved = paymentWorkflowService.updateRefundStatus(
                 ((Number) refund.get("refundId")).longValue(),
                 new ApiRequests.RefundStatusUpdate("approved", customer.getUserId(), "Reviewed"));
@@ -120,6 +122,9 @@ class BookingPolicyWorkflowServiceTest {
         assertThat(completed.get("paymentMethod")).isEqualTo("cash");
         assertThat(completed.get("providerStatus")).isEqualTo("MANUAL_CASH_REFUND");
         assertThat(String.valueOf(completed.get("transactionCode"))).startsWith("CASH-REFUND-");
+        Booking reconciled = bookingRepository.findById(bookingId).orElseThrow();
+        assertThat(reconciled.getRefundableAmount()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(reconciled.getPaidAmount()).isEqualByComparingTo((BigDecimal) paid.get("paidAmount"));
     }
 
     @Test

@@ -1,0 +1,83 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Staff" as Actor
+participant "StaffPage" as UI
+participant "App.jsx" as App
+participant "PaymentController" as Controller
+participant "PaymentWorkflowService" as Service
+participant "RefundRepository" as Repo
+database "Database" as DB
+
+== Manage refund requests ==
+
+Actor -> UI : 1. Approve, reject, retry, or complete cash refund
+activate Actor
+activate UI
+
+UI -> App : 2. updateRefund(refund, status)
+activate App
+
+App -> Controller : 3. PUT /api/refunds/{refundId}/status\n{status, processedById, note}
+activate Controller
+
+Controller -> Service : 4. updateRefundStatus(refundId, request)
+activate Service
+
+Service -> Repo : 5. findById(refundId)
+activate Repo
+
+Repo -> DB : 6. SELECT refund + payment WHERE refund_id = ?
+activate DB
+DB --> Repo : 7. Current record(s)
+deactivate DB
+Repo --> Service : 8. Domain object(s)
+deactivate Repo
+
+Service -> Service : 9. Require operator\nvalidate requested/approved/processing transition
+activate Service
+deactivate Service
+
+alt Validation fails
+  Service -> Service : 10. Build ApiException
+  activate Service
+  deactivate Service
+else Validation succeeds
+  Service -> Repo : 10. save refund and customer notification
+  activate Repo
+  Repo -> DB : 11. UPDATE refund; INSERT notification; optional UPDATE invoice
+  activate DB
+  DB --> Repo : 12. Saved row(s)
+  deactivate DB
+  Repo --> Service : 13. Saved domain object
+  deactivate Repo
+end
+
+Service --> Controller : 14. refundSummary or error
+deactivate Service
+
+Controller --> App : 15. HTTP response
+deactivate Controller
+
+App -> App : 16. refreshAll()
+activate App
+deactivate App
+
+App --> UI : 17. Refresh refund queue
+deactivate App
+
+UI --> Actor : 18. Show updated refund state
+deactivate UI
+deactivate Actor
+
+@enduml

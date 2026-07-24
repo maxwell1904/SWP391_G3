@@ -1,0 +1,74 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Customer" as Actor
+participant "MembershipBenefitsPage" as UI
+participant "App.jsx" as App
+participant "PromotionReportController" as Controller
+participant "PromotionReportService" as Service
+participant "CustomerMembershipRepository" as Repo
+database "Database" as DB
+
+== View membership progress ==
+
+Actor -> UI : 1. Open Membership
+activate Actor
+activate UI
+
+UI -> App : 2. loadMembership(customerId)
+activate App
+
+App -> Controller : 3. GET /api/membership/{customerId}/progress
+activate Controller
+
+Controller -> Service : 4. membershipProgress(customerId)
+activate Service
+
+Service -> Repo : 5. findByCustomer_UserId(customerId)
+activate Repo
+
+Repo -> DB : 6. SELECT customer_membership JOIN membership_level
+activate DB
+
+alt Membership row exists
+  DB --> Repo : 7. Matching rows
+else Customer has no attached level
+  DB --> Repo : 7. Empty result
+end
+deactivate DB
+
+Repo --> Service : 8. Optional<CustomerMembership>
+deactivate Repo
+
+Service -> Service : 9. requireSelfOrAdmin()\nfind next active level\ncompute bookingsToNextLevel
+activate Service
+deactivate Service
+
+alt Request is permitted
+  Service --> Controller : 10. current and next-level progress
+else Access or data validation fails
+  Service --> Controller : 10. ApiException
+end
+deactivate Service
+
+Controller --> App : 11. HTTP response
+deactivate Controller
+
+App --> UI : 12. setMembership(response.data)
+deactivate App
+
+UI --> Actor : 13. Show tier, completed count and progress
+deactivate UI
+deactivate Actor
+
+@enduml

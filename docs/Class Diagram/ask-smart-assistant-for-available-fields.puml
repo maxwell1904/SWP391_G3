@@ -1,0 +1,53 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class AvailabilityAssistantPage <<boundary>> {
+    -form : SuggestionCriteria
+    -suggestions : List<SlotSuggestion>
+    +findSlots() : Promise<void>
+}
+
+class FieldOperationController <<controller>> {
+    +suggestedSlots(date : LocalDate, preferredTime : LocalTime, fieldTypeId : Long, maxPrice : BigDecimal, customerId : Long) : Object
+}
+
+class FieldOperationService <<service>> {
+    -support : DomainSupportService
+    +suggestSlots(date : LocalDate, preferredTime : LocalTime, fieldTypeId : Long, maxPrice : BigDecimal, customerId : Long) : List<Map<String, Object>>
+    -suggestionSummary(slot : Slot, preferredTime : LocalTime, maxPrice : BigDecimal, customer : AppUser) : Map<String, Object>
+    -authenticatedSuggestionCustomer(customerId : Long) : AppUser
+}
+
+class DomainSupportService <<service>> {
+    -slotRepository : SlotRepository
+    -bookingRepository : BookingRepository
+    +calculateFieldPrice(slot : Slot) : BigDecimal
+}
+
+interface SlotRepository <<repository>> {
+    +findBySlotDate(slotDate : LocalDate) : List<Slot>
+}
+
+interface BookingRepository <<repository>> {
+    +existsBySlotAndStatusIn(slot : Slot, statuses : Collection<BookingStatus>) : boolean
+}
+
+class Slot <<entity>> {
+    -slotId : Long
+    -slotDate : LocalDate
+    -startTime : LocalTime
+    -endTime : LocalTime
+    -status : SlotStatus
+}
+
+AvailabilityAssistantPage ..> FieldOperationController
+FieldOperationController ..> FieldOperationService
+FieldOperationService ..> DomainSupportService
+DomainSupportService ..> SlotRepository
+DomainSupportService ..> BookingRepository
+SlotRepository --> Slot
+BookingRepository --> Slot
+
+@enduml

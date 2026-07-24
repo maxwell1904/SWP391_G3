@@ -1,8 +1,9 @@
 # GoalZone end-to-end QA matrix
 
-Run date: 2026-07-21.  The automated suite uses the real Spring Security,
+Run date: 2026-07-22.  The automated suite uses the real Spring Security,
 controllers, services and persistence flow against isolated H2 data.  The UI
-smoke checks use the Customer, Staff and Admin workspaces in a real browser.
+smoke checks use the Customer, Staff and Admin workspaces against the configured
+Supabase development database in a real browser.
 
 ## Evidence
 
@@ -11,12 +12,22 @@ smoke checks use the Customer, Staff and Admin workspaces in a real browser.
   operations, scheduler policies, admin configuration, and account recovery.
 - `backend/src/test/java/com/swp391/backend/service/*Test.java`: pricing,
   payment, reschedule, and refund regression cases.
+<<<<<<< HEAD
 - Browser smoke: Customer booking/account, Staff booking/activity, and Admin
   overview/fields/pricing/policies.  This caught and fixed the blank Staff
   booking list and the duplicate persistent success toast.
 - PostgreSQL migrations run through V12. The live Supabase schema was repaired
   and the account-lock migration passed after V12; browser flow data
   remained isolated in H2.
+=======
+- Browser smoke: Customer booking/account/payment/refund, Staff booking/activity/
+  cash collection, and all Admin workspaces. This caught and fixed the blank
+  Staff booking list, stale actions after cancellation/refund, duplicate success
+  toast, and PayPal SDK hot-reload race.
+- PostgreSQL migrations run through V11. The live Supabase schema and required
+  indexes pass `scripts/verify-supabase-schema.sh`. Automated tests stay isolated
+  in H2 and cannot mutate Supabase data.
+>>>>>>> 327a19993fe956540087376c122302c65ddffcde
 
 ## Backlog verdict
 
@@ -26,12 +37,19 @@ smoke checks use the Customer, Staff and Admin workspaces in a real browser.
 | UC-02 | Pass | Customer, Staff, and Admin sign-in were tested through both API and browser. |
 | UC-03 | Pass | Logout revokes the JWT; a revoked token is rejected. |
 | UC-04 | Pass | Customer profile update is API-covered and exposed in the Account workspace. |
-| UC-05 | Pass | Current-password validation and password change are E2E-covered. |
+| UC-05 | Pass | Current-password validation and self-only password change are E2E-covered; Admin cannot change another user's password. |
 | UC-06 | Pass* | Reset-token lifecycle is E2E-covered; actual email delivery is a final external smoke check. |
+<<<<<<< HEAD
 | UC-07 | Pass | Admin can list customer accounts; account state changes are handled by UC-10. |
 | UC-08 | Pass | Admin creates, updates, locks, and unlocks Staff accounts. |
 | UC-09 | Pass | Staff customer-activity API and selected-booking UI panel are covered. |
 | UC-10 | Pass | Admin lock/unlock requires a reason when locking, emails the customer, revokes active tokens, and blocks login. The complete flow is E2E-covered. |
+=======
+| UC-07 | Pass | Admin can list, edit, lock/unlock, and inspect customer accounts. Lock revokes tokens, blocks sign-in, and creates email/in-app notification evidence. |
+| UC-08 | Pass | Admin creates, updates, locks, and unlocks Staff accounts. Creation emails a one-hour password-setup link; Admin never chooses or later changes the Staff password. |
+| UC-09 | Pass | Staff customer-activity API and selected-booking UI panel are covered. |
+| UC-10 | Pass | Booking restriction/restoration is separate from account lock and is E2E-covered. It blocks only new booking creation and sends email/in-app notification. |
+>>>>>>> 327a19993fe956540087376c122302c65ddffcde
 | UC-11 | Pass | Guest/customer field list is rendered from the live catalogue API. |
 | UC-12 | Partial | Field detail exposes type, price, location, surface, uploaded image, and availability. Reviews are deferred and must be removed from current acceptance criteria. |
 | UC-13 | Pass | Date/type slot search was browser-smoked with booked and free slots correctly distinguished. |
@@ -65,10 +83,10 @@ smoke checks use the Customer, Staff and Admin workspaces in a real browser.
 | UC-41 | Pass | Capture stores provider identifiers/status and updates payment/booking/invoice state. |
 | UC-42 | Pass | Staff captures a remaining cash balance in the E2E suite. |
 | UC-43 | Pass | Scheduler expiry of an aged unpaid hold is E2E-covered. |
-| UC-44 | Pass | Customer payment history now returns actual captured transactions and was browser-smoked. |
+| UC-44 | Pass | Customer payment history returns actual cash/PayPal transactions, including partial/full-refund status, and was browser-smoked. |
 | UC-45 | Pass | Invoice generation and its component amounts are asserted in payment journeys. |
 | UC-46 | Pass | Booking billing panel exposes invoice and payment status. |
-| UC-47 | Pass* | An approved PayPal refund calls Payments v2 with the capture ID and a stable idempotency key. Only provider `COMPLETED` becomes completed; pending/failure stays visible and retryable. Cash refund completion is explicitly manual. |
+| UC-47 | Pass* | An approved PayPal refund calls Payments v2 with the capture ID and a stable idempotency key. Only provider `COMPLETED` becomes completed; pending/failure stays visible and retryable. A real Sandbox provider-completed refund is present in the live data. Cash refund completion is explicitly manual. |
 | UC-48 | Pass | Staff refund list and explicit status transitions are E2E-covered. |
 | UC-49 | Pass | Deposit setting update is E2E-covered and exposed in Policies. |
 | UC-50 | Pass | Refund policy update is E2E-covered and exposed in Policies. |
@@ -81,18 +99,19 @@ smoke checks use the Customer, Staff and Admin workspaces in a real browser.
 | UC-57 | Pass | Booking-created/confirmed in-app notifications are generated and listed. |
 | UC-58 | Pass | Scheduler creates exactly one upcoming-booking reminder; E2E-covered. |
 | UC-59 | Pass | Cancellation/refund notification paths are E2E-covered. |
-| UC-60 | Pass | Revenue/discount/refund metrics are returned in the Admin report. |
+| UC-60 | Pass | Revenue/discount/refund metrics are returned in the Admin report. V11 separately records PayPal gross, exact provider fee, provider net, and completed refunds. |
 | UC-61 | Pass | Booking status, peak time, and field utilization metrics are returned in the Admin report. |
 | UC-62 | Pass | Returning customers, top customers, and membership distribution are returned in the Admin report. |
-| UC-63 | Deferred by scope | Smart assistant is intentionally not shipped; no fake/demo UI is left in the product. |
-| UC-64 | Removed by scope | Suggested-slot feature is removed from route, UI, API, and backlog implementation. |
+| UC-63 | Automated + UI | `/assistant` submits date/time/type/budget criteria to the live suggestion API; invalid dates, negative budgets, and foreign membership identities are rejected. |
+| UC-64 | Automated + UI | Ranked live slots include reasons/promotions; “Book this slot” transfers the slot date/id into the real booking checkout and revalidates availability. |
 
-`*` A real external provider must still be approved from a PayPal Sandbox buyer
-account / received in an actual inbox.  The configured credentials were
-validated without exposing secrets (PayPal OAuth returned HTTP 200), but this QA
-run intentionally did not send mail or create/refund a real provider-side
-transaction. At verification time the live Supabase `payment` and `refund`
-tables were empty, so there was no existing capture that could safely be refunded.
+`*` PayPal credentials, SDK availability, server-side create/capture rules, stored
+provider fee/net values, and one real provider-completed Sandbox refund have been
+verified without exposing secrets. A fresh buyer approval should still be run as
+a short manual Sandbox smoke check before presentation because the external buyer
+login/approval screen is intentionally not automated. SMTP paths and failure
+handling are covered in code; receipt in the team's actual mailbox remains an
+external configuration smoke check.
 
 ## Backlog cleanup note: UC-07 vs UC-10
 
@@ -103,9 +122,19 @@ must provide a reason and the system sends that reason by email.
 ## Supabase result
 
 Flyway V8 restores all integrity checks, the active-slot exclusion/indexes and
+<<<<<<< HEAD
 refund trigger after the guarded V7 legacy rebuild. V9 adds provider refund
 status, gateway message, idempotency tracking and unique reconciliation indexes.
 V12 renames the account-lock columns and synchronizes locked status. Live verification
 passed with all migrations through V12 successful and the required access indexes
 present. PostgreSQL runs through the `postgres` profile with Flyway and
 `ddl-auto=validate`; `.env.local` was normalized to that mode.
+=======
+refund trigger after the guarded V7 legacy rebuild. V9 adds provider-refund
+status, gateway message, idempotency tracking, and reconciliation indexes. V10
+adds period-aware membership qualification. V11 adds exact PayPal processor fee
+and provider-net columns and reconciles historical completed refunds. Live
+verification passed with all eleven migrations successful and nine required
+access/uniqueness indexes present. PostgreSQL runs through the `postgres` profile
+with Flyway and `ddl-auto=validate`; `.env.local` is normalized to that mode.
+>>>>>>> 327a19993fe956540087376c122302c65ddffcde

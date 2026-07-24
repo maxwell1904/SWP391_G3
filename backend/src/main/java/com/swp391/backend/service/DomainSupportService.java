@@ -13,11 +13,12 @@ import java.time.Duration;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 
 @Service
-public class DemoSupportService {
+public class DomainSupportService {
     static final List<BookingStatus> ACTIVE_BOOKING_STATUSES = List.of(
             BookingStatus.pending,
             BookingStatus.confirmed,
@@ -44,7 +45,7 @@ public class DemoSupportService {
     final NotificationRepository notificationRepository;
     final SystemSettingRepository systemSettingRepository;
 
-    public DemoSupportService(
+    public DomainSupportService(
             RoleRepository roleRepository,
             AppUserRepository userRepository,
             MembershipLevelRepository membershipLevelRepository,
@@ -87,11 +88,17 @@ public class DemoSupportService {
     }
 
     void validateSlotBookable(Slot slot) {
+        if (slot.getField().getStatus() != CommonStatus.active) {
+            throw badRequest("The field is inactive and cannot be booked");
+        }
         if (slot.getStatus() == SlotStatus.blocked) {
             throw badRequest("Slot is blocked: " + nvl(slot.getBlockReason(), "unavailable"));
         }
         if (slot.getSlotDate().isBefore(LocalDate.now())) {
             throw badRequest("Past slots cannot be booked");
+        }
+        if (slot.getSlotDate().isEqual(LocalDate.now()) && !slot.getStartTime().isAfter(LocalTime.now())) {
+            throw badRequest("A slot that has already started cannot be booked");
         }
         if (bookingRepository.existsBySlotAndStatusIn(slot, ACTIVE_BOOKING_STATUSES)) {
             throw conflict("Slot already has an active booking. Please select another time.");
@@ -104,6 +111,8 @@ public class DemoSupportService {
                 : "weekday";
         return fieldPriceRepository.findByField_FieldId(slot.getField().getFieldId()).stream()
                 .filter(price -> price.getStatus() == CommonStatus.active)
+                .filter(price -> price.getEffectiveFrom() == null || !slot.getSlotDate().isBefore(price.getEffectiveFrom()))
+                .filter(price -> price.getEffectiveTo() == null || !slot.getSlotDate().isAfter(price.getEffectiveTo()))
                 .filter(price -> price.getDayType().equalsIgnoreCase(dayType) || price.getDayType().equalsIgnoreCase("all"))
                 .filter(price -> !slot.getStartTime().isBefore(price.getStartTime()) && !slot.getEndTime().isAfter(price.getEndTime()))
                 .findFirst()
@@ -495,12 +504,18 @@ public class DemoSupportService {
     }
 
     String paymentStatus(Booking booking) {
+        BigDecimal grossPaid = paymentRepository.findByBooking_BookingIdOrderByPaymentIdDesc(booking.getBookingId()).stream()
+                .filter(payment -> payment.getStatus() == PaymentStatus.paid
+                        || payment.getStatus() == PaymentStatus.partially_refunded
+                        || payment.getStatus() == PaymentStatus.refunded)
+                .map(Payment::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal completedRefunds = refundRepository.findByBooking_BookingIdOrderByRefundIdDesc(booking.getBookingId()).stream()
                 .filter(refund -> refund.getStatus() == RefundStatus.completed)
                 .map(Refund::getRefundAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         if (completedRefunds.compareTo(BigDecimal.ZERO) > 0) {
-            return completedRefunds.compareTo(booking.getPaidAmount()) >= 0 ? "refunded" : "partially_refunded";
+            return completedRefunds.compareTo(grossPaid) >= 0 ? "refunded" : "partially_refunded";
         }
         if (booking.getStatus() == BookingStatus.expired) {
             return "expired";
@@ -533,6 +548,10 @@ public class DemoSupportService {
         map.put("amount", payment.getAmount());
         map.put("status", payment.getStatus().name());
         map.put("transactionCode", payment.getTransactionCode());
+        map.put("currency", payment.getCurrency());
+        map.put("providerFeeAmount", payment.getProviderFeeAmount());
+        map.put("providerNetAmount", payment.getProviderNetAmount());
+        map.put("providerFeeTracked", payment.getProviderFeeAmount() != null);
         map.put("gatewayMessage", payment.getGatewayMessage());
         map.put("paidAt", payment.getPaidAt());
         return map;
@@ -556,7 +575,9 @@ public class DemoSupportService {
     Map<String, Object> refundSummary(Refund refund) {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("refundId", refund.getRefundId());
+        map.put("bookingId", refund.getBooking().getBookingId());
         map.put("bookingCode", refund.getBooking().getBookingCode());
+        map.put("customer", refund.getBooking().getCustomer().getFullName());
         map.put("refundCode", refund.getRefundCode());
         map.put("refundAmount", refund.getRefundAmount());
         map.put("refundReason", refund.getRefundReason());

@@ -12,18 +12,18 @@ class PaymentController <<controller>> {
 }
 
 class PaymentWorkflowService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +capturePayment(request : ApiRequests.PaymentCapture) : Map<String, Object>
 }
 
 class PayPalCheckoutService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +cancelOrder(bookingId : Long, orderId : String) : Map<String, Object>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -bookingRepository : BookingRepository
     -paymentRepository : PaymentRepository
     -userRepository : AppUserRepository
@@ -52,6 +52,7 @@ class "ApiRequests.PaymentCapture" as PaymentCaptureDTO <<dto>> {
 
 interface BookingRepository <<repository>> {
     +findById(id : Long) : Optional<Booking>
+    +findByStatusIn(statuses : Collection<BookingStatus>) : List<Booking>
 }
 
 interface AppUserRepository <<repository>> {
@@ -216,23 +217,31 @@ enum NotificationType {
     + system
 }
 
+class BookingMaintenanceScheduler <<service>> {
+    +maintainBookings() : void
+    +expireUnpaidPendingBookings() : int
+}
+
 ' Relationships
 PaymentController ..> PaymentWorkflowService
 PaymentController ..> PayPalCheckoutService
 PaymentController ..> PaymentCaptureDTO
-PaymentWorkflowService ..> DemoSupportService
+PaymentWorkflowService ..> DomainSupportService
 PaymentWorkflowService ..> PaymentCaptureDTO
-PayPalCheckoutService ..> DemoSupportService
-DemoSupportService ..> BookingRepository
-DemoSupportService ..> AppUserRepository
-DemoSupportService ..> PaymentRepository
-DemoSupportService ..> NotificationRepository
-DemoSupportService ..> InvoiceRepository
-DemoSupportService ..> Booking
-DemoSupportService ..> Payment
-DemoSupportService ..> Notification
-DemoSupportService ..> Invoice
-DemoSupportService ..> AppUser
+PayPalCheckoutService ..> DomainSupportService
+BookingMaintenanceScheduler ..> DomainSupportService
+BookingMaintenanceScheduler ..> BookingRepository
+BookingMaintenanceScheduler ..> PaymentRepository
+DomainSupportService ..> BookingRepository
+DomainSupportService ..> AppUserRepository
+DomainSupportService ..> PaymentRepository
+DomainSupportService ..> NotificationRepository
+DomainSupportService ..> InvoiceRepository
+DomainSupportService ..> Booking
+DomainSupportService ..> Payment
+DomainSupportService ..> Notification
+DomainSupportService ..> Invoice
+DomainSupportService ..> AppUser
 BookingRepository --> Booking
 AppUserRepository --> AppUser
 PaymentRepository --> Payment

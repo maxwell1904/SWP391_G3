@@ -45,6 +45,9 @@ export function PayPalCheckout({
             label: 'paypal',
             height: 44
           },
+          onInit: () => {
+            if (active) setStatus('ready')
+          },
           createOrder: async () => {
             try {
               setStatus('processing')
@@ -132,7 +135,9 @@ export function PayPalCheckout({
 
 function loadPayPalSdk(config) {
   const key = `${config.clientId}:${config.currency}`
-  if (window.paypal && paypalSdkKey === key) return Promise.resolve(window.paypal)
+  if (typeof window.paypal?.Buttons === 'function' && paypalSdkKey === key) {
+    return Promise.resolve(window.paypal)
+  }
   if (paypalSdkPromise && paypalSdkKey === key) return paypalSdkPromise
 
   document.getElementById('goalzone-paypal-sdk')?.remove()
@@ -143,8 +148,18 @@ function loadPayPalSdk(config) {
     script.id = 'goalzone-paypal-sdk'
     script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(config.clientId)}&currency=${encodeURIComponent(config.currency)}&intent=capture&components=buttons`
     script.async = true
-    script.onload = () => resolve(window.paypal)
-    script.onerror = () => reject(new Error('Could not load the PayPal SDK'))
+    script.onload = () => {
+      if (typeof window.paypal?.Buttons !== 'function') {
+        paypalSdkPromise = undefined
+        reject(new Error('PayPal SDK loaded without the Buttons component'))
+        return
+      }
+      resolve(window.paypal)
+    }
+    script.onerror = () => {
+      paypalSdkPromise = undefined
+      reject(new Error('Could not load the PayPal SDK'))
+    }
     document.head.appendChild(script)
   })
   return paypalSdkPromise

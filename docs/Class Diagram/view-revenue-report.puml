@@ -10,12 +10,12 @@ class PromotionReportController <<controller>> {
 }
 
 class PromotionReportService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +reports() : Map<String, Object>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -bookingRepository : BookingRepository
     -paymentRepository : PaymentRepository
     -userRepository : AppUserRepository
@@ -45,6 +45,8 @@ class Booking <<entity>> {
 class Payment <<entity>> {
     -paymentId : Long
     -amount : BigDecimal
+    -providerFeeAmount : BigDecimal
+    -providerNetAmount : BigDecimal
     -status : PaymentStatus
 }
 
@@ -91,13 +93,13 @@ enum PaymentStatus {
 
 ' Relationships
 PromotionReportController ..> PromotionReportService
-PromotionReportService ..> DemoSupportService
-DemoSupportService ..> BookingRepository
-DemoSupportService ..> PaymentRepository
-DemoSupportService ..> AppUserRepository
-DemoSupportService ..> Booking
-DemoSupportService ..> Payment
-DemoSupportService ..> AppUser
+PromotionReportService ..> DomainSupportService
+DomainSupportService ..> BookingRepository
+DomainSupportService ..> PaymentRepository
+DomainSupportService ..> AppUserRepository
+DomainSupportService ..> Booking
+DomainSupportService ..> Payment
+DomainSupportService ..> AppUser
 BookingRepository --> Booking
 PaymentRepository --> Payment
 AppUserRepository --> AppUser

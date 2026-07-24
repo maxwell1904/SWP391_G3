@@ -1,0 +1,63 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class AccountController <<controller>> {
+    -accountService : AccountService
+
+    +updateProfile(userId : Long, request : ApiRequests.ProfileUpdate) : Object
+}
+
+class AccountService <<service>> {
+    -support : DomainSupportService
+
+    +updateProfile(userId : Long, request : ApiRequests.ProfileUpdate) : Map<String, Object>
+    -requireSelfOrAdmin(userId : Long) : void
+}
+
+class DomainSupportService <<service>> {
+    -userRepository : AppUserRepository
+
+    +getUser(userId : Long) : AppUser
+    +clean(value : String) : String
+    +userSummary(user : AppUser) : Map<String, Object>
+}
+
+class "ApiRequests.ProfileUpdate" as ProfileUpdateDTO <<dto>> {
+    -fullName : String
+    -phone : String
+    -address : String
+    -avatarUrl : String
+}
+
+interface AppUserRepository <<repository>> {
+    +findByPhone(phone : String) : Optional<AppUser>
+    +save(entity : AppUser) : AppUser
+}
+
+class AuditEntity <<entity>> {
+    -createdAt : LocalDateTime
+    -updatedAt : LocalDateTime
+}
+
+class AppUser <<entity>> {
+    -userId : Long
+    -fullName : String
+    -email : String
+    -phone : String
+    -avatarUrl : String
+    -dateOfBirth : LocalDate
+    -address : String
+    -status : AccountStatus
+}
+
+AccountController ..> AccountService
+AccountController ..> ProfileUpdateDTO
+AccountService ..> ProfileUpdateDTO
+AccountService ..> DomainSupportService
+DomainSupportService ..> AppUserRepository
+AppUserRepository --> AppUser
+AppUser -|> AuditEntity
+
+@enduml

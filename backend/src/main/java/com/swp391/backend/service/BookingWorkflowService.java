@@ -22,9 +22,9 @@ import java.util.Objects;
 @Service
 @Transactional
 public class BookingWorkflowService {
-    private final DemoSupportService support;
+    private final DomainSupportService support;
 
-    public BookingWorkflowService(DemoSupportService support) {
+    public BookingWorkflowService(DomainSupportService support) {
         this.support = support;
     }
 
@@ -220,6 +220,12 @@ public class BookingWorkflowService {
             throw support.badRequest("Please choose a different slot to reschedule");
         }
         support.validateSlotBookable(newSlot);
+
+        List<ApiRequests.ServiceSelection> currentServices = support.bookingServiceItemRepository
+                .findByBooking_BookingId(booking.getBookingId()).stream()
+                .map(item -> new ApiRequests.ServiceSelection(item.getExtraService().getExtraServiceId(), item.getQuantity()))
+                .toList();
+        support.calculateServiceTotal(currentServices, newSlot, booking.getBookingId());
 
         BigDecimal newFieldPrice = support.calculateFieldPrice(newSlot);
         BigDecimal baseAmount = newFieldPrice.add(booking.getServiceTotalAmount());

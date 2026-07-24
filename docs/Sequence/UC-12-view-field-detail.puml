@@ -1,0 +1,86 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Guest / Customer" as User
+participant "FieldsPage" as UI
+participant "FieldOperationController" as Controller
+participant "FieldOperationService" as Service
+participant "FootballFieldRepository / FieldPriceRepository" as Repo
+database "Database" as DB
+
+== UC-12: View Field Detail ==
+
+User -> UI : 1. Select a field
+activate User
+activate UI
+
+UI -> UI : 2. useEffect([selectedField.fieldId])
+activate UI
+deactivate UI
+
+UI -> UI : 3. Validate form/filter state
+activate UI
+deactivate UI
+
+UI -> Controller : 4. GET /api/fields/{fieldId}
+activate Controller
+
+Controller -> Service : 5. fieldDetail(fieldId)
+activate Service
+
+Service -> Service : 6. Resolve field; calculate price range
+activate Service
+deactivate Service
+
+alt Request is valid and authorized
+  Service -> Repo : 7. findById; findByField_FieldId
+  activate Repo
+
+  Repo -> DB : 8. SELECT field and active field_price rows
+  activate DB
+  DB --> Repo : 9. Field with prices
+  deactivate DB
+
+  Repo --> Service : 10. Repository result
+  deactivate Repo
+
+  Service -> Service : 11. Add services and next available slots
+  activate Service
+  deactivate Service
+else Validation, authorization, or state rule fails
+  note over Service,Controller
+    Unknown field -> HTTP 404
+    The service propagates ApiException to ApiExceptionHandler.
+  end note
+end
+
+Service --> Controller : 12. Domain result or propagated error
+deactivate Service
+
+Controller -> Controller : 13. Serialize response
+activate Controller
+deactivate Controller
+
+Controller --> UI : 14. HTTP 200 or mapped 4xx\nresponse body or error payload
+deactivate Controller
+
+UI -> UI : 15. setFieldDetail(response.data)
+activate UI
+deactivate UI
+
+UI --> User : 16. Open field detail modal
+
+deactivate UI
+deactivate User
+
+@enduml

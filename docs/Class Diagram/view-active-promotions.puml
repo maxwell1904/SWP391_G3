@@ -10,12 +10,12 @@ class PromotionReportController <<controller>> {
 }
 
 class PromotionReportService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +promotions(includeInactive : boolean) : List<Map<String, Object>>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -promotionRepository : PromotionRepository
 
     +promotionSummary(promotion : Promotion) : Map<String, Object>
@@ -61,9 +61,9 @@ enum DiscountType {
 
 ' Relationships
 PromotionReportController ..> PromotionReportService
-PromotionReportService ..> DemoSupportService
-DemoSupportService ..> PromotionRepository
-DemoSupportService ..> Promotion
+PromotionReportService ..> DomainSupportService
+DomainSupportService ..> PromotionRepository
+DomainSupportService ..> Promotion
 PromotionRepository --> Promotion
 Promotion -|> AuditEntity
 Promotion --> DiscountType

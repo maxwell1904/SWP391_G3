@@ -1,0 +1,64 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class AccountController <<controller>> {
+    -accountService : AccountService
+
+    +activity(userId : Long) : Object
+}
+
+class AccountService <<service>> {
+    -support : DomainSupportService
+
+    +activity(userId : Long) : Map<String, Object>
+    -requireSelfOrOperator(userId : Long) : void
+}
+
+class DomainSupportService <<service>> {
+    -bookingRepository : BookingRepository
+    -issueRepository : IssueRepository
+
+    +getUser(userId : Long) : AppUser
+    +userSummary(user : AppUser) : Map<String, Object>
+    +bookingSummary(booking : Booking) : Map<String, Object>
+    +issueSummary(issue : Issue) : Map<String, Object>
+}
+
+interface BookingRepository <<repository>> {
+    +findByCustomer_UserIdOrderByBookingIdDesc(customerId : Long) : List<Booking>
+}
+
+interface IssueRepository <<repository>> {
+    +findAllByOrderByIssueIdDesc() : List<Issue>
+}
+
+class AppUser <<entity>> {
+    -userId : Long
+    -fullName : String
+    -bookingRestricted : boolean
+}
+
+class Booking <<entity>> {
+    -bookingId : Long
+    -customer : AppUser
+    -status : BookingStatus
+}
+
+class Issue <<entity>> {
+    -issueId : Long
+    -reporter : AppUser
+    -status : IssueStatus
+}
+
+AccountController ..> AccountService
+AccountService ..> DomainSupportService
+DomainSupportService ..> BookingRepository
+DomainSupportService ..> IssueRepository
+BookingRepository --> Booking
+IssueRepository --> Issue
+Booking --> AppUser
+Issue --> AppUser
+
+@enduml

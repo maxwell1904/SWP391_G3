@@ -1,0 +1,70 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class AccountController <<controller>> {
+    -accountService : AccountService
+
+    +users(role : String) : Object
+    +customers() : Object
+    +updateProfile(userId : Long, request : ApiRequests.ProfileUpdate) : Object
+    +updateStatus(userId : Long, request : ApiRequests.AccountStatusUpdate) : Object
+    +activity(userId : Long) : Object
+}
+
+class AccountService <<service>> {
+    -support : DomainSupportService
+    -verificationEmailService : VerificationEmailService
+
+    +users(roleName : String) : List<Map<String, Object>>
+    +updateProfile(userId : Long, request : ApiRequests.ProfileUpdate) : Map<String, Object>
+    +updateStatus(userId : Long, request : ApiRequests.AccountStatusUpdate) : Map<String, Object>
+    +activity(userId : Long) : Map<String, Object>
+    -requireAdmin() : void
+}
+
+class VerificationEmailService <<service>> {
+    +sendAccountStatusEmail(user : AppUser, locked : boolean) : VerificationEmailDelivery
+}
+
+class "ApiRequests.AccountStatusUpdate" as AccountStatusUpdateDTO <<dto>> {
+    -status : String
+}
+
+interface AppUserRepository <<repository>> {
+    +findAll() : List<AppUser>
+    +findByPhone(phone : String) : Optional<AppUser>
+}
+
+interface BookingRepository <<repository>> {
+    +findByCustomer_UserIdOrderByBookingIdDesc(customerId : Long) : List<Booking>
+}
+
+class AppUser <<entity>> {
+    -userId : Long
+    -role : Role
+    -fullName : String
+    -email : String
+    -phone : String
+    -status : AccountStatus
+    -bookingRestricted : boolean
+    -authVersion : long
+}
+
+class Booking <<entity>> {
+    -bookingId : Long
+    -customer : AppUser
+    -status : BookingStatus
+}
+
+AccountController ..> AccountService
+AccountController ..> AccountStatusUpdateDTO
+AccountService ..> AppUserRepository
+AccountService ..> BookingRepository
+AccountService ..> VerificationEmailService
+AppUserRepository --> AppUser
+BookingRepository --> Booking
+Booking --> AppUser
+
+@enduml

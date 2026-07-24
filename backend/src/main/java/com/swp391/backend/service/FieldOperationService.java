@@ -28,9 +28,9 @@ import java.util.Objects;
 @Service
 @Transactional
 public class FieldOperationService {
-    private final DemoSupportService support;
+    private final DomainSupportService support;
 
-    public FieldOperationService(DemoSupportService support) {
+    public FieldOperationService(DomainSupportService support) {
         this.support = support;
     }
 
@@ -64,6 +64,7 @@ public class FieldOperationService {
     @Transactional(readOnly = true)
     public Map<String, Object> fieldDetail(Long fieldId) {
         FootballField field = support.getField(fieldId);
+        if (field.getStatus() != CommonStatus.active) throw support.notFound("Field not found");
         List<FieldPrice> activePrices = support.fieldPriceRepository.findByField_FieldId(fieldId).stream()
                 .filter(price -> price.getStatus() == CommonStatus.active)
                 .sorted(Comparator.comparing(FieldPrice::getDayType).thenComparing(FieldPrice::getStartTime))
@@ -83,7 +84,7 @@ public class FieldOperationService {
                 "nextOpenSlots", nextAvailableSlots
         ));
         detail.put("reviews", List.of());
-        detail.put("reviewSummary", "Reviews are not modelled in the MVP schema yet.");
+        detail.put("reviewSummary", "Reviews are not available for this system.");
         return detail;
     }
 
@@ -124,11 +125,12 @@ public class FieldOperationService {
     @Transactional(readOnly = true)
     public List<Map<String, Object>> searchSlots(LocalDate date, Long fieldTypeId) {
         LocalDate targetDate = date == null ? LocalDate.now().plusDays(1) : date;
+        if (targetDate.isBefore(LocalDate.now())) throw support.badRequest("Search date cannot be in the past");
         return support.slotRepository.findBySlotDate(targetDate).stream()
                 .filter(slot -> slot.getField().getStatus() == CommonStatus.active)
                 .filter(slot -> fieldTypeId == null || Objects.equals(slot.getField().getFieldType().getFieldTypeId(), fieldTypeId))
                 .map(slot -> {
-                    boolean reserved = support.bookingRepository.existsBySlotAndStatusIn(slot, DemoSupportService.ACTIVE_BOOKING_STATUSES);
+                    boolean reserved = support.bookingRepository.existsBySlotAndStatusIn(slot, DomainSupportService.ACTIVE_BOOKING_STATUSES);
                     BigDecimal fieldPrice = support.calculateFieldPrice(slot);
                     return Map.<String, Object>ofEntries(
                             Map.entry("slotId", slot.getSlotId()),
@@ -150,10 +152,12 @@ public class FieldOperationService {
     @Transactional(readOnly = true)
     public List<Map<String, Object>> suggestSlots(LocalDate date, LocalTime preferredTime, Long fieldTypeId, BigDecimal maxPrice, Long customerId) {
         LocalDate targetDate = date == null ? LocalDate.now().plusDays(1) : date;
-        AppUser customer = customerId == null ? null : support.userRepository.findById(customerId).orElse(null);
+        if (targetDate.isBefore(LocalDate.now())) throw support.badRequest("Suggestion date cannot be in the past");
+        if (maxPrice != null && maxPrice.signum() < 0) throw support.badRequest("Maximum price cannot be negative");
+        AppUser customer = authenticatedSuggestionCustomer(customerId);
         return support.slotRepository.findBySlotDate(targetDate).stream()
                 .filter(slot -> slot.getField().getStatus() == CommonStatus.active && slot.getStatus() == SlotStatus.available)
-                .filter(slot -> !support.bookingRepository.existsBySlotAndStatusIn(slot, DemoSupportService.ACTIVE_BOOKING_STATUSES))
+                .filter(slot -> !support.bookingRepository.existsBySlotAndStatusIn(slot, DomainSupportService.ACTIVE_BOOKING_STATUSES))
                 .filter(slot -> fieldTypeId == null || Objects.equals(slot.getField().getFieldType().getFieldTypeId(), fieldTypeId))
                 .map(slot -> suggestionSummary(slot, preferredTime, maxPrice, customer))
                 .filter(item -> maxPrice == null || ((BigDecimal) item.get("price")).compareTo(maxPrice) <= 0)
@@ -161,6 +165,17 @@ public class FieldOperationService {
                         .thenComparing(item -> (String) item.get("startTime")))
                 .limit(8)
                 .toList();
+    }
+
+    private AppUser authenticatedSuggestionCustomer(Long customerId) {
+        if (customerId == null) return null;
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof SecurityUser user)
+                || !Objects.equals(user.getAppUser().getUserId(), customerId)
+                || !"Customer".equalsIgnoreCase(user.getAppUser().getRole().getRoleName())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Customer suggestions can only use your own membership");
+        }
+        return user.getAppUser();
     }
 
     private Map<String, Object> suggestionSummary(Slot slot, LocalTime preferredTime, BigDecimal maxPrice, AppUser customer) {
@@ -229,7 +244,7 @@ public class FieldOperationService {
                 .filter(existing -> existing.getStartTime().equals(startTime) && existing.getEndTime().equals(endTime))
                 .findFirst()
                 .orElseGet(Slot::new);
-        if (slot.getSlotId() != null && support.bookingRepository.existsBySlotAndStatusIn(slot, DemoSupportService.ACTIVE_BOOKING_STATUSES)) {
+        if (slot.getSlotId() != null && support.bookingRepository.existsBySlotAndStatusIn(slot, DomainSupportService.ACTIVE_BOOKING_STATUSES)) {
             throw support.badRequest("An active booking already exists for this slot");
         }
         slot.setField(field);
@@ -439,6 +454,26 @@ public class FieldOperationService {
         price.setEffectiveFrom(request.effectiveFrom());
         price.setEffectiveTo(request.effectiveTo());
         price.setStatus(support.parseEnum(CommonStatus.class, request.status(), CommonStatus.active));
+        validateFieldPriceOverlap(price);
+    }
+
+    private void validateFieldPriceOverlap(FieldPrice candidate) {
+        if (candidate.getStatus() != CommonStatus.active) return;
+        boolean overlaps = support.fieldPriceRepository.findByField_FieldId(candidate.getField().getFieldId()).stream()
+                .filter(existing -> candidate.getFieldPriceId() == null || !existing.getFieldPriceId().equals(candidate.getFieldPriceId()))
+                .filter(existing -> existing.getStatus() == CommonStatus.active)
+                .filter(existing -> "all".equals(existing.getDayType()) || "all".equals(candidate.getDayType())
+                        || existing.getDayType().equals(candidate.getDayType()))
+                .filter(existing -> candidate.getStartTime().isBefore(existing.getEndTime())
+                        && candidate.getEndTime().isAfter(existing.getStartTime()))
+                .anyMatch(existing -> {
+                    LocalDate candidateFrom = candidate.getEffectiveFrom() == null ? LocalDate.MIN : candidate.getEffectiveFrom();
+                    LocalDate candidateTo = candidate.getEffectiveTo() == null ? LocalDate.MAX : candidate.getEffectiveTo();
+                    LocalDate existingFrom = existing.getEffectiveFrom() == null ? LocalDate.MIN : existing.getEffectiveFrom();
+                    LocalDate existingTo = existing.getEffectiveTo() == null ? LocalDate.MAX : existing.getEffectiveTo();
+                    return !candidateFrom.isAfter(existingTo) && !existingFrom.isAfter(candidateTo);
+                });
+        if (overlaps) throw support.badRequest("An active field price already overlaps this day, time, and effective-date range");
     }
 
     private void applyServiceRequest(ExtraService service, ApiRequests.ExtraServiceUpsert request) {
@@ -486,7 +521,7 @@ public class FieldOperationService {
                 .filter(slot -> Objects.equals(slot.getField().getFieldId(), fieldId))
                 .filter(slot -> slot.getField().getStatus() == CommonStatus.active)
                 .filter(slot -> slot.getStatus() == SlotStatus.available)
-                .filter(slot -> !support.bookingRepository.existsBySlotAndStatusIn(slot, DemoSupportService.ACTIVE_BOOKING_STATUSES))
+                .filter(slot -> !support.bookingRepository.existsBySlotAndStatusIn(slot, DomainSupportService.ACTIVE_BOOKING_STATUSES))
                 .sorted(Comparator.comparing(Slot::getSlotDate).thenComparing(Slot::getStartTime))
                 .limit(5)
                 .map(slot -> Map.<String, Object>ofEntries(
