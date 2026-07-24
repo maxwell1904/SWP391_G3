@@ -1793,6 +1793,32 @@ main.pageMain .section {
   text-align: left;
 }
 
+.customerAccountRow {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--white);
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 11px 12px;
+  text-align: left;
+}
+
+.customerAccountTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.customerAccountActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .dataList {
   gap: 0;
   border-top: 1px solid var(--line);
@@ -1826,7 +1852,8 @@ main.pageMain .section {
   padding: 0 12px;
 }
 
-.customerAdminRow.selected {
+.customerAdminRow.selected,
+.customerAccountRow.selected {
   border-color: var(--green);
   background: var(--green-soft);
 }
@@ -1838,7 +1865,8 @@ main.pageMain .section {
 
 .bookingItem > span,
 .dataRow > span,
-.customerAdminRow > span {
+.customerAdminRow > span,
+.customerAccountTop > span {
   min-width: 0;
   display: grid;
   gap: 4px;

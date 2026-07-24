@@ -873,34 +873,38 @@ export function AdminPage({
           </div>
           <div className="customerAdminList">
             {customers.map(customer => (
-              <div className="customerAdminRow" key={customer.userId}>
-                <span>
-                  <strong>{customer.fullName}</strong>
-                  <small>{customer.email}</small>
-                  <small>{customer.phone || 'no phone'}</small>
-                  {customer.bookingRestricted && <small>{customer.restrictionReason || 'Booking restricted'}</small>}
-                </span>
-                <Group gap={6}>
-                  {customer.bookingRestricted && <Badge color="yellow" variant="light">Booking restricted</Badge>}
-                  <Badge color={statusColor(customer.status)} variant="light">{customer.status === 'locked' ? 'Sign-in locked' : customer.status}</Badge>
-                </Group>
-                <Button
-                  variant={customer.bookingRestricted ? 'filled' : 'light'}
-                  color={customer.bookingRestricted ? 'green' : 'red'}
-                  onClick={() => customer.bookingRestricted
-                    ? updateCustomerRestriction(customer, false)
-                    : openRestrictionModal(customer)}
-                >
-                  {customer.bookingRestricted ? 'Restore' : 'Restrict'}
-                </Button>
-                <Button size="xs" variant="subtle" onClick={() => setCustomerEditor({ opened: true, customer: { ...customer } })}>Edit</Button>
-                <Button size="xs" variant="subtle" onClick={() => viewCustomerActivity(customer)}>Activity</Button>
-                <Button
-                  size="xs"
-                  variant="light"
-                  color={customer.status === 'active' ? 'red' : 'green'}
-                  onClick={() => updateCustomerStatus(customer)}
-                >{customer.status === 'active' ? 'Lock sign-in' : 'Unlock sign-in'}</Button>
+              <div className="customerAccountRow" key={customer.userId}>
+                <div className="customerAccountTop">
+                  <span>
+                    <strong>{customer.fullName}</strong>
+                    <small>{customer.email}</small>
+                    <small>{customer.phone || 'no phone'}</small>
+                    {customer.bookingRestricted && <small>{customer.restrictionReason || 'Booking restricted'}</small>}
+                  </span>
+                  <Group gap={6}>
+                    {customer.bookingRestricted && <Badge color="yellow" variant="light">Booking restricted</Badge>}
+                    <Badge color={statusColor(customer.status)} variant="light">{customer.status === 'locked' ? 'Sign-in locked' : customer.status}</Badge>
+                  </Group>
+                </div>
+                <div className="customerAccountActions">
+                  <Button
+                    variant={customer.bookingRestricted ? 'filled' : 'light'}
+                    color={customer.bookingRestricted ? 'green' : 'red'}
+                    onClick={() => customer.bookingRestricted
+                      ? updateCustomerRestriction(customer, false)
+                      : openRestrictionModal(customer)}
+                  >
+                    {customer.bookingRestricted ? 'Restore' : 'Restrict'}
+                  </Button>
+                  <Button size="xs" variant="subtle" onClick={() => setCustomerEditor({ opened: true, customer: { ...customer } })}>Edit</Button>
+                  <Button size="xs" variant="subtle" onClick={() => viewCustomerActivity(customer)}>Activity</Button>
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color={customer.status === 'active' ? 'red' : 'green'}
+                    onClick={() => updateCustomerStatus(customer)}
+                  >{customer.status === 'active' ? 'Lock' : 'Unlock'}<br />sign-in</Button>
+                </div>
               </div>
             ))}
           </div>
@@ -920,10 +924,11 @@ export function AdminPage({
           </div>
           <div className="adminFormGrid compact">
             <FieldControl label="Full name"><input value={staffForm.fullName} onChange={event => setStaffForm(form => ({ ...form, fullName: event.target.value }))} /></FieldControl>
-            <FieldControl label="Email"><input type="email" value={staffForm.email} onChange={event => setStaffForm(form => ({ ...form, email: event.target.value }))} /></FieldControl>
+            <FieldControl label="Email"><input type="email" value={staffForm.email} onChange={event => setStaffForm(form => ({ ...form, email: event.target.value }))} disabled={selectedStaffId !== 'new'} /></FieldControl>
             <FieldControl label="Phone"><input value={staffForm.phone} onChange={event => setStaffForm(form => ({ ...form, phone: event.target.value }))} /></FieldControl>
             <FieldControl label="Status"><select value={staffForm.status} onChange={event => setStaffForm(form => ({ ...form, status: event.target.value }))}><option value="active">Active</option><option value="inactive">Inactive</option></select></FieldControl>
           </div>
+          {selectedStaffId !== 'new' && <p className="panelHint">* Email cannot be changed after account creation.</p>}
           {selectedStaffId === 'new' && <p className="panelHint">GoalZone emails a one-time password setup link. Administrators cannot view or replace the staff member's password.</p>}
           <Button color="green" onClick={saveStaff}>{selectedStaffId === 'new' ? 'Create & send invitation' : 'Save staff account'}</Button>
         </InfoPanel>
