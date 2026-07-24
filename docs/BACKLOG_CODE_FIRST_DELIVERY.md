@@ -8,8 +8,12 @@ working code and the decisions below, this file is authoritative.
 
 | Original item | Code-first decision |
 | --- | --- |
+<<<<<<< HEAD
+| UC-07 / UC-10 | UC-07 manages customer profile details. UC-10 locks or unlocks a customer account. Locking requires a reason, emails the customer, revokes active tokens, and blocks login until an Admin unlocks the account. |
+=======
 | UC-07 / UC-10 | Keep both. UC-07 manages Customer profile and **active/locked sign-in status**. UC-10 independently restricts **new booking creation**. A booking-restricted Customer can still sign in, see history, pay, reschedule, cancel and request an eligible refund. A locked Customer cannot sign in. Both actions notify by email and in-app record. |
 | UC-08 | Admin creates Staff identity/status only. The system emails a one-hour setup link so Staff chooses the password; Admin cannot set or later change it. |
+>>>>>>> 327a19993fe956540087376c122302c65ddffcde
 | UC-12 reviews | Field detail is delivered; reviews are deferred because there is no review entity or moderation flow. Do not claim reviews in the SRS acceptance criteria. |
 | UC-21 | Both the owning Customer and Staff can edit add-ons while a booking is pending/confirmed. Totals, discounts, balance/refund delta and invoice are recalculated together. |
 | UC-39/40 | Online PayPal sandbox belongs only to Customer. Staff creates walk-in bookings and records cash deposit/full/remaining payment. Admin does neither checkout flow. |
@@ -46,10 +50,15 @@ Detailed acceptance evidence for every UC is maintained in
 - Image upload accepts JPEG/PNG/WebP/GIF up to 5 MB. Local filesystem storage
   is suitable for classroom deployment; use Supabase Storage/S3 for a
   multi-instance production deployment.
+<<<<<<< HEAD
+- PostgreSQL schema changes are Flyway-owned (currently V1–V12) and Hibernate
+  runs with `ddl-auto=validate`. H2 remains disposable for local/test runs.
+=======
 - PostgreSQL schema changes are Flyway-owned (currently V1–V11) and Hibernate
   runs with `ddl-auto=validate`. The local H2 fallback is file-backed so a
   mistaken local launch does not erase history; automated tests override it
   with an isolated in-memory database.
+>>>>>>> 327a19993fe956540087376c122302c65ddffcde
 
 ## Documents not to claim
 

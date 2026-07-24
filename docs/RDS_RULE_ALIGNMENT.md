@@ -13,7 +13,7 @@ This file tracks the current code-first implementation against the RDS business 
 - BR-13/14/15: only completed bookings update membership progress; no-show/cancelled/expired bookings do not count.
 - BR-16: checkout summary includes field price, services, promotion, membership, deposit, remaining amount, and total. Membership discount is applied only for online customer bookings, not guest preview or staff walk-in booking.
 - BR-17/18: promotion validation covers active dates, usage limit, minimum amount, field type, service condition, and stores applied snapshots.
-- BR-20/21/22/24: extra service quantity/stock checks, unique account email/phone, restricted customer blocking, and invoice summary are implemented.
+- BR-20/21/22/24: extra service quantity/stock checks, unique account email/phone, locked-customer blocking, and invoice summary are implemented.
 
 ## Completed workflow clarifications
 

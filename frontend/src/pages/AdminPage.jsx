@@ -58,13 +58,12 @@ export function AdminPage({
   updateDepositSetting,
   updatePolicySetting,
   customers,
-  updateCustomerRestriction,
+  updateCustomerLock,
   refreshAll,
   navigatePage,
-  loadReports,
-  showToast
+  loadReports
 }) {
-  const restrictedCustomers = customers.filter(customer => customer.bookingRestricted).length
+  const lockedCustomers = customers.filter(customer => customer.accountLocked).length
   const [adminFields, setAdminFields] = useState([])
   const [selectedFieldId, setSelectedFieldId] = useState(null)
   const [fieldPrices, setFieldPrices] = useState([])
@@ -76,13 +75,17 @@ export function AdminPage({
   const [serviceForm, setServiceForm] = useState(emptyServiceForm)
   const [fieldNotice, setFieldNotice] = useState('')
   const [feedbackModal, setFeedbackModal] = useState({ opened: false, title: '', message: '' })
-  const [restrictionModal, setRestrictionModal] = useState({ opened: false, customer: null, reason: '' })
+  const [lockModal, setLockModal] = useState({ opened: false, customer: null, reason: '' })
   const [staffAccounts, setStaffAccounts] = useState([])
   const [selectedStaffId, setSelectedStaffId] = useState('new')
   const [staffForm, setStaffForm] = useState(emptyStaffForm)
+<<<<<<< HEAD
+  const [staffPasswordVisible, setStaffPasswordVisible] = useState(false)
+=======
   const [customerEditor, setCustomerEditor] = useState({ opened: false, customer: null })
   const [customerProfileErrors, setCustomerProfileErrors] = useState({})
   const [customerActivity, setCustomerActivity] = useState(null)
+>>>>>>> 327a19993fe956540087376c122302c65ddffcde
   const [policyValues, setPolicyValues] = useState({})
   const [activePanel, setActivePanel] = useState('overview')
   const [reportRange, setReportRange] = useState({ from: '', to: '' })
@@ -240,26 +243,26 @@ export function AdminPage({
     setFeedbackModal({ opened: false, title: '', message: '' })
   }
 
-  function openRestrictionModal(customer) {
-    setRestrictionModal({
+  function openLockModal(customer) {
+    setLockModal({
       opened: true,
       customer,
-      reason: customer.restrictionReason || ''
+      reason: customer.lockReason || ''
     })
   }
 
-  function closeRestrictionModal() {
-    setRestrictionModal({ opened: false, customer: null, reason: '' })
+  function closeLockModal() {
+    setLockModal({ opened: false, customer: null, reason: '' })
   }
 
-  async function confirmRestriction() {
-    const reason = restrictionModal.reason.trim()
+  async function confirmLock() {
+    const reason = lockModal.reason.trim()
     if (!reason) {
-      setFieldNotice('Restriction reason is required.')
+      setFieldNotice('Lock reason is required.')
       return
     }
-    await updateCustomerRestriction(restrictionModal.customer, true, reason)
-    closeRestrictionModal()
+    await updateCustomerLock(lockModal.customer, true, reason)
+    closeLockModal()
   }
 
   function startNewPriceRule() {
@@ -449,6 +452,8 @@ export function AdminPage({
     }
   }
 
+<<<<<<< HEAD
+=======
   async function updateCustomerStatus(customer) {
     const status = customer.status === 'active' ? 'locked' : 'active'
     try {
@@ -493,6 +498,7 @@ export function AdminPage({
     }
   }
 
+>>>>>>> 327a19993fe956540087376c122302c65ddffcde
   return (
     <section id="admin" className="section adminSection">
       <WorkspaceHeader
@@ -867,6 +873,29 @@ export function AdminPage({
         </InfoPanel>
 
         <InfoPanel title="Customer accounts" className={panelClass('access')}>
+<<<<<<< HEAD
+          <div className="adminPanelHeader">
+            <span>{lockedCustomers ? `${lockedCustomers} customer account(s) locked.` : 'All customer accounts can sign in.'}</span>
+          </div>
+          <div className="customerAdminList">
+            {customers.map(customer => (
+              <div className="customerAdminRow" key={customer.userId}>
+                <span>
+                  <strong>{customer.fullName}</strong>
+                  <small>{customer.email}</small>
+                  <small>{customer.phone || 'no phone'}</small>
+                  {customer.accountLocked && <small>{customer.lockReason || 'Account locked'}</small>}
+                </span>
+                <Button
+                  variant={customer.accountLocked ? 'filled' : 'light'}
+                  color={customer.accountLocked ? 'green' : 'red'}
+                  onClick={() => customer.accountLocked
+                    ? updateCustomerLock(customer, false)
+                    : openLockModal(customer)}
+                >
+                  {customer.accountLocked ? 'Unlock' : 'Lock'}
+                </Button>
+=======
           <div className="accessModeGuide">
             <p><strong>Restrict booking</strong><span>Customer can sign in and manage existing bookings, but cannot create a new one.</span></p>
             <p><strong>Lock account</strong><span>Customer cannot sign in. Use this for security, fraud, or full account suspension.</span></p>
@@ -905,6 +934,7 @@ export function AdminPage({
                     onClick={() => updateCustomerStatus(customer)}
                   >{customer.status === 'active' ? 'Lock' : 'Unlock'}<br />sign-in</Button>
                 </div>
+>>>>>>> 327a19993fe956540087376c122302c65ddffcde
               </div>
             ))}
           </div>
@@ -948,43 +978,26 @@ export function AdminPage({
         </Stack>
       </Modal>
 
-      <Modal opened={customerEditor.opened} onClose={() => { setCustomerEditor({ opened: false, customer: null }); setCustomerProfileErrors({}) }} centered title="Edit customer profile">
-        <Stack gap="sm">
-          <FieldControl label="Full name" error={customerProfileErrors.fullName}><input value={customerEditor.customer?.fullName || ''} onChange={event => setCustomerEditor(editor => ({ ...editor, customer: { ...editor.customer, fullName: event.target.value } }))} /></FieldControl>
-          <FieldControl label="Phone" error={customerProfileErrors.phone}><input value={customerEditor.customer?.phone || ''} onChange={event => setCustomerEditor(editor => ({ ...editor, customer: { ...editor.customer, phone: event.target.value } }))} /></FieldControl>
-          <FieldControl label="Address"><textarea value={customerEditor.customer?.address || ''} onChange={event => setCustomerEditor(editor => ({ ...editor, customer: { ...editor.customer, address: event.target.value } }))} /></FieldControl>
-          <Button onClick={saveCustomerProfile}>Save customer profile</Button>
-        </Stack>
-      </Modal>
-
-      <Modal opened={Boolean(customerActivity)} onClose={() => setCustomerActivity(null)} centered title={`${customerActivity?.user?.fullName || 'Customer'} activity`}>
-        <Stack gap="sm">
-          <Text size="sm">Completed bookings: {customerActivity?.completedBookingCount || 0}</Text>
-          <DataList items={(customerActivity?.bookings || []).map(booking => ({ title: booking.bookingCode, meta: `${booking.fieldName} · ${booking.slotDate}`, value: booking.status }))} />
-          <DataList items={(customerActivity?.issues || []).map(issue => ({ title: issue.title, meta: issue.resolutionNote || 'No resolution note', value: issue.status }))} />
-        </Stack>
-      </Modal>
-
       <Modal
-        opened={restrictionModal.opened}
-        onClose={closeRestrictionModal}
+        opened={lockModal.opened}
+        onClose={closeLockModal}
         centered
-        title={`Restrict ${restrictionModal.customer?.fullName || 'customer'}`}
+        title={`Lock ${lockModal.customer?.fullName || 'customer'}`}
       >
         <Stack gap="sm">
           <Text size="sm" c="dimmed">
-            The customer can still sign in and review existing bookings, but cannot create a new booking. They will receive an email with this reason.
+            The customer will be blocked from signing in and will receive an email with this reason.
           </Text>
-          <FieldControl label="Restriction reason">
+          <FieldControl label="Lock reason">
             <textarea
-              value={restrictionModal.reason}
-              onChange={event => setRestrictionModal(modal => ({ ...modal, reason: event.target.value }))}
+              value={lockModal.reason}
+              onChange={event => setLockModal(modal => ({ ...modal, reason: event.target.value }))}
               placeholder="Example: Repeated no-shows and unpaid booking balance."
             />
           </FieldControl>
           <Group justify="flex-end">
-            <Button variant="light" color="gray" onClick={closeRestrictionModal}>Cancel</Button>
-            <Button color="red" onClick={confirmRestriction}>Restrict customer</Button>
+            <Button variant="light" color="gray" onClick={closeLockModal}>Cancel</Button>
+            <Button color="red" onClick={confirmLock}>Lock customer</Button>
           </Group>
         </Stack>
       </Modal>

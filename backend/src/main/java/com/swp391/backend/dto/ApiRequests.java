@@ -68,9 +68,9 @@ public final class ApiRequests {
     ) {
     }
 
-    public record RestrictionUpdate(
-            boolean bookingRestricted,
-            String restrictionReason
+    public record AccountLockUpdate(
+            boolean accountLocked,
+            String lockReason
     ) {
     }
 

@@ -125,8 +125,8 @@ Table app_user {
   date_of_birth date
   address varchar(255)
   status account_status [not null, default: 'active']
-  booking_restricted boolean [not null, default: false]
-  restriction_reason varchar(255)
+  account_locked boolean [not null, default: false]
+  lock_reason varchar(255)
   last_login_at timestamp
   auth_version bigint [not null, default: 0, note: "Increment to revoke existing JWTs after logout, password change, or administrative lock."]
   email_verified boolean [not null, default: false]

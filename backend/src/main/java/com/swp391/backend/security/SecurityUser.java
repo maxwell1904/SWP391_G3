@@ -45,9 +45,7 @@ public class SecurityUser implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        // Booking restriction is a domain rule for creating new bookings, not
-        // an authentication lock. Account access is controlled by status.
-        return true;
+        return !appUser.isAccountLocked();
     }
 
     @Override

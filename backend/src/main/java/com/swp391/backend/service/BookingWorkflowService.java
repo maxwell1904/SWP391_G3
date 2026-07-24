@@ -70,8 +70,8 @@ public class BookingWorkflowService {
 
     private Map<String, Object> createBookingInternal(ApiRequests.BookingCreate request) {
         AppUser customer = support.getUser(request.customerId());
-        if (customer.isBookingRestricted()) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "Customer is restricted from creating bookings");
+        if (customer.isAccountLocked()) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Customer account is locked");
         }
         BookingSource source = support.parseEnum(BookingSource.class, request.bookingSource(), BookingSource.online);
         if (source == BookingSource.online && !customer.isEmailVerified()) {

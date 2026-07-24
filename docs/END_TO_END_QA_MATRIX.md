@@ -12,6 +12,14 @@ Supabase development database in a real browser.
   operations, scheduler policies, admin configuration, and account recovery.
 - `backend/src/test/java/com/swp391/backend/service/*Test.java`: pricing,
   payment, reschedule, and refund regression cases.
+<<<<<<< HEAD
+- Browser smoke: Customer booking/account, Staff booking/activity, and Admin
+  overview/fields/pricing/policies.  This caught and fixed the blank Staff
+  booking list and the duplicate persistent success toast.
+- PostgreSQL migrations run through V12. The live Supabase schema was repaired
+  and the account-lock migration passed after V12; browser flow data
+  remained isolated in H2.
+=======
 - Browser smoke: Customer booking/account/payment/refund, Staff booking/activity/
   cash collection, and all Admin workspaces. This caught and fixed the blank
   Staff booking list, stale actions after cancellation/refund, duplicate success
@@ -19,6 +27,7 @@ Supabase development database in a real browser.
 - PostgreSQL migrations run through V11. The live Supabase schema and required
   indexes pass `scripts/verify-supabase-schema.sh`. Automated tests stay isolated
   in H2 and cannot mutate Supabase data.
+>>>>>>> 327a19993fe956540087376c122302c65ddffcde
 
 ## Backlog verdict
 
@@ -30,10 +39,17 @@ Supabase development database in a real browser.
 | UC-04 | Pass | Customer profile update is API-covered and exposed in the Account workspace. |
 | UC-05 | Pass | Current-password validation and self-only password change are E2E-covered; Admin cannot change another user's password. |
 | UC-06 | Pass* | Reset-token lifecycle is E2E-covered; actual email delivery is a final external smoke check. |
+<<<<<<< HEAD
+| UC-07 | Pass | Admin can list customer accounts; account state changes are handled by UC-10. |
+| UC-08 | Pass | Admin creates, updates, locks, and unlocks Staff accounts. |
+| UC-09 | Pass | Staff customer-activity API and selected-booking UI panel are covered. |
+| UC-10 | Pass | Admin lock/unlock requires a reason when locking, emails the customer, revokes active tokens, and blocks login. The complete flow is E2E-covered. |
+=======
 | UC-07 | Pass | Admin can list, edit, lock/unlock, and inspect customer accounts. Lock revokes tokens, blocks sign-in, and creates email/in-app notification evidence. |
 | UC-08 | Pass | Admin creates, updates, locks, and unlocks Staff accounts. Creation emails a one-hour password-setup link; Admin never chooses or later changes the Staff password. |
 | UC-09 | Pass | Staff customer-activity API and selected-booking UI panel are covered. |
 | UC-10 | Pass | Booking restriction/restoration is separate from account lock and is E2E-covered. It blocks only new booking creation and sends email/in-app notification. |
+>>>>>>> 327a19993fe956540087376c122302c65ddffcde
 | UC-11 | Pass | Guest/customer field list is rendered from the live catalogue API. |
 | UC-12 | Partial | Field detail exposes type, price, location, surface, uploaded image, and availability. Reviews are deferred and must be removed from current acceptance criteria. |
 | UC-13 | Pass | Date/type slot search was browser-smoked with booked and free slots correctly distinguished. |
@@ -99,14 +115,21 @@ external configuration smoke check.
 
 ## Backlog cleanup note: UC-07 vs UC-10
 
-They should not be identical in the final document.  Keep UC-07 as **customer
-directory/account administration** (edit profile and account state) and UC-10
-as **booking restriction** (a customer may still log in but cannot create a
-new booking).  The UI and API implement both separately.
+Keep UC-07 as **customer directory/profile administration** and UC-10 as
+**customer account lock/unlock**. A locked customer cannot sign in; the Admin
+must provide a reason and the system sends that reason by email.
 
 ## Supabase result
 
 Flyway V8 restores all integrity checks, the active-slot exclusion/indexes and
+<<<<<<< HEAD
+refund trigger after the guarded V7 legacy rebuild. V9 adds provider refund
+status, gateway message, idempotency tracking and unique reconciliation indexes.
+V12 renames the account-lock columns and synchronizes locked status. Live verification
+passed with all migrations through V12 successful and the required access indexes
+present. PostgreSQL runs through the `postgres` profile with Flyway and
+`ddl-auto=validate`; `.env.local` was normalized to that mode.
+=======
 refund trigger after the guarded V7 legacy rebuild. V9 adds provider-refund
 status, gateway message, idempotency tracking, and reconciliation indexes. V10
 adds period-aware membership qualification. V11 adds exact PayPal processor fee
@@ -114,3 +137,4 @@ and provider-net columns and reconciles historical completed refunds. Live
 verification passed with all eleven migrations successful and nine required
 access/uniqueness indexes present. PostgreSQL runs through the `postgres` profile
 with Flyway and `ddl-auto=validate`; `.env.local` is normalized to that mode.
+>>>>>>> 327a19993fe956540087376c122302c65ddffcde

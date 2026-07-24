@@ -78,12 +78,12 @@ export function AccountPage({
               />
             </div>
           )}
-          {currentUser.bookingRestricted && (
+          {currentUser.accountLocked && (
             <div className="accountVerification" style={{ borderLeftColor: '#ff6b6b', background: '#fff5f5' }}>
               <div className="verificationPanel">
-                <h4 style={{ color: '#e53e3e', margin: '0 0 6px 0' }}>Booking Privileges Restricted</h4>
+                <h4 style={{ color: '#e53e3e', margin: '0 0 6px 0' }}>Account Locked</h4>
                 <p style={{ color: '#4a5568', margin: 0, fontSize: '0.9rem' }}>
-                  Your account has been restricted from creating bookings. Reason: <strong>{currentUser.restrictionReason || 'Restricted by admin.'}</strong>
+                  Your account is locked. Please check your email for details. Reason: <strong>{currentUser.lockReason || 'Locked by admin.'}</strong>
                 </p>
               </div>
             </div>

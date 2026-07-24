@@ -75,9 +75,9 @@ public class AccountController {
         return accountService.resetPassword(request);
     }
 
-    @PutMapping("/users/{userId}/restriction")
-    public Object updateRestriction(@PathVariable Long userId, @RequestBody ApiRequests.RestrictionUpdate request) {
-        return accountService.updateRestriction(userId, request);
+    @PutMapping("/users/{userId}/lock")
+    public Object updateAccountLock(@PathVariable Long userId, @RequestBody ApiRequests.AccountLockUpdate request) {
+        return accountService.updateAccountLock(userId, request);
     }
 
     @PutMapping("/users/{userId}/status")

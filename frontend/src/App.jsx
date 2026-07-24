@@ -1102,11 +1102,11 @@ function App() {
     }), 'Booking policy updated')
   }
 
-  async function updateCustomerRestriction(customer, bookingRestricted, restrictionReason = '') {
-    await runAction(async () => api.put(`/account/users/${customer.userId}/restriction`, {
-      bookingRestricted,
-      restrictionReason: bookingRestricted ? restrictionReason : ''
-    }), bookingRestricted ? 'Customer booking restricted' : 'Customer booking restored')
+  async function updateCustomerLock(customer, accountLocked, lockReason = '') {
+    await runAction(async () => api.put(`/account/users/${customer.userId}/lock`, {
+      accountLocked,
+      lockReason: accountLocked ? lockReason : ''
+    }), accountLocked ? 'Customer account locked' : 'Customer account unlocked')
   }
 
   return (
@@ -1406,11 +1406,10 @@ function App() {
             updateDepositSetting={updateDepositSetting}
             updatePolicySetting={updatePolicySetting}
             customers={customers}
-            updateCustomerRestriction={updateCustomerRestriction}
+            updateCustomerLock={updateCustomerLock}
             refreshAll={refreshAll}
             navigatePage={navigatePage}
             loadReports={loadReports}
-            showToast={(title, message, kind = 'success') => setActionPanel({ kind, title, message })}
           />
         )}
 

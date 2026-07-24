@@ -140,7 +140,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/membership/levels/*").hasRole("Admin")
                         .requestMatchers(
                                 "/api/account/users",
-                                "/api/account/users/*/restriction",
+                                "/api/account/users/*/lock",
                                 "/api/account/users/*/status",
                                 "/api/account/staff/**"
                         ).hasRole("Admin")

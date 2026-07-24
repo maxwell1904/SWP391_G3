@@ -88,12 +88,12 @@ public class VerificationEmailService {
         }
     }
 
-    public VerificationEmailDelivery sendRestrictionEmail(AppUser user, String reason) {
+    public VerificationEmailDelivery sendAccountLockEmail(AppUser user, String reason) {
         if (isBlank(smtpUsername) || isBlank(fromEmail)) {
             return new VerificationEmailDelivery(
                     false,
                     "not_configured",
-                    "Restriction email was not sent because SMTP is not configured."
+                    "Lock email was not sent because SMTP is not configured."
             );
         }
 
@@ -102,25 +102,25 @@ public class VerificationEmailService {
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             helper.setTo(user.getEmail());
             helper.setFrom(senderAddress());
-            helper.setSubject("Your GoalZone account has been restricted");
-            helper.setText(restrictionPlainText(user, reason), restrictionHtmlText(user, reason));
+            helper.setSubject("Your GoalZone account has been locked");
+            helper.setText(accountLockPlainText(user, reason), accountLockHtmlText(user, reason));
             mailSender.send(message);
             return new VerificationEmailDelivery(
                     true,
                     "sent",
-                    "Restriction email sent. The customer has been notified."
+                    "Lock email sent. The customer has been notified."
             );
         } catch (MailException | AddressException | UnsupportedEncodingException exception) {
             logMailFailure(exception);
             throw new ApiException(
                     org.springframework.http.HttpStatus.BAD_GATEWAY,
-                    "Could not send restriction email. Check SMTP settings and try again."
+                    "Could not send lock email. Check SMTP settings and try again."
             );
         } catch (Exception exception) {
             logMailFailure(exception);
             throw new ApiException(
                     org.springframework.http.HttpStatus.BAD_GATEWAY,
-                    "Could not send restriction email. Check SMTP settings and try again."
+                    "Could not send lock email. Check SMTP settings and try again."
             );
         }
     }
@@ -250,21 +250,29 @@ public class VerificationEmailService {
                 + "</div>";
     }
 
-    private String restrictionPlainText(AppUser user, String reason) {
+    private String accountLockPlainText(AppUser user, String reason) {
         return "Hi " + user.getFullName() + ",\n\n"
+<<<<<<< HEAD
+                + "Your GoalZone account has been locked and you can no longer sign in.\n\n"
+=======
                 + "Your GoalZone account has been restricted from creating new bookings. You can still sign in and manage existing bookings.\n\n"
+>>>>>>> 327a19993fe956540087376c122302c65ddffcde
                 + "Reason:\n"
                 + reason + "\n\n"
                 + "Please contact GoalZone staff if you need support.";
     }
 
-    private String restrictionHtmlText(AppUser user, String reason) {
+    private String accountLockHtmlText(AppUser user, String reason) {
         String name = escapeHtml(user.getFullName());
         String safeReason = escapeHtml(reason);
         return "<div style=\"font-family:Arial,sans-serif;line-height:1.5;color:#17211b;max-width:560px\">"
-                + "<h2 style=\"margin:0 0 12px\">GoalZone account restricted</h2>"
+                + "<h2 style=\"margin:0 0 12px\">GoalZone account locked</h2>"
                 + "<p>Hi " + name + ",</p>"
+<<<<<<< HEAD
+                + "<p>Your GoalZone account has been locked and you can no longer sign in.</p>"
+=======
                 + "<p>Your GoalZone account has been restricted from creating new bookings. You can still sign in and manage existing bookings.</p>"
+>>>>>>> 327a19993fe956540087376c122302c65ddffcde
                 + "<div style=\"border:1px solid #d8e2d8;background:#f7fbf7;border-radius:6px;padding:12px;margin:12px 0\">"
                 + "<strong>Reason</strong>"
                 + "<p style=\"margin:8px 0 0\">" + safeReason + "</p>"
