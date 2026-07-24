@@ -45,7 +45,7 @@ public class SecurityUser implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return !appUser.isBookingRestricted();
+        return !appUser.isAccountLocked();
     }
 
     @Override

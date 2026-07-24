@@ -560,24 +560,22 @@ class BacklogEndToEndApiTest {
 
         JsonNode member = login("member@goalzone.local");
         long memberId = userId(member);
-        JsonNode restricted = exchange(auth(put("/api/account/users/" + memberId + "/restriction")
+        JsonNode locked = exchange(auth(put("/api/account/users/" + memberId + "/lock")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json(Map.of("bookingRestricted", true, "restrictionReason", "E2E access review"))), adminToken), 200);
-        assertThat(restricted.path("bookingRestricted").asBoolean()).isTrue();
-        JsonNode restrictedLogin = login("member@goalzone.local");
-        assertThat(restrictedLogin.path("user").path("bookingRestricted").asBoolean()).isTrue();
-        assertThat(exchange(auth(post("/api/bookings")
+                .content(json(Map.of("accountLocked", true, "lockReason", "E2E access review"))), adminToken), 200);
+        assertThat(locked.path("accountLocked").asBoolean()).isTrue();
+        assertThat(locked.path("lockReason").asText()).isEqualTo("E2E access review");
+        assertThat(locked.path("status").asText()).isEqualTo("locked");
+        JsonNode blockedLogin = exchange(post("/api/account/login")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json(Map.of(
-                        "customerId", memberId,
-                        "slotId", availableSlots(LocalDate.now().plusDays(5)).get(0).path("slotId").asLong(),
-                        "bookingSource", "online",
-                        "services", List.of()
-                ))), token(restrictedLogin)), 403).path("error").asText()).contains("restricted");
-        JsonNode restored = exchange(auth(put("/api/account/users/" + memberId + "/restriction")
+                .content(json(Map.of("emailOrPhone", "member@goalzone.local", "password", PASSWORD))), 403);
+        assertThat(blockedLogin.path("error").asText()).contains("check your email");
+        JsonNode unlocked = exchange(auth(put("/api/account/users/" + memberId + "/lock")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json(Map.of("bookingRestricted", false, "restrictionReason", ""))), adminToken), 200);
-        assertThat(restored.path("bookingRestricted").asBoolean()).isFalse();
+                .content(json(Map.of("accountLocked", false, "lockReason", ""))), adminToken), 200);
+        assertThat(unlocked.path("accountLocked").asBoolean()).isFalse();
+        assertThat(unlocked.path("status").asText()).isEqualTo("active");
+        assertThat(login("member@goalzone.local").path("user").path("accountLocked").asBoolean()).isFalse();
     }
 
     @Test

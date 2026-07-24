@@ -25,10 +25,10 @@ Status meanings:
 | UC-04 | Manage personal profile | Done | Account page supports profile view/update for name, phone, and address. Backend validates phone format and uniqueness. |
 | UC-05 | Change password | Not implemented | No authenticated change-password flow yet. |
 | UC-06 | Forgot/reset password | Not implemented | No reset-token email flow yet. |
-| UC-07 | Manage customer accounts | Partial | Admin can list customers and restrict/restore booking access. Full customer edit/lock/delete management is not implemented. |
+| UC-07 | Manage customer accounts | Partial | Admin can list customer accounts. Account lock/unlock is covered by UC-10. |
 | UC-08 | Manage staff accounts | Not implemented | Staff CRUD is not exposed yet. |
 | UC-09 | View customer activity status | Partial | Activity is visible through bookings, membership, and reports. No dedicated customer-activity screen yet. |
-| UC-10 | Restrict/unrestrict customer booking ability | Done | Admin UI requires a restriction reason, emails the customer, blocks restricted customers from login, and booking creation also rejects restricted customers. |
+| UC-10 | Lock/unlock customer account | Done | Admin UI requires a lock reason, emails the customer, revokes active tokens, blocks locked customers from login, and supports unlocking. |
 
 ## BaoNG - Field, Slot, Service, and Issue
 

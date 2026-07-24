@@ -401,9 +401,9 @@ public class DemoSupportService {
         map.put("avatarUrl", user.getAvatarUrl());
         map.put("role", user.getRole().getRoleName());
         map.put("status", user.getStatus().name());
-        map.put("bookingRestricted", user.isBookingRestricted());
+        map.put("accountLocked", user.isAccountLocked());
         map.put("emailVerified", user.isEmailVerified());
-        map.put("restrictionReason", user.getRestrictionReason());
+        map.put("lockReason", user.getLockReason());
         map.put("lastLoginAt", user.getLastLoginAt());
         return map;
     }

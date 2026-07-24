@@ -22,7 +22,7 @@ Use the `Backlog` sheet as the UC source of truth. The `Contribution` sheet curr
 - Updated `database/football_field_booking_slim.dbml` so `app_user` includes email verification fields used by the code-first entity.
 - Added a PostgreSQL implementation index note for `app_user.email_verification_token`.
 - Added profile editing UI/API support for UC-04.
-- Added Admin customer restrict/restore UI support for UC-07/UC-10.
+- Added Admin customer lock/unlock UI support for UC-10.
 - Added staff reject-booking support for UC-30 with pending-status guard and customer notification.
 - Completed UC-39 with deposit/full selection in checkout and server-side payable amount validation.
 - Completed UC-46 demo coverage with invoice/payment detail panels for customer and staff workspaces.

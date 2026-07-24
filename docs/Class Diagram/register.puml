@@ -91,8 +91,8 @@ class AppUser <<entity>> {
     -dateOfBirth : LocalDate
     -address : String
     -status : AccountStatus
-    -bookingRestricted : boolean
-    -restrictionReason : String
+    -accountLocked : boolean
+    -lockReason : String
     -lastLoginAt : LocalDateTime
     -emailVerified : boolean
     -emailVerificationToken : String

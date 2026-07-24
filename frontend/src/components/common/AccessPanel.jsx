@@ -4,7 +4,7 @@ export function AccessPanel({ title, text, onLogin }) {
   return (
     <section className="section accessSection">
       <div className="accessPanel">
-        <span>Restricted area</span>
+        <span>Protected area</span>
         <h2>{title}</h2>
         <p>{text}</p>
         <button className="primaryButton" onClick={onLogin}>

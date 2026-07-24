@@ -8,7 +8,7 @@ working code and the decisions below, this file is authoritative.
 
 | Original item | Code-first decision |
 | --- | --- |
-| UC-07 / UC-10 | Keep both. UC-07 manages customer profile/account status; UC-10 independently restricts **new booking creation**. A restricted customer can still sign in, see history, cancel and request a refund. |
+| UC-07 / UC-10 | UC-07 manages customer profile details. UC-10 locks or unlocks a customer account. Locking requires a reason, emails the customer, revokes active tokens, and blocks login until an Admin unlocks the account. |
 | UC-12 reviews | Field detail is delivered; reviews are deferred because there is no review entity or moderation flow. Do not claim reviews in the SRS acceptance criteria. |
 | UC-21 | Both the owning Customer and Staff can edit add-ons while a booking is pending/confirmed. Totals, discounts, balance/refund delta and invoice are recalculated together. |
 | UC-39/40 | Online PayPal sandbox belongs only to Customer. Staff creates walk-in bookings and records cash deposit/full/remaining payment. Admin does neither checkout flow. |
@@ -44,7 +44,7 @@ Detailed acceptance evidence for every UC is maintained in
 - Image upload accepts JPEG/PNG/WebP/GIF up to 5 MB. Local filesystem storage
   is suitable for classroom deployment; use Supabase Storage/S3 for a
   multi-instance production deployment.
-- PostgreSQL schema changes are Flyway-owned (currently V1–V9) and Hibernate
+- PostgreSQL schema changes are Flyway-owned (currently V1–V12) and Hibernate
   runs with `ddl-auto=validate`. H2 remains disposable for local/test runs.
 
 ## Documents not to claim

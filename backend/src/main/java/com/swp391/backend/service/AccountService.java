@@ -98,6 +98,10 @@ public class AccountService {
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
+        if (user.isAccountLocked()) {
+            throw new ApiException(HttpStatus.FORBIDDEN,
+                    "Your account is locked. Please check your email for more details.");
+        }
         if (user.getStatus() != AccountStatus.active) {
             throw new ApiException(HttpStatus.FORBIDDEN, "Account is not active");
         }
@@ -240,32 +244,35 @@ public class AccountService {
         );
     }
 
-    public Map<String, Object> updateRestriction(Long userId, ApiRequests.RestrictionUpdate request) {
+    public Map<String, Object> updateAccountLock(Long userId, ApiRequests.AccountLockUpdate request) {
         requireAdmin();
         AppUser user = support.getUser(userId);
         if (!"Customer".equalsIgnoreCase(user.getRole().getRoleName())) {
-            throw support.badRequest("Only customer accounts can be restricted for booking");
+            throw support.badRequest("Only customer accounts can be locked");
         }
         VerificationEmailDelivery delivery = null;
-        user.setBookingRestricted(request.bookingRestricted());
-        revokeAllTokens(user);
-        String reason = support.clean(request.restrictionReason());
-        if (request.bookingRestricted()) {
-            support.requireText(reason, "Restriction reason is required");
-            user.setRestrictionReason(reason);
+        String reason = support.clean(request.lockReason());
+        if (request.accountLocked()) {
+            support.requireText(reason, "Lock reason is required");
+            user.setStatus(AccountStatus.locked);
+            user.setAccountLocked(true);
+            user.setLockReason(reason);
             if (!support.isBlank(user.getEmail())) {
-                delivery = verificationEmailService.sendRestrictionEmail(user, reason);
+                delivery = verificationEmailService.sendAccountLockEmail(user, reason);
             }
         } else {
-            user.setRestrictionReason(null);
+            user.setStatus(AccountStatus.active);
+            user.setAccountLocked(false);
+            user.setLockReason(null);
         }
+        revokeAllTokens(user);
 
         Map<String, Object> response = new LinkedHashMap<>(support.userSummary(user));
         if (delivery != null) {
             response.put("emailDeliveryStatus", delivery.status());
             response.put("message", delivery.message());
         } else {
-            response.put("message", request.bookingRestricted() ? "Customer restricted." : "Customer booking access restored.");
+            response.put("message", request.accountLocked() ? "Customer account locked." : "Customer account unlocked.");
         }
         return response;
     }
@@ -300,8 +307,15 @@ public class AccountService {
         if (Objects.equals(user.getUserId(), currentUser().getUserId())) {
             throw support.badRequest("Administrators cannot lock their own account");
         }
+        if ("Customer".equalsIgnoreCase(user.getRole().getRoleName())) {
+            throw support.badRequest("Use the customer account lock endpoint");
+        }
         AccountStatus status = support.parseEnum(AccountStatus.class, request.status(), user.getStatus());
         user.setStatus(status);
+        user.setAccountLocked(status == AccountStatus.locked);
+        if (status != AccountStatus.locked) {
+            user.setLockReason(null);
+        }
         revokeAllTokens(user);
         return support.userSummary(user);
     }

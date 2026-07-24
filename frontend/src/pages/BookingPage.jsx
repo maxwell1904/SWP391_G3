@@ -125,7 +125,7 @@ export function BookingPage({
               <PayPalCheckout
                 key={`${selectedSlotId}-${paymentOption}-${promotionCode}-${JSON.stringify(selectedServices)}`}
                 config={paypalConfig}
-                disabled={!checkout || currentUser.bookingRestricted}
+                disabled={!checkout || currentUser.accountLocked}
                 paymentOption={paymentOption}
                 onPrepareBooking={preparePayPalBooking}
                 onPaymentComplete={completePayPalPayment}
@@ -141,9 +141,9 @@ export function BookingPage({
           </div>
           {isCustomer && paypalConfigError && <p className="errorText">{paypalConfigError}</p>}
           {!currentUser && <p className="hintText">You can browse prices now. Login or register is required before the booking is saved.</p>}
-          {currentUser?.bookingRestricted && (
+          {currentUser?.accountLocked && (
             <p className="errorText" style={{ marginTop: '0.5rem', color: 'var(--orange, #ff6b6b)' }}>
-              Your account is restricted from booking: {currentUser.restrictionReason || 'Booking restricted by admin.'}
+              Your account is locked: {currentUser.lockReason || 'Please check your email for details.'}
             </p>
           )}
         </aside>

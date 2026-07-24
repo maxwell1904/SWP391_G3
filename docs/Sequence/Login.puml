@@ -111,12 +111,12 @@ opt Account not active
   App --> UI : 25.3 Show error toast
 end
 
-Service -> Service : 26. Check bookingRestricted
+Service -> Service : 26. Check accountLocked
 activate Service
 deactivate Service
 
-opt Account restricted
-  Service --> Controller : 27.1 Throw FORBIDDEN\n"Account is restricted"
+opt Account locked
+  Service --> Controller : 27.1 Throw FORBIDDEN\n"Your account is locked.\nPlease check your email for more details."
   Controller --> App : 27.2 HTTP 403
   App --> UI : 27.3 Show error toast
 end
