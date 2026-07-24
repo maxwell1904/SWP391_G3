@@ -71,6 +71,10 @@ app:
     env: ${PAYPAL_ENV:sandbox}
     currency: ${PAYPAL_CURRENCY:USD}
     mock-mode: ${PAYPAL_MOCK_MODE:false}
+  gemini:
+    # Keep the key in .env.local or the deployment's secret manager, never in Git.
+    api-key: ${GEMINI_API_KEY:}
+    model: ${GEMINI_MODEL:gemini-3.6-flash}
 
 jwt:
   # A local fallback keeps development accounts usable. Set JWT_SECRET in every

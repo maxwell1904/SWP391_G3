@@ -34,6 +34,22 @@ for ENV_FILE in "$ROOT_DIR/.env" "$ROOT_DIR/.env.local"; do
   fi
 done
 
+# Use this explicit local mode when the shared PostgreSQL/Flyway history is
+# being repaired or when a developer needs an isolated demo database:
+#   BACKEND_DB=local bash scripts/run-backend.sh
+# These overrides happen after .env.local is loaded, so a Supabase URL in that
+# file cannot accidentally be used for a local demo.
+if [[ "${BACKEND_DB:-}" == "local" ]]; then
+  export SPRING_PROFILES_ACTIVE="local"
+  export SPRING_DATASOURCE_URL="jdbc:h2:file:./data/goalzone;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;AUTO_SERVER=TRUE"
+  export SPRING_DATASOURCE_USERNAME="sa"
+  export SPRING_DATASOURCE_PASSWORD=""
+  export SPRING_DATASOURCE_DRIVER="org.h2.Driver"
+  export SPRING_JPA_DDL_AUTO="update"
+  export SPRING_FLYWAY_ENABLED="false"
+  echo "Local H2 database selected: Supabase/Flyway will not be used."
+fi
+
 # A PostgreSQL URL means this process targets Supabase (or another persistent
 # database). Never let the disposable local H2 profile's create-drop setting
 # run against it merely because SPRING_PROFILES_ACTIVE was omitted locally.
