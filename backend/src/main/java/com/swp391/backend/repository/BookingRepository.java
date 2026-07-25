@@ -10,6 +10,7 @@ import java.util.Collection;
 import java.util.List;
 
 public interface BookingRepository extends JpaRepository<Booking, Long> {
+    boolean existsBySlot(Slot slot);
     boolean existsBySlotAndStatusIn(Slot slot, Collection<BookingStatus> statuses);
     List<Booking> findByCustomer_UserIdOrderByBookingIdDesc(Long customerId);
     List<Booking> findBySlot_SlotDateOrderBySlot_StartTimeAsc(LocalDate slotDate);

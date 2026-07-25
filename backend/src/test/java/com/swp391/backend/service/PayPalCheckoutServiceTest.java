@@ -120,6 +120,26 @@ class PayPalCheckoutServiceTest {
         assertThat(result.refundId()).startsWith("MOCK-PAYPAL-REFUND-");
     }
 
+    @Test
+    void repeatedCaptureAfterARefundDoesNotCollectThePaymentAgain() {
+        Map<String, Object> booking = createBooking(customer);
+        Long bookingId = ((Number) booking.get("bookingId")).longValue();
+        Map<String, Object> order = payPalCheckoutService.createOrder(
+                bookingId, new ApiRequests.PayPalOrderCreate(customer.getUserId(), "full"));
+        Map<String, Object> first = payPalCheckoutService.captureOrder(
+                bookingId, (String) order.get("orderId"), new ApiRequests.PayPalOrderCapture(customer.getUserId()));
+        BigDecimal grossPaid = (BigDecimal) first.get("paidAmount");
+        Payment payment = paymentRepository.findByProviderOrderId((String) order.get("orderId")).orElseThrow();
+        payment.setStatus(com.swp391.backend.enums.PaymentStatus.partially_refunded);
+        paymentRepository.save(payment);
+
+        Map<String, Object> repeated = payPalCheckoutService.captureOrder(
+                bookingId, (String) order.get("orderId"), new ApiRequests.PayPalOrderCapture(customer.getUserId()));
+
+        assertThat(repeated.get("paidAmount")).isEqualTo(grossPaid);
+        assertThat(((List<?>) repeated.get("payments"))).hasSize(1);
+    }
+
     private Map<String, Object> createBooking(AppUser customer) {
         Slot slot = slotRepository.findAll().stream()
                 .filter(candidate -> candidate.getStatus() == SlotStatus.available)

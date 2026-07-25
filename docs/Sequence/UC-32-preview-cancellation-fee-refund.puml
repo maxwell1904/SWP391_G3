@@ -50,12 +50,12 @@ deactivate DB
 Repo --> Service : 8. Optional<Booking>
 deactivate Repo
 
-Service -> Service : 9. requireBookingVisible()\ncalculateCancellationPreview()
+Service -> Service : 9. requireBookingVisible()\ncalculate policy entitlement from gross paid\nsubtract already completed refunds once
 activate Service
 deactivate Service
 
 alt Request is permitted
-  Service --> Controller : 10. {feeAmount, refundableAmount, policy}
+  Service --> Controller : 10. {policyRefundAmount, completedRefundAmount,\nfeeAmount, refundableAmount, policy}
 else Access or data validation fails
   Service --> Controller : 10. ApiException
 end

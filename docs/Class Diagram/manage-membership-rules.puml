@@ -21,6 +21,18 @@ class PromotionReportService <<service>> {
     -requireAdmin() : void
 }
 
+class DomainSupportService <<service>> {
+    -userRepository : AppUserRepository
+    -customerMembershipRepository : CustomerMembershipRepository
+    -membershipLevelRepository : MembershipLevelRepository
+    -bookingRepository : BookingRepository
+
+    +refreshAllMembershipAssignments() : void
+    +updateMembershipProgress(customer : AppUser) : void
+    +attachDefaultMembership(customer : AppUser) : CustomerMembership
+    +resolveEligibleMembershipLevel(customer : AppUser, referenceDate : LocalDate) : MembershipLevel
+}
+
 class "ApiRequests.MembershipLevelUpsert" as MembershipLevelUpsertDTO <<dto>> {
     -levelName : String
     -requiredCompletedBookings : Integer
@@ -38,6 +50,19 @@ interface MembershipLevelRepository <<repository>> {
     +save(entity : MembershipLevel) : MembershipLevel
 }
 
+interface AppUserRepository <<repository>> {
+    +findAll() : List<AppUser>
+}
+
+interface CustomerMembershipRepository <<repository>> {
+    +findByCustomer_UserId(customerId : Long) : Optional<CustomerMembership>
+    +save(entity : CustomerMembership) : CustomerMembership
+}
+
+interface BookingRepository <<repository>> {
+    +findByCustomer_UserIdOrderByBookingIdDesc(customerId : Long) : List<Booking>
+}
+
 class MembershipLevel <<entity>> {
     -membershipLevelId : Long
     -levelName : String
@@ -53,7 +78,11 @@ class MembershipLevel <<entity>> {
 PromotionReportController ..> PromotionReportService
 PromotionReportController ..> MembershipLevelUpsertDTO
 PromotionReportService ..> MembershipLevelUpsertDTO
-PromotionReportService ..> MembershipLevelRepository
+PromotionReportService ..> DomainSupportService
+DomainSupportService ..> MembershipLevelRepository
+DomainSupportService ..> AppUserRepository
+DomainSupportService ..> CustomerMembershipRepository
+DomainSupportService ..> BookingRepository
 MembershipLevelRepository --> MembershipLevel
 
 @enduml

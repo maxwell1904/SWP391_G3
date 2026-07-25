@@ -123,11 +123,15 @@ public class PaymentWorkflowService {
         refund.setRefundCode("RF" + System.currentTimeMillis());
         refund.setIdempotencyKey("GZ-REFUND-" + UUID.randomUUID());
         refund.setRequestedBy(requester);
-        BigDecimal alreadyCommitted = support.refundRepository.findByBooking_BookingIdOrderByRefundIdDesc(booking.getBookingId()).stream()
-                .filter(existing -> existing.getStatus() != RefundStatus.rejected && existing.getStatus() != RefundStatus.failed)
+        // refundableAmount is already reduced when a refund completes. Reserve only
+        // requests that are still outstanding so completed refunds are not subtracted twice.
+        BigDecimal outstanding = support.refundRepository.findByBooking_BookingIdOrderByRefundIdDesc(booking.getBookingId()).stream()
+                .filter(existing -> existing.getStatus() == RefundStatus.requested
+                        || existing.getStatus() == RefundStatus.approved
+                        || existing.getStatus() == RefundStatus.processing)
                 .map(Refund::getRefundAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal available = booking.getRefundableAmount().subtract(alreadyCommitted).max(BigDecimal.ZERO);
+        BigDecimal available = support.money(booking.getRefundableAmount().subtract(outstanding).max(BigDecimal.ZERO));
         BigDecimal requestedAmount = request.refundAmount() == null ? available : support.money(request.refundAmount());
         if (requestedAmount.compareTo(BigDecimal.ZERO) <= 0 || requestedAmount.compareTo(available) > 0) {
             throw support.badRequest("Refund amount must be between zero and the remaining refundable amount");

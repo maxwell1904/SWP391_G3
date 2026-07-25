@@ -46,9 +46,6 @@ public class AppUser extends AuditEntity {
     @Column(nullable = false)
     private AccountStatus status = AccountStatus.active;
 
-    @Column(name = "account_locked", nullable = false)
-    private boolean accountLocked;
-
     @Column(name = "lock_reason")
     private String lockReason;
 

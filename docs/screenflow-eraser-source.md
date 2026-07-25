@@ -28,13 +28,14 @@ LandingPage > PromotionListScreen: Click "Offers"
 PromotionListScreen > FieldDetailScreen: Click Promotion Field
 LandingPage > MembershipBenefitsScreen: Click "Membership"
 LandingPage > AvailabilityAssistantScreen: Click "Find a Field"
-AvailabilityAssistantScreen > AssistantSuggestionModal: Submit Search Request
+AvailabilityAssistantScreen > AssistantSuggestionModal: Submit Filter Search
 AssistantSuggestionModal > FieldListScreen: Browse Suggested Fields
+AvailabilityAssistantScreen > LoginScreen: Ask Gemini While Signed Out
 LandingPage > LoginScreen: Click "Login"
 LoginScreen > RegisterScreen: Click "Register"
 RegisterScreen > RegisterSuccessModal: Submit Valid Information
 RegisterSuccessModal > LoginScreen: Click "Login Now"
-RegisterScreen > VerifyEmailScreen: Click Verification Link From Email
+RegisterSuccessModal > VerifyEmailScreen: Click Verification Link From Email
 VerifyEmailScreen > VerifySuccessModal: Verification Token Valid
 VerifySuccessModal > LandingPage: Continue To Home
 LoginScreen > ForgotPasswordScreen: Click "Forgot Password"
@@ -69,9 +70,9 @@ MembershipPanel [shape: rectangle, label: "Membership Progress"]
 ProfilePanel [shape: rectangle, label: "Profile"]
 MessagesPanel [shape: rectangle, label: "Notifications & Report Issue"]
 BookingAddOnsPanel [shape: rectangle, label: "Booking Add-ons"]
-CancellationPreviewModal [shape: oval, label: "Cancellation Preview"]
-RefundRequestModal [shape: oval, label: "Refund Request"]
-RescheduleModal [shape: oval, label: "Reschedule Booking"]
+CancellationPreviewModal [shape: rectangle, label: "Cancellation Terms (Inline)"]
+RefundRequestModal [shape: rectangle, label: "Refund Request Action"]
+RescheduleModal [shape: rectangle, label: "Reschedule / Add-ons"]
 IssueSubmittedModal [shape: oval, label: "Issue Submitted"]
 BookingCreatedModal [shape: oval, label: "Booking Created"]
 
@@ -201,8 +202,9 @@ ServiceSavedModal > ServicesPanel: Close
 AdminConsoleScreen > PeopleAccessPanel: Open "People & Access"
 PeopleAccessPanel > CustomerDetailPanel: Click "View" On Customer
 CustomerDetailPanel > CustomerActivityPanel: Review Bookings, Completed Count, Issues
-PeopleAccessPanel > CustomerLockedModal: Click "Lock / Unlock" On Customer
+PeopleAccessPanel > CustomerLockedModal: Click "Lock" On Customer
 CustomerLockedModal > PeopleAccessPanel: Submit Reason And Close
+PeopleAccessPanel > PeopleAccessPanel: Click "Unlock" On Customer
 PeopleAccessPanel > StaffAccountPanel: Create / Update Staff Account
 StaffAccountPanel > StaffSavedModal: Save Staff Account
 StaffSavedModal > PeopleAccessPanel: Close
@@ -210,9 +212,9 @@ AdminConsoleScreen > BookingsBillingPanel: Open "Bookings & Billing"
 BookingsBillingPanel > CustomerActivityPanel: Review Booking Invoice Details
 AdminConsoleScreen > IssueAuditPanel: Open "Issue Audit"
 AdminConsoleScreen > PoliciesPanel: Open "Policies"
-PoliciesPanel > PolicySavedModal: Save Deposit / Refund Policy
+PoliciesPanel > PolicySavedModal: Save Booking / Refund / Automatic Slot Rule
 PolicySavedModal > PoliciesPanel: Close
-AdminConsoleScreen > ReportsPanel: Review Revenue, Bookings, Membership, Customer Activity
+OverviewPanel > ReportsPanel: Review Date-filtered Revenue, Bookings, Membership, Customer Activity
 
 title Define
 Legend_Page [shape: rectangle, label: "Flat Page"]

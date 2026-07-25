@@ -37,6 +37,7 @@ class BookingPolicyWorkflowServiceTest {
     @Autowired private BookingRepository bookingRepository;
     @Autowired private ExtraServiceRepository extraServiceRepository;
     @Autowired private DomainSupportService support;
+    @Autowired private PromotionReportService promotionReportService;
 
     @BeforeEach
     void signInAsAdminForProtectedWorkflowCalls() {
@@ -128,6 +129,68 @@ class BookingPolicyWorkflowServiceTest {
     }
 
     @Test
+    void completedPartialRefundDoesNotReduceTheNextAvailableRefundTwice() {
+        Map<String, Object> created = createBooking();
+        Long bookingId = ((Number) created.get("bookingId")).longValue();
+        AppUser customer = userRepository.findByEmail("customer@goalzone.local").orElseThrow();
+        Map<String, Object> paid = paymentWorkflowService.capturePayment(new ApiRequests.PaymentCapture(
+                bookingId, customer.getUserId(), "full", "cash", null, true));
+        BigDecimal grossPaid = (BigDecimal) paid.get("paidAmount");
+        BigDecimal firstAmount = grossPaid.divide(BigDecimal.valueOf(2)).setScale(2, java.math.RoundingMode.HALF_UP);
+        Booking booking = bookingRepository.findById(bookingId).orElseThrow();
+        booking.setRefundableAmount(grossPaid);
+        bookingRepository.save(booking);
+
+        authenticate(customer);
+        Map<String, Object> first = paymentWorkflowService.createRefund(new ApiRequests.RefundCreate(
+                bookingId, null, customer.getUserId(), null, firstAmount, "First partial refund", false));
+        authenticate(userRepository.findByEmail("admin@goalzone.local").orElseThrow());
+        paymentWorkflowService.updateRefundStatus(((Number) first.get("refundId")).longValue(),
+                new ApiRequests.RefundStatusUpdate("approved", null, "Approved"));
+        paymentWorkflowService.updateRefundStatus(((Number) first.get("refundId")).longValue(),
+                new ApiRequests.RefundStatusUpdate("completed", null, "Cash returned"));
+
+        authenticate(customer);
+        Map<String, Object> second = paymentWorkflowService.createRefund(new ApiRequests.RefundCreate(
+                bookingId, null, customer.getUserId(), null, null, "Remaining refund", false));
+
+        assertThat(second.get("refundAmount"))
+                .isEqualTo(grossPaid.subtract(firstAmount).setScale(2));
+        assertThat(bookingRepository.findById(bookingId).orElseThrow().getPaidAmount())
+                .isEqualByComparingTo(grossPaid);
+    }
+
+    @Test
+    void promotionIsCappedAtSubtotalAndStackableControlsMembershipDiscount() {
+        AppUser customer = userRepository.findByEmail("customer@goalzone.local").orElseThrow();
+        support.customerMembershipRepository.findByCustomer_UserId(customer.getUserId()).orElseThrow()
+                .getMembershipLevel().setDiscountPercent(BigDecimal.TEN.setScale(2));
+        Slot slot = availableSlotExcept(null);
+
+        Map<String, Object> capped = promotionReportService.createPromotion(promotionRequest(
+                "CAPTOTAL", new BigDecimal("999"), true, slot));
+        Map<String, Object> cappedPreview = bookingWorkflowService.previewCheckout(new ApiRequests.PromotionApply(
+                customer.getUserId(), slot.getSlotId(), (String) capped.get("promotionCode"), "online", List.of()));
+        BigDecimal subtotal = ((BigDecimal) cappedPreview.get("fieldPriceAmount"))
+                .add((BigDecimal) cappedPreview.get("serviceTotalAmount"));
+        assertThat(cappedPreview.get("promotionDiscountAmount")).isEqualTo(subtotal.setScale(2));
+        assertThat(cappedPreview.get("membershipDiscountAmount")).isEqualTo(BigDecimal.ZERO.setScale(2));
+        assertThat(cappedPreview.get("totalAmount")).isEqualTo(BigDecimal.ZERO.setScale(2));
+
+        Map<String, Object> exclusive = promotionReportService.createPromotion(promotionRequest(
+                "EXCLUSIVE", BigDecimal.ONE, false, slot));
+        Map<String, Object> exclusivePreview = bookingWorkflowService.previewCheckout(new ApiRequests.PromotionApply(
+                customer.getUserId(), slot.getSlotId(), (String) exclusive.get("promotionCode"), "online", List.of()));
+        assertThat(exclusivePreview.get("membershipDiscountAmount")).isEqualTo(BigDecimal.ZERO.setScale(2));
+
+        Map<String, Object> stackable = promotionReportService.createPromotion(promotionRequest(
+                "STACKABLE", BigDecimal.ONE, true, slot));
+        Map<String, Object> stackablePreview = bookingWorkflowService.previewCheckout(new ApiRequests.PromotionApply(
+                customer.getUserId(), slot.getSlotId(), (String) stackable.get("promotionCode"), "online", List.of()));
+        assertThat((BigDecimal) stackablePreview.get("membershipDiscountAmount")).isGreaterThan(BigDecimal.ZERO);
+    }
+
+    @Test
     void updatingServicesRepricesBookingAndSynchronizesItsInvoice() {
         Map<String, Object> created = createBooking();
         Long bookingId = ((Number) created.get("bookingId")).longValue();
@@ -175,5 +238,34 @@ class BookingPolicyWorkflowServiceTest {
                         List.of(BookingStatus.pending, BookingStatus.confirmed, BookingStatus.checked_in)))
                 .filter(slot -> support.calculateFieldPrice(slot).compareTo(originalPrice) != 0)
                 .findFirst().orElseThrow();
+    }
+
+    private ApiRequests.PromotionUpsert promotionRequest(
+            String code,
+            BigDecimal value,
+            boolean stackable,
+            Slot slot
+    ) {
+        return new ApiRequests.PromotionUpsert(
+                code,
+                code + " promotion",
+                "Financial policy regression test",
+                null,
+                "fixed_amount",
+                value,
+                null,
+                null,
+                100,
+                slot.getSlotDate(),
+                slot.getSlotDate(),
+                "active",
+                null,
+                null,
+                null,
+                "all",
+                null,
+                null,
+                stackable
+        );
     }
 }

@@ -440,6 +440,103 @@ class BacklogEndToEndApiTest {
     }
 
     @Test
+    void editingMembershipRulesReusesEachCustomersExistingMembershipRow() throws Exception {
+        JsonNode adminLogin = login("admin@goalzone.local");
+        String adminToken = token(adminLogin);
+        JsonNode customerLogin = login("customer@goalzone.local");
+        String customerToken = token(customerLogin);
+        long customerId = userId(customerLogin);
+        JsonNode levels = exchange(auth(get("/api/membership/levels")
+                .param("includeInactive", "true"), adminToken), 200);
+        JsonNode bronze = null;
+        for (JsonNode level : levels) {
+            if ("Bronze".equals(level.path("levelName").asText())) {
+                bronze = level;
+                break;
+            }
+        }
+        assertThat(bronze).isNotNull();
+
+        Integer rowsBefore = jdbcTemplate.queryForObject(
+                "select count(*) from customer_membership where customer_id = ?",
+                Integer.class,
+                customerId
+        );
+        assertThat(rowsBefore).isEqualTo(1);
+
+        JsonNode updated = exchange(auth(put("/api/membership/levels/" + bronze.path("membershipLevelId").asLong())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of(
+                        "levelName", "Bronze",
+                        "requiredCompletedBookings", 999,
+                        "discountPercent", 0,
+                        "benefitDescription", "Default fallback tier",
+                        "displayOrder", bronze.path("displayOrder").asInt(),
+                        "status", "active",
+                        "qualificationPeriod", "lifetime",
+                        "requiredConsecutivePeriods", 1
+                ))), adminToken), 200);
+        assertThat(updated.path("requiredCompletedBookings").asInt()).isEqualTo(999);
+
+        JsonNode progress = exchange(auth(get("/api/membership/" + customerId + "/progress"), customerToken), 200);
+        assertThat(progress.path("currentLevel").asText()).isEqualTo("Bronze");
+        Integer rowsAfter = jdbcTemplate.queryForObject(
+                "select count(*) from customer_membership where customer_id = ?",
+                Integer.class,
+                customerId
+        );
+        assertThat(rowsAfter).isEqualTo(1);
+    }
+
+    @Test
+    void slotRulesAutomaticallyGenerateAvailabilityAndKeepOperatorBlocks() throws Exception {
+        LocalDate targetDate = LocalDate.now().plusDays(10);
+        JsonNode generated = exchange(get("/api/slots/search")
+                .param("date", targetDate.toString()), 200);
+        assertThat(generated).isNotEmpty();
+        assertThat(generated).allSatisfy(slot -> {
+            assertThat(slot.path("startTime").asText()).isNotBlank();
+            assertThat(slot.path("available").asBoolean()).isTrue();
+        });
+
+        JsonNode adminLogin = login("admin@goalzone.local");
+        String adminToken = token(adminLogin);
+        long adminId = userId(adminLogin);
+        JsonNode horizon = exchange(auth(put("/api/settings/slot.generation_horizon_days")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of("settingValue", "14", "updatedById", adminId))), adminToken), 200);
+        assertThat(horizon.path("settingValue").asText()).isEqualTo("14");
+        assertThat(horizon.path("generatedThrough").asText()).isEqualTo(LocalDate.now().plusDays(14).toString());
+        exchange(get("/api/slots/search").param("date", LocalDate.now().plusDays(15).toString()), 400);
+
+        JsonNode staffLogin = login("staff@goalzone.local");
+        String staffToken = token(staffLogin);
+        JsonNode first = exchange(get("/api/slots/search").param("date", targetDate.toString()), 200).get(0);
+        JsonNode blocked = exchange(auth(post("/api/slots/block")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of(
+                        "fieldId", first.path("fieldId").asLong(),
+                        "slotDate", targetDate.toString(),
+                        "startTime", first.path("startTime").asText(),
+                        "endTime", first.path("endTime").asText(),
+                        "blockReason", "Private event",
+                        "blockNote", "Automatic generation exception"
+                ))), staffToken), 200);
+        assertThat(blocked.path("status").asText()).isEqualTo("blocked");
+        JsonNode afterBlock = exchange(get("/api/slots/search").param("date", targetDate.toString()), 200);
+        JsonNode blockedView = null;
+        for (JsonNode slot : afterBlock) {
+            if (slot.path("slotId").asLong() == blocked.path("slotId").asLong()) {
+                blockedView = slot;
+                break;
+            }
+        }
+        assertThat(blockedView).isNotNull();
+        assertThat(blockedView.path("available").asBoolean()).isFalse();
+        assertThat(blockedView.path("status").asText()).isEqualTo("blocked");
+    }
+
+    @Test
     void administratorCanManageFieldsPricesServicesPeoplePoliciesMembershipPromotionsAndReports() throws Exception {
         JsonNode adminLogin = login("admin@goalzone.local");
         String adminToken = token(adminLogin);

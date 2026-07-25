@@ -1,8 +1,8 @@
-# AnPTT QA guide — UC-51 to UC-64
+# AnPTT QA guide — final UC-50 to UC-63
 
-This guide follows the original AnPTT backlog. Use Supabase-backed local runtime for verification so
-the new membership-period migration is available without changing the shared
-Supabase database.
+This guide follows the final renumbered backlog. Use the Supabase-backed local
+runtime so verification runs against the same Flyway-managed schema as the
+classroom environment.
 
 ## Start locally
 
@@ -127,24 +127,25 @@ after two completed bookings per week for two consecutive weeks.
    breakdown, peak start times, and field utilization.
 3. Change the date range to verify that these figures follow slot date.
 
-## UC-62 — Customer activity report
+## UC-61 — Customer activity report
 
 1. Stay in the Admin overview.
 2. Show returning customer count, top customers by booking count, and
    membership distribution.
 
-## UC-63 — Smart availability assistant
+## UC-62 — Ask availability assistant
 
 1. Open **Find a field**.
-2. Enter a future date and optional preferred time, field type, and maximum
-   budget.
-3. Select **Find best slots**.
-4. Explain that the response is rule-based: live availability, time distance,
-   budget, and eligible promotion codes. No external AI account is required.
+2. Sign in as a Customer and ask a natural-language question.
+3. With `GEMINI_API_KEY` configured, Gemini extracts the date, time, field
+   type, and budget and phrases a short answer.
+4. Explain that Gemini cannot invent availability: fields, prices, times, and
+   eligible promotion codes are always returned by GoalZone's live UC-63
+   ranking service.
 
-## UC-64 — Suggested available slots
+## UC-63 — Suggested available slots
 
-1. Continue from UC-63 results.
+1. Use **Find best slots** or continue from the UC-62 answer.
 2. Show that results are ranked and each has an explanation, price, and any
    usable promotion code.
 3. Select **Book this slot** to continue into the normal booking flow.
@@ -163,7 +164,6 @@ Expected: backend tests pass and the Vite production build succeeds.
 
 ## Shared Supabase deployment note
 
-`V10__membership_qualification_rules.sql` is required for monthly/weekly
-membership rules in PostgreSQL/Supabase. It only adds two columns and check
-constraints to `membership_level`; do not run it on the shared project until
-the team agrees to deploy it together.
+The shared Supabase schema is Flyway-managed and currently validated at V18.
+Do not apply individual SQL files manually; start the backend with the
+PostgreSQL profile so Flyway can validate and migrate in order.

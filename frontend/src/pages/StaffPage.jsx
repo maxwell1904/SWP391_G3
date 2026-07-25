@@ -14,9 +14,11 @@ export function StaffPage({
   setSelectedBookingId,
   selectedBooking,
   selectedBookingDetail,
+  cancellationPreview,
   billingLoading,
   billingError,
   updateBooking,
+  previewCancellation,
   rescheduleBooking,
   availableSlots,
   capturePayment,
@@ -45,6 +47,7 @@ export function StaffPage({
   const [activePanel, setActivePanel] = useState('bookings')
   const pendingBookings = bookings.filter(booking => booking.status === 'pending').length
   const activeIssues = issues.filter(issue => issue.status === 'open' || issue.status === 'in_progress').length
+  const cancellationReviewed = cancellationPreview?.bookingId === selectedBooking?.bookingId
 
   useEffect(() => {
     let cancelled = false
@@ -181,7 +184,14 @@ export function StaffPage({
             <Button disabled={!canTransition(selectedBooking?.status, 'rejected')} color="red" variant="light" onClick={() => updateBooking('rejected')}>Reject</Button>
             <Button disabled={!canTransition(selectedBooking?.status, 'checked_in')} variant="light" onClick={() => updateBooking('checked_in')}>Check-in</Button>
             <Button disabled={!canTransition(selectedBooking?.status, 'completed')} variant="light" onClick={() => updateBooking('completed')}>Complete</Button>
-            <Button disabled={!canTransition(selectedBooking?.status, 'cancelled')} color="red" variant="light" onClick={() => updateBooking('cancelled')}>Cancel</Button>
+            <Button
+              disabled={!canTransition(selectedBooking?.status, 'cancelled')}
+              color="red"
+              variant="light"
+              onClick={() => cancellationReviewed ? updateBooking('cancelled') : previewCancellation()}
+            >
+              {cancellationReviewed ? 'Confirm cancellation' : 'Review cancellation'}
+            </Button>
             <Button disabled={!canTransition(selectedBooking?.status, 'no_show')} color="yellow" variant="light" onClick={() => updateBooking('no_show')}>No-show</Button>
             <select disabled={!['pending', 'confirmed'].includes(selectedBooking?.status)} value={rescheduleSlotId} onChange={event => setRescheduleSlotId(event.target.value)} aria-label="New slot for reschedule">
               <option value="">Reschedule to…</option>
@@ -201,6 +211,12 @@ export function StaffPage({
               Remaining payment
             </Button>
           </div>
+          {cancellationReviewed && (
+            <p className="panelHint">
+              Cancellation terms reviewed: {formatMoney(cancellationPreview.refundableAmount)} refundable
+              {' · '}{formatMoney(cancellationPreview.cancellationFeeAmount)} fee.
+            </p>
+          )}
         </InfoPanel>}
         {bookings.length > 0 && <InfoPanel title="Invoice and payment status" className={activePanel === 'bookings' ? '' : 'workspacePanelHidden'}>
           <BillingDetails detail={selectedBookingDetail} loading={billingLoading} error={billingError} />

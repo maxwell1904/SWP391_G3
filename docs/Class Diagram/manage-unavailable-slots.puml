@@ -18,6 +18,22 @@ class FieldOperationService <<service>> {
     -requireOperator() : void
 }
 
+class PromotionReportController <<controller>> {
+    -promotionReportService : PromotionReportService
+    +updateSetting(key : String, request : SettingUpdate) : Object
+}
+
+class PromotionReportService <<service>> {
+    -slotGenerationService : SlotGenerationService
+    +updateSetting(key : String, request : SettingUpdate) : Map<String, Object>
+}
+
+class SlotGenerationService <<service>> {
+    +validateRuleChange(key : String, value : String) : SlotRules
+    +rebuildRollingWindow() : GenerationResult
+    +ensureDate(date : LocalDate) : int
+}
+
 class "ApiRequests.SlotBlock" as SlotBlockDTO <<dto>> {
     -fieldId : Long
     -slotDate : LocalDate
@@ -36,6 +52,10 @@ interface SlotRepository <<repository>> {
 
 interface BookingRepository <<repository>> {
     +existsBySlotAndStatusIn(slot : Slot, statuses : Collection<BookingStatus>) : boolean
+}
+
+interface SystemSettingRepository <<repository>> {
+    +findBySettingKey(settingKey : String) : Optional<SystemSetting>
 }
 
 class Slot <<entity>> {
@@ -60,6 +80,10 @@ FieldOperationController ..> SlotBlockDTO
 FieldOperationService ..> SlotBlockDTO
 FieldOperationService ..> SlotRepository
 FieldOperationService ..> BookingRepository
+PromotionReportController ..> PromotionReportService
+PromotionReportService ..> SlotGenerationService
+PromotionReportService ..> SystemSettingRepository
+SlotGenerationService ..> SlotRepository
 SlotRepository --> Slot
 Slot --> FootballField
 

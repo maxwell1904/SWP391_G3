@@ -1,0 +1,66 @@
+@startuml
+title Customer Screen Flow
+top to bottom direction
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam linetype polyline
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 13
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor white
+  BorderColor #333333
+  RoundCorner 8
+}
+skinparam package {
+  BackgroundColor #F8FAF8
+  BorderColor #5B7A67
+}
+
+rectangle "Login" as Login
+rectangle "Field List" as Fields
+rectangle "Field Details\n(modal)" as Detail
+rectangle "Booking Page" as Booking
+rectangle "Checkout Summary" as Checkout
+rectangle "PayPal Sandbox" as PayPal
+rectangle "Find a Field" as Assistant
+rectangle "Ranked Live Slots" as Suggestions
+rectangle "Customer Workspace" as Workspace
+
+package "Customer Workspace tabs" {
+  rectangle "Bookings" as Bookings
+  rectangle "Invoice & Payment Status" as Billing
+  rectangle "Cancellation Terms\n(inline preview)" as CancelPreview
+  rectangle "Reschedule / Add-ons" as Changes
+  rectangle "Payments" as Payments
+  rectangle "Membership" as Membership
+  rectangle "Profile" as Profile
+  rectangle "Messages & Issue Report" as Messages
+}
+
+Login --> Workspace : Customer login
+Fields --> Detail : View details
+Detail --> Booking : Check availability
+Booking --> Checkout : Slot + services + promotion
+Checkout --> PayPal : Deposit or full payment
+PayPal --> Workspace : Capture succeeded
+
+Assistant --> Suggestions : Ask Gemini or filter
+Suggestions --> Booking : Book this slot
+
+Workspace --> Bookings
+Bookings --> Billing : Select owned booking
+Billing --> CancelPreview : Review cancellation terms
+CancelPreview --> Billing : Confirm or keep booking
+Billing --> Changes : Eligible pending/confirmed booking
+Workspace --> Payments
+Workspace --> Membership
+Workspace --> Profile
+Workspace --> Messages
+
+note bottom of Billing
+  Refund request appears only after
+  cancellation when an eligible refund
+  exists and no active request is present.
+end note
+@enduml

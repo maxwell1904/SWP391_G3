@@ -29,9 +29,11 @@ import java.util.Objects;
 @Transactional
 public class FieldOperationService {
     private final DomainSupportService support;
+    private final SlotGenerationService slotGenerationService;
 
-    public FieldOperationService(DomainSupportService support) {
+    public FieldOperationService(DomainSupportService support, SlotGenerationService slotGenerationService) {
         this.support = support;
+        this.slotGenerationService = slotGenerationService;
     }
 
     @Transactional(readOnly = true)
@@ -61,8 +63,10 @@ public class FieldOperationService {
         return support.fieldSummary(field);
     }
 
-    @Transactional(readOnly = true)
     public Map<String, Object> fieldDetail(Long fieldId) {
+        for (int offset = 0; offset <= 7; offset++) {
+            slotGenerationService.ensureDate(LocalDate.now().plusDays(offset));
+        }
         FootballField field = support.getField(fieldId);
         if (field.getStatus() != CommonStatus.active) throw support.notFound("Field not found");
         List<FieldPrice> activePrices = support.fieldPriceRepository.findByField_FieldId(fieldId).stream()
@@ -122,10 +126,10 @@ public class FieldOperationService {
                 .toList();
     }
 
-    @Transactional(readOnly = true)
     public List<Map<String, Object>> searchSlots(LocalDate date, Long fieldTypeId) {
         LocalDate targetDate = date == null ? LocalDate.now().plusDays(1) : date;
         if (targetDate.isBefore(LocalDate.now())) throw support.badRequest("Search date cannot be in the past");
+        slotGenerationService.ensureDate(targetDate);
         return support.slotRepository.findBySlotDate(targetDate).stream()
                 .filter(slot -> slot.getField().getStatus() == CommonStatus.active)
                 .filter(slot -> fieldTypeId == null || Objects.equals(slot.getField().getFieldType().getFieldTypeId(), fieldTypeId))
@@ -148,12 +152,12 @@ public class FieldOperationService {
                 .toList();
     }
 
-    /** UC-63/64: explainable, rule-based availability assistant. */
-    @Transactional(readOnly = true)
+    /** UC-63: deterministic ranked suggestions over live availability. */
     public List<Map<String, Object>> suggestSlots(LocalDate date, LocalTime preferredTime, Long fieldTypeId, BigDecimal maxPrice, Long customerId) {
         LocalDate targetDate = date == null ? LocalDate.now().plusDays(1) : date;
         if (targetDate.isBefore(LocalDate.now())) throw support.badRequest("Suggestion date cannot be in the past");
         if (maxPrice != null && maxPrice.signum() < 0) throw support.badRequest("Maximum price cannot be negative");
+        slotGenerationService.ensureDate(targetDate);
         AppUser customer = authenticatedSuggestionCustomer(customerId);
         return support.slotRepository.findBySlotDate(targetDate).stream()
                 .filter(slot -> slot.getField().getStatus() == CommonStatus.active && slot.getStatus() == SlotStatus.available)
@@ -233,6 +237,7 @@ public class FieldOperationService {
     public Map<String, Object> blockSlot(ApiRequests.SlotBlock request) {
         requireOperator();
         if (request.slotDate() == null) throw support.badRequest("Slot date is required");
+        if (request.slotDate().isBefore(LocalDate.now())) throw support.badRequest("Past slots cannot be blocked");
         support.requireText(request.startTime(), "Start time is required");
         support.requireText(request.endTime(), "End time is required");
         support.requireText(request.blockReason(), "Block reason is required");
@@ -240,23 +245,31 @@ public class FieldOperationService {
         LocalTime startTime = LocalTime.parse(request.startTime());
         LocalTime endTime = LocalTime.parse(request.endTime());
         if (!startTime.isBefore(endTime)) throw support.badRequest("Start time must be before end time");
-        Slot slot = support.slotRepository.findByField_FieldIdAndSlotDate(field.getFieldId(), request.slotDate()).stream()
-                .filter(existing -> existing.getStartTime().equals(startTime) && existing.getEndTime().equals(endTime))
-                .findFirst()
-                .orElseGet(Slot::new);
-        if (slot.getSlotId() != null && support.bookingRepository.existsBySlotAndStatusIn(slot, DomainSupportService.ACTIVE_BOOKING_STATUSES)) {
-            throw support.badRequest("An active booking already exists for this slot");
+        List<Slot> overlaps = support.slotRepository.findByField_FieldIdAndSlotDate(field.getFieldId(), request.slotDate()).stream()
+                .filter(existing -> startTime.isBefore(existing.getEndTime()) && endTime.isAfter(existing.getStartTime()))
+                .toList();
+        if (overlaps.stream().anyMatch(slot ->
+                support.bookingRepository.existsBySlotAndStatusIn(slot, DomainSupportService.ACTIVE_BOOKING_STATUSES))) {
+            throw support.badRequest("An active booking exists inside this blocked time range");
         }
-        slot.setField(field);
-        slot.setSlotDate(request.slotDate());
-        slot.setStartTime(startTime);
-        slot.setEndTime(endTime);
-        slot.setStatus(SlotStatus.blocked);
-        slot.setBlockReason(support.clean(request.blockReason()));
-        slot.setBlockNote(support.clean(request.blockNote()));
-        // Never trust a user id supplied by the browser for an audit field.
-        slot.setCreatedBy(currentUser());
-        return support.slotSummary(support.slotRepository.save(slot));
+        if (overlaps.isEmpty()) {
+            Slot exception = new Slot();
+            exception.setField(field);
+            exception.setSlotDate(request.slotDate());
+            exception.setStartTime(startTime);
+            exception.setEndTime(endTime);
+            exception.setCreatedBy(currentUser());
+            overlaps = List.of(exception);
+        }
+        for (Slot slot : overlaps) {
+            slot.setStatus(SlotStatus.blocked);
+            slot.setBlockReason(support.clean(request.blockReason()));
+            slot.setBlockNote(support.clean(request.blockNote()));
+        }
+        List<Slot> blocked = support.slotRepository.saveAll(overlaps);
+        Map<String, Object> response = new LinkedHashMap<>(support.slotSummary(blocked.get(0)));
+        response.put("blockedSlotCount", blocked.size());
+        return response;
     }
 
     public Map<String, Object> unblockSlot(Long slotId) {
@@ -275,6 +288,7 @@ public class FieldOperationService {
     public List<Map<String, Object>> operationCalendar(LocalDate date) {
         requireOperator();
         LocalDate targetDate = date == null ? LocalDate.now() : date;
+        slotGenerationService.ensureDate(targetDate);
         Map<Long, Booking> bookingsBySlot = support.bookingRepository.findBySlot_SlotDateOrderBySlot_StartTimeAsc(targetDate).stream()
                 .collect(java.util.stream.Collectors.toMap(booking -> booking.getSlot().getSlotId(), booking -> booking, (first, ignored) -> first));
         return support.slotRepository.findBySlotDate(targetDate).stream()

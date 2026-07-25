@@ -34,7 +34,6 @@ class AppUser <<entity>> {
     -email : String
     -phone : String
     -status : AccountStatus
-    -accountLocked : boolean
     -lockReason : String
     -authVersion : long
 }

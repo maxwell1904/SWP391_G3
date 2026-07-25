@@ -22,6 +22,7 @@ class DomainSupportService <<service>> {
 
     +calculateServiceTotal(selections : List<ServiceSelection>, slot : Slot, excludedBookingId : Long) : BigDecimal
     +saveBookingServices(booking : Booking, selections : List<ServiceSelection>) : void
+    +remainingRefundEntitlement(booking : Booking, grossEntitlement : BigDecimal) : BigDecimal
     +generateInvoice(booking : Booking) : void
 }
 

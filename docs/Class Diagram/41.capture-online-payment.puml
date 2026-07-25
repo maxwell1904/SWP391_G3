@@ -14,6 +14,9 @@ class PayPalCheckoutService <<service>> {
     -bookingWorkflowService : BookingWorkflowService
 
     +captureOrder(bookingId : Long, orderId : String, request : ApiRequests.PayPalOrderCapture) : Map<String, Object>
+    -captureRemoteOrderWithRecovery(payment : Payment) : JsonNode
+    -captureRemoteOrder(orderId : String, requestId : String) : JsonNode
+    -showRemoteOrder(orderId : String) : JsonNode
 }
 
 class DomainSupportService <<service>> {
@@ -99,7 +102,6 @@ class AppUser <<entity>> {
     -dateOfBirth : LocalDate
     -address : String
     -status : AccountStatus
-    -accountLocked : boolean
     -lockReason : String
     -lastLoginAt : LocalDateTime
     -emailVerified : boolean

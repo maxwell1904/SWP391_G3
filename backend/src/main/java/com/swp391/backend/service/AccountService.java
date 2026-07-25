@@ -98,7 +98,7 @@ public class AccountService {
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
-        if (user.isAccountLocked()) {
+        if (user.getStatus() == AccountStatus.locked) {
             throw new ApiException(HttpStatus.FORBIDDEN,
                     "Your account is locked. Please check your email for more details.");
         }
@@ -254,7 +254,6 @@ public class AccountService {
         if (request.accountLocked()) {
             support.requireText(reason, "Lock reason is required");
             user.setStatus(AccountStatus.locked);
-            user.setAccountLocked(true);
             user.setLockReason(reason);
             if (!support.isBlank(user.getEmail())) {
                 delivery = verificationEmailService.sendAccountLockEmail(user, reason);
@@ -263,7 +262,6 @@ public class AccountService {
                     "Account locked", "Your account can no longer sign in. Reason: " + reason);
         } else {
             user.setStatus(AccountStatus.active);
-            user.setAccountLocked(false);
             user.setLockReason(null);
             if (!support.isBlank(user.getEmail())) {
                 delivery = verificationEmailService.sendAccountStatusEmail(user, false);
@@ -323,11 +321,10 @@ public class AccountService {
             throw support.badRequest("Use the customer account lock endpoint");
         }
         AccountStatus status = support.parseEnum(AccountStatus.class, request.status(), user.getStatus());
-        if (status == AccountStatus.inactive && "Customer".equalsIgnoreCase(user.getRole().getRoleName())) {
-            throw support.badRequest("Customer sign-in access must be set to active or locked");
+        if (status == AccountStatus.locked) {
+            throw support.badRequest("Staff and administrator status must be active or inactive");
         }
         user.setStatus(status);
-        user.setAccountLocked(status == AccountStatus.locked);
         if (status != AccountStatus.locked) {
             user.setLockReason(null);
         }

@@ -1,0 +1,85 @@
+@startuml
+title Admin Screen Flow
+top to bottom direction
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam linetype polyline
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 13
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor white
+  BorderColor #333333
+  RoundCorner 8
+}
+skinparam package {
+  BackgroundColor #F8FAF8
+  BorderColor #5B7A67
+}
+
+rectangle "Login" as Login
+rectangle "Admin Console" as Console
+rectangle "Promotion Management" as Promotions
+rectangle "Membership Rule Management" as Membership
+
+package "Admin Console tabs" {
+  rectangle "Overview & Date-filtered Reports" as Overview
+  rectangle "Fields & Pricing" as Fields
+  rectangle "Field Editor / Image Upload" as FieldEdit
+  rectangle "Price Bands" as Prices
+  rectangle "Services" as Services
+  rectangle "Service Editor" as ServiceEdit
+  rectangle "People & Access" as Access
+  rectangle "Customer Activity\n(read-only modal)" as Activity
+  rectangle "Lock Customer\n(reason modal)" as Lock
+  rectangle "Staff Invitation / Status" as Staff
+  rectangle "Bookings & Billing" as Billing
+  rectangle "Selected Invoice & Transactions" as Invoice
+  rectangle "Issue Audit" as Issues
+  rectangle "Policies" as Policies
+  rectangle "Automatic Slot Rules\n(open / close / duration / horizon)" as SlotRules
+
+  Overview -[hidden]down-> Fields
+  Fields -[hidden]down-> Services
+  Services -[hidden]down-> Access
+  Access -[hidden]down-> Billing
+  Billing -[hidden]down-> Issues
+  Issues -[hidden]down-> Policies
+}
+
+Login --> Console : Admin login
+Console --> Overview : Default tab
+
+Console --> Fields : Fields & pricing
+Fields --> FieldEdit : Select or create
+Fields --> Prices : Manage time bands
+
+Console --> Services : Services
+Services --> ServiceEdit : Select or create
+
+Console --> Access : People & access
+Access --> Activity : View Customer
+Access --> Lock : Lock with reason
+Lock --> Access : Saved
+Access --> Staff : Create invitation /\nchange status
+
+Console --> Billing : Bookings & billing
+Billing --> Invoice : Select booking
+Console --> Issues : Issue audit
+Console --> Policies : Policies
+Policies --> SlotRules : Configure rolling calendar
+SlotRules --> Policies : Validate / rebuild
+
+Console --> Promotions : Manage promotions
+Console --> Membership : Manage membership tiers
+
+note bottom of Access
+  Unlock is immediate. Customer profile
+  fields are not editable by Admin.
+end note
+
+note bottom of SlotRules
+  Available slots are generated automatically.
+  Staff Block / Unblock records exceptions.
+end note
+@enduml

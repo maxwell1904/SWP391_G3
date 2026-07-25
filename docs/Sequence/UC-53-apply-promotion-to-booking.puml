@@ -50,7 +50,7 @@ deactivate DB
 Repo --> Service : 8. Optional<Promotion>
 deactivate Repo
 
-Service -> Service : 9. calculatePromotionDiscount()\ncalculate checkout totals
+Service -> Service : 9. Cap promotion at non-negative subtotal\nif stackable then apply membership to remainder\ncalculate deposit from final USD total
 activate Service
 deactivate Service
 
