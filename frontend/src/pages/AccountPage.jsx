@@ -461,7 +461,6 @@ function profileFromUser(user) {
   return {
     fullName: user.fullName || '',
     phone: user.phone || '',
-    address: user.address || '',
-    avatarUrl: user.avatarUrl || ''
+    address: user.address || ''
   }
 }

@@ -121,7 +121,6 @@ Table app_user {
   email varchar(120) [unique]
   phone varchar(20) [unique]
   password_hash varchar(255) [not null]
-  avatar_url varchar(255)
   date_of_birth date
   address varchar(255)
   status account_status [not null, default: 'active']

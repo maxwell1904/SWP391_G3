@@ -407,7 +407,6 @@ public class DomainSupportService {
         map.put("email", user.getEmail());
         map.put("phone", user.getPhone());
         map.put("address", user.getAddress());
-        map.put("avatarUrl", user.getAvatarUrl());
         map.put("role", user.getRole().getRoleName());
         map.put("status", user.getStatus().name());
         map.put("accountLocked", user.isAccountLocked());

@@ -79,8 +79,6 @@ export function AdminPage({
   const [staffAccounts, setStaffAccounts] = useState([])
   const [selectedStaffId, setSelectedStaffId] = useState('new')
   const [staffForm, setStaffForm] = useState(emptyStaffForm)
-  const [customerEditor, setCustomerEditor] = useState({ opened: false, customer: null })
-  const [customerProfileErrors, setCustomerProfileErrors] = useState({})
   const [customerActivity, setCustomerActivity] = useState(null)
   const [policyValues, setPolicyValues] = useState({})
   const [activePanel, setActivePanel] = useState('overview')
@@ -448,47 +446,12 @@ export function AdminPage({
     }
   }
 
-  async function updateCustomerStatus(customer) {
-    const status = customer.status === 'active' ? 'locked' : 'active'
-    try {
-      await api.put(`/account/users/${customer.userId}/status`, { status })
-      await refreshAll?.()
-      setFieldNotice(status === 'active' ? 'Customer account unlocked.' : 'Customer account locked.')
-    } catch (error) {
-      setFieldNotice(error.response?.data?.error || 'Could not update customer account.')
-    }
-  }
-
-  async function saveCustomerProfile() {
-    const customer = customerEditor.customer
-    if (!customer) return
-    const errors = {}
-    const fullName = (customer.fullName || '').trim()
-    if (!fullName) errors.fullName = 'Full name is required.'
-    const phone = (customer.phone || '').trim()
-    if (phone && !/^0\d{9}$/.test(phone)) errors.phone = 'Phone must be 10 digits and start with 0.'
-    setCustomerProfileErrors(errors)
-    if (Object.keys(errors).length > 0) return
-    try {
-      await api.put(`/account/users/${customer.userId}/profile`, customer)
-      setCustomerEditor({ opened: false, customer: null })
-      setCustomerProfileErrors({})
-      await refreshAll?.()
-      setFieldNotice('Customer profile updated.')
-      showToast('Customer profile updated', 'The customer profile has been saved successfully.')
-    } catch (error) {
-      const message = error.response?.data?.error || 'Could not update customer profile.'
-      setFieldNotice(message)
-      showToast('Update failed', message, 'error')
-    }
-  }
-
   async function viewCustomerActivity(customer) {
     try {
       const response = await api.get(`/account/users/${customer.userId}/activity`)
       setCustomerActivity(response.data)
     } catch (error) {
-      setFieldNotice(error.response?.data?.error || 'Could not load customer activity.')
+      openFeedbackModal('Could not load customer', error.response?.data?.error || 'Could not load customer activity.')
     }
   }
 
@@ -878,15 +841,21 @@ export function AdminPage({
                   <small>{customer.phone || 'no phone'}</small>
                   {customer.accountLocked && <small>{customer.lockReason || 'Account locked'}</small>}
                 </span>
-                <Button
-                  variant={customer.accountLocked ? 'filled' : 'light'}
-                  color={customer.accountLocked ? 'green' : 'red'}
-                  onClick={() => customer.accountLocked
-                    ? updateCustomerLock(customer, false)
-                    : openLockModal(customer)}
-                >
-                  {customer.accountLocked ? 'Unlock' : 'Lock'}
-                </Button>
+                <Group gap="xs" wrap="nowrap">
+                  <Button size="xs" variant="light" color="gray" onClick={() => viewCustomerActivity(customer)}>
+                    View
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant={customer.accountLocked ? 'filled' : 'light'}
+                    color={customer.accountLocked ? 'green' : 'red'}
+                    onClick={() => customer.accountLocked
+                      ? updateCustomerLock(customer, false)
+                      : openLockModal(customer)}
+                  >
+                    {customer.accountLocked ? 'Unlock' : 'Lock'}
+                  </Button>
+                </Group>
               </div>
             ))}
           </div>
@@ -931,6 +900,53 @@ export function AdminPage({
       </Modal>
 
       <Modal
+        opened={Boolean(customerActivity)}
+        onClose={() => setCustomerActivity(null)}
+        centered
+        size="lg"
+        title={customerActivity?.user?.fullName || 'Customer details'}
+      >
+        {customerActivity && (
+          <Stack gap="md">
+            <MetricGrid metrics={[
+              ['Recent bookings', customerActivity.bookingCount || 0],
+              ['Completed', customerActivity.completedBookingCount || 0],
+              ['Reported issues', customerActivity.issues?.length || 0]
+            ]} />
+            <div className="profileForm">
+              <p><strong>Email</strong><span>{customerActivity.user.email}</span></p>
+              <p><strong>Phone</strong><span>{customerActivity.user.phone || 'Not provided'}</span></p>
+              <p><strong>Address</strong><span>{customerActivity.user.address || 'Not provided'}</span></p>
+              <p><strong>Status</strong><span>{customerActivity.user.accountLocked ? 'Locked' : customerActivity.user.status}</span></p>
+              {customerActivity.user.accountLocked && (
+                <p><strong>Lock reason</strong><span>{customerActivity.user.lockReason || 'Not provided'}</span></p>
+              )}
+            </div>
+            <div>
+              <Text fw={700} mb="xs">Recent bookings</Text>
+              {customerActivity.bookings.length ? (
+                <DataList items={customerActivity.bookings.map(booking => ({
+                  title: `${booking.bookingCode} - ${booking.fieldName}`,
+                  meta: `${booking.slotDate} - ${String(booking.startTime).slice(0, 5)}`,
+                  value: booking.status
+                }))} />
+              ) : <Text size="sm" c="dimmed">No bookings recorded.</Text>}
+            </div>
+            <div>
+              <Text fw={700} mb="xs">Reported issues</Text>
+              {customerActivity.issues.length ? (
+                <DataList items={customerActivity.issues.map(issue => ({
+                  title: issue.title,
+                  meta: issue.bookingCode || issue.fieldName || 'General issue',
+                  value: issue.status
+                }))} />
+              ) : <Text size="sm" c="dimmed">No issues reported.</Text>}
+            </div>
+          </Stack>
+        )}
+      </Modal>
+
+      <Modal
         opened={lockModal.opened}
         onClose={closeLockModal}
         centered
@@ -949,7 +965,7 @@ export function AdminPage({
           </FieldControl>
           <Group justify="flex-end">
             <Button variant="light" color="gray" onClick={closeLockModal}>Cancel</Button>
-            <Button color="red" onClick={confirmLock}>Lock customer</Button>
+            <Button color="red" onClick={confirmLock} disabled={!lockModal.reason.trim()}>Lock customer</Button>
           </Group>
         </Stack>
       </Modal>

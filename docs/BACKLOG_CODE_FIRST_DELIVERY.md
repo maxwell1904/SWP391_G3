@@ -1,67 +1,40 @@
 # GoalZone code-first backlog
 
-Updated: 2026-07-22. This is the scope used to write RDS/SDS/test documents.
-The original Google Sheet remains planning history; where it conflicts with
-working code and the decisions below, this file is authoritative.
+Updated: 2026-07-25. This file records the final implemented scope used by the
+RDS, SDS, Final Release, and automated tests.
 
 ## Scope decisions
 
-| Original item | Code-first decision |
+| Area | Final decision |
 | --- | --- |
-<<<<<<< HEAD
-| UC-07 / UC-10 | UC-07 manages customer profile details. UC-10 locks or unlocks a customer account. Locking requires a reason, emails the customer, revokes active tokens, and blocks login until an Admin unlocks the account. |
-=======
-| UC-07 / UC-10 | Keep both. UC-07 manages Customer profile and **active/locked sign-in status**. UC-10 independently restricts **new booking creation**. A booking-restricted Customer can still sign in, see history, pay, reschedule, cancel and request an eligible refund. A locked Customer cannot sign in. Both actions notify by email and in-app record. |
-| UC-08 | Admin creates Staff identity/status only. The system emails a one-hour setup link so Staff chooses the password; Admin cannot set or later change it. |
->>>>>>> 327a19993fe956540087376c122302c65ddffcde
-| UC-12 reviews | Field detail is delivered; reviews are deferred because there is no review entity or moderation flow. Do not claim reviews in the SRS acceptance criteria. |
-| UC-21 | Both the owning Customer and Staff can edit add-ons while a booking is pending/confirmed. Totals, discounts, balance/refund delta and invoice are recalculated together. |
-| UC-39/40 | Online PayPal sandbox belongs only to Customer. Staff creates walk-in bookings and records cash deposit/full/remaining payment. Admin does neither checkout flow. |
-| UC-47/48 | Only the booking owner submits a refund request. Staff/Admin review it. PayPal `completed` is accepted only from the provider; cash completion remains an explicit venue operation. After completion, gross paid stays auditable while refund, invoice, refundable balance, and payment partial/full-refund status are reconciled. |
-| UC-60 | Revenue is gross collected minus completed refunds and exact PayPal processor fees. Fees are read from the provider response, never estimated or hard-coded. |
-| UC-52/53 | Only Admin manages campaigns. One promotion code can be applied to a booking; multi-code stacking is out of scope. Eligibility supports field type, required service, membership, day, time, minimum amount, date and usage limit. |
-| Membership period | Levels support lifetime, monthly, and consecutive-week completed-booking thresholds. |
-| UC-63 | Delivered as an explainable, rule-based availability assistant; external AI/LLM integration remains optional. |
-| UC-64 | Delivered as ranked available-slot suggestions using availability, time preference, budget, and eligible campaigns. |
+| Customer administration | UC-07 provides a read-only View action plus Lock/Unlock. Admin cannot edit a Customer profile. Lock requires a reason, revokes active tokens, blocks login, and sends email/in-app notification evidence. |
+| Customer activity | UC-09 is Admin-only. Staff has no Customer activity API or UI access. |
+| Personal profile | Every authenticated user may update only their own name, phone, and address. `avatar_url` is not part of the final model. |
+| Reviews | Field reviews/ratings are outside the approved scope and are not modelled. |
+| Payments | Customer online checkout uses PayPal Sandbox. Staff venue operations record cash payments. |
+| Refunds | The booking owner requests a refund; Staff/Admin process it. Provider `COMPLETED` is authoritative for PayPal refunds. |
+| Availability assistant | UC-62 and UC-63 are deterministic, explainable suggestions over live field, slot, price, and promotion data. External LLM/RAG is optional and is not claimed. |
 
-## Delivery backlog
+## Final numbering
 
-| Area | Done | Partial / deferred |
-| --- | --- | --- |
-| Account & access | UC-01–11 | None |
-| Field, slot, service, support | UC-12–23 | UC-12 field detail Done, reviews Deferred |
-| Booking lifecycle | UC-24–37 | None |
-| Checkout, payment, invoice, policies | UC-38–50 | External PayPal buyer/refund confirmation remains a sandbox smoke check |
-| Promotion, membership, notifications, reports | UC-51–62 | External email delivery is configuration-smoked, not asserted by automated tests |
-| Discovery/AI | UC-63–64 | Rule-based assistant and slot suggestions; external AI/LLM is optional |
+The removed booking-restriction use case is not present. All later use cases
+were shifted down by one, so the final backlog contains UC-01 through UC-63:
 
-Detailed acceptance evidence for every UC is maintained in
-`docs/END_TO_END_QA_MATRIX.md`.
+| Range | Area |
+| --- | --- |
+| UC-01 - UC-09 | Account and Customer Status |
+| UC-10 - UC-22 | Field, Slot, Service, and Issue Management |
+| UC-23 - UC-36 | Booking Lifecycle |
+| UC-37 - UC-49 | Payment Gateway, Refund, and Invoice |
+| UC-50 - UC-61 | Promotion, Membership, Notification, and Report |
+| UC-62 - UC-63 | Availability assistant and suggested slots |
 
-## Code-first domain rules
+## Delivery rules
 
-- USD is the only display and PayPal settlement currency.
-- Booking state transitions are explicit: pending → confirmed/rejected/cancelled/expired;
-  confirmed → checked-in/cancelled/no-show; checked-in → completed.
-- Rescheduling preserves payment history and produces either a remaining
-  balance or refundable price delta when the new slot price changes.
-- Service inventory is checked across active bookings whose slots overlap in
-  date/time, not only against the per-booking maximum.
-- Image upload accepts JPEG/PNG/WebP/GIF up to 5 MB. Local filesystem storage
-  is suitable for classroom deployment; use Supabase Storage/S3 for a
-  multi-instance production deployment.
-<<<<<<< HEAD
-- PostgreSQL schema changes are Flyway-owned (currently V1–V12) and Hibernate
-  runs with `ddl-auto=validate`. H2 remains disposable for local/test runs.
-=======
-- PostgreSQL schema changes are Flyway-owned (currently V1–V11) and Hibernate
-  runs with `ddl-auto=validate`. The local H2 fallback is file-backed so a
-  mistaken local launch does not erase history; automated tests override it
-  with an isolated in-memory database.
->>>>>>> 327a19993fe956540087376c122302c65ddffcde
-
-## Documents not to claim
-
-- No production/live-money PayPal certification; classroom delivery targets PayPal Sandbox.
-- No field review/rating module.
-- No chatbot/RAG or multi-promotion stacking; the availability assistant is rule-based.
+- PostgreSQL schema changes are Flyway-owned through V15; Hibernate uses
+  `ddl-auto=validate` for PostgreSQL.
+- H2 remains disposable for local automated tests.
+- USD is the display and PayPal settlement currency.
+- Booking state transitions and slot uniqueness are server-enforced.
+- Image upload accepts JPEG/PNG/WebP/GIF up to 5 MB.
+- No production/live-money PayPal certification is claimed.

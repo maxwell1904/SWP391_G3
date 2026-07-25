@@ -38,7 +38,7 @@ activate Controller
 Controller -> Service : 5. updateProfile(userId, request)
 activate Service
 
-Service -> Service : 6. requireSelfOrAdmin(); validate phone
+Service -> Service : 6. requireSelf(); validate phone
 activate Service
 deactivate Service
 

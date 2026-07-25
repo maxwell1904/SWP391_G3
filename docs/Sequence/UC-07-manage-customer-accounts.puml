@@ -16,78 +16,70 @@ participant "AdminPage" as UI
 participant "AccountController" as Controller
 participant "AccountService" as Service
 participant "AppUserRepository" as Repo
-participant "VerificationEmailService" as Email
+participant "BookingRepository" as BookingRepo
 database "Database" as DB
 
 == UC-07: Manage Customer Accounts ==
 
-User -> UI : 1. Open People & access; edit or lock a customer
+User -> UI : 1. Open People & access
 activate User
 activate UI
 
-UI -> UI : 2. saveCustomerProfile() / updateCustomerStatus()
-activate UI
-deactivate UI
-
-UI -> UI : 3. Validate form/filter state
-activate UI
-deactivate UI
-
-UI -> Controller : 4. GET /api/account/users\nPUT /api/account/users/{id}/profile|status
+UI -> Controller : 2. GET /api/account/users?role=Customer
 activate Controller
 
-Controller -> Service : 5. users(role) / updateProfile() / updateStatus()
+Controller -> Service : 3. users("Customer")
 activate Service
 
-Service -> Service : 6. requireAdmin(); prevent self-lock
+Service -> Service : 4. requireAdmin()
 activate Service
 deactivate Service
 
-alt Request is valid and authorized
-  Service -> Repo : 7. findAll() / findById(userId)
+alt Admin is authorized
+  Service -> Repo : 5. findAll()
   activate Repo
 
-  Repo -> DB : 8. SELECT / UPDATE app_user
+  Repo -> DB : 6. SELECT Customer accounts
   activate DB
-  DB --> Repo : 9. Customer accounts
+  DB --> Repo : 7. Customer accounts
   deactivate DB
 
-  Repo --> Service : 10. Repository result
+  Repo --> Service : 8. Repository result
   deactivate Repo
-
-  Service -> Service : 11. Apply active/locked status; revoke tokens
-  activate Service
-  deactivate Service
-  Service -> DB : 12. INSERT account-status notification
-  activate DB
-  DB --> Service : 13. Notification stored
-  deactivate DB
-  Service -> Email : 14. sendAccountStatusEmail(customer, locked)
-  activate Email
-  Email --> Service : 15. Delivery status
-  deactivate Email
-else Validation, authorization, or state rule fails
+else Authorization fails
   note over Service,Controller
-    Non-admin or self-lock -> 403/400
+    Non-admin -> 403
     The service propagates ApiException to ApiExceptionHandler.
   end note
 end
 
-Service --> Controller : 16. Domain result or propagated error
+Service --> Controller : 9. Customer directory or propagated error
 deactivate Service
 
-Controller -> Controller : 17. Serialize response
+Controller --> UI : 10. HTTP 200 or mapped 4xx
+deactivate Controller
+
+User -> UI : 11. Choose View for a Customer
+UI -> Controller : 12. GET /api/account/users/{id}/activity
 activate Controller
+Controller -> Service : 13. activity(userId)
+activate Service
+Service -> BookingRepo : 14. Load recent bookings
+activate BookingRepo
+BookingRepo -> DB : 15. SELECT booking and issue history
+activate DB
+DB --> BookingRepo : 16. Activity rows
+deactivate DB
+BookingRepo --> Service : 17. Recent activity
+deactivate BookingRepo
+Service --> Controller : 18. Read-only Customer details
+deactivate Service
+Controller --> UI : 19. Activity response
 deactivate Controller
 
-Controller --> UI : 18. HTTP 200 or mapped 4xx\nresponse body or error payload
-deactivate Controller
+UI -> UI : 20. Open read-only View modal
 
-UI -> UI : 19. Reload users with refreshAll()
-activate UI
-deactivate UI
-
-UI --> User : 20. Show sign-in and delivery status
+UI --> User : 21. Show profile, bookings, and issues
 
 deactivate UI
 deactivate User

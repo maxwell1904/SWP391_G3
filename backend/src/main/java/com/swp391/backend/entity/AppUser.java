@@ -37,9 +37,6 @@ public class AppUser extends AuditEntity {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
-    @Column(name = "avatar_url")
-    private String avatarUrl;
-
     @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;
 

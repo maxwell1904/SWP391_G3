@@ -56,8 +56,7 @@ public final class ApiRequests {
     public record ProfileUpdate(
             String fullName,
             String phone,
-            String address,
-            String avatarUrl
+            String address
     ) {
     }
 
