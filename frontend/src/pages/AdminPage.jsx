@@ -914,12 +914,12 @@ export function AdminPage({
               ['Reported issues', customerActivity.issues?.length || 0]
             ]} />
             <div className="profileForm">
-              <p><strong>Email</strong><span>{customerActivity.user.email}</span></p>
-              <p><strong>Phone</strong><span>{customerActivity.user.phone || 'Not provided'}</span></p>
-              <p><strong>Address</strong><span>{customerActivity.user.address || 'Not provided'}</span></p>
-              <p><strong>Status</strong><span>{customerActivity.user.accountLocked ? 'Locked' : customerActivity.user.status}</span></p>
+              <p><strong>Email: </strong><span>{customerActivity.user.email}</span></p>
+              <p><strong>Phone: </strong><span>{customerActivity.user.phone || 'Not provided'}</span></p>
+              <p><strong>Address: </strong><span>{customerActivity.user.address || 'Not provided'}</span></p>
+              <p><strong>Status: </strong><span>{customerActivity.user.accountLocked ? 'Locked' : customerActivity.user.status}</span></p>
               {customerActivity.user.accountLocked && (
-                <p><strong>Lock reason</strong><span>{customerActivity.user.lockReason || 'Not provided'}</span></p>
+                <p><strong>Lock reason: </strong><span>{customerActivity.user.lockReason || 'Not provided'}</span></p>
               )}
             </div>
             <div>
