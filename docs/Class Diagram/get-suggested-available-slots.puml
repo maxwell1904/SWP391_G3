@@ -1,0 +1,42 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class AvailabilityAssistantPage <<boundary>> {
+    -suggestions : List<SlotSuggestion>
+    +findSlots() : Promise<void>
+    +bookSuggestedSlot(slot : SlotSuggestion) : void
+}
+
+class App <<boundary>> {
+    -searchDate : String
+    -suggestedSlotId : Long
+    -selectedSlotId : Long
+    +navigatePage(page : String) : void
+    +loadSlots() : Promise<void>
+}
+
+class FieldOperationService <<service>> {
+    +suggestSlots(date : LocalDate, preferredTime : LocalTime, fieldTypeId : Long, maxPrice : BigDecimal, customerId : Long) : List<Map<String, Object>>
+    -eligiblePromotionCodes(slot : Slot, customer : AppUser, price : BigDecimal) : List<String>
+}
+
+class Promotion <<entity>> {
+    -promotionCode : String
+    -status : CommonStatus
+    -startDate : LocalDate
+    -endDate : LocalDate
+}
+
+interface PromotionRepository <<repository>> {
+    +findByStatus(status : CommonStatus) : List<Promotion>
+}
+
+AvailabilityAssistantPage ..> FieldOperationService
+AvailabilityAssistantPage ..> App
+App ..> FieldOperationService
+FieldOperationService ..> PromotionRepository
+PromotionRepository --> Promotion
+
+@enduml

@@ -1,0 +1,86 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Admin" as User
+participant "AdminPage" as UI
+participant "FieldOperationController" as Controller
+participant "FieldOperationService" as Service
+participant "FieldPriceRepository" as Repo
+database "Database" as DB
+
+== UC-15: Manage Field Pricing by Time Range ==
+
+User -> UI : 1. Add or edit a pricing rule
+activate User
+activate UI
+
+UI -> UI : 2. savePrice()
+activate UI
+deactivate UI
+
+UI -> UI : 3. Validate form/filter state
+activate UI
+deactivate UI
+
+UI -> Controller : 4. POST /api/admin/fields/{fieldId}/prices\nPUT /api/admin/field-prices/{priceId}
+activate Controller
+
+Controller -> Service : 5. createFieldPrice() / updateFieldPrice()
+activate Service
+
+Service -> Service : 6. Validate day type, time order, dates and price
+activate Service
+deactivate Service
+
+alt Request is valid and authorized
+  Service -> Repo : 7. findById(priceId) / save(price)
+  activate Repo
+
+  Repo -> DB : 8. INSERT/UPDATE field_price
+  activate DB
+  DB --> Repo : 9. FieldPrice
+  deactivate DB
+
+  Repo --> Service : 10. Repository result
+  deactivate Repo
+
+  Service -> Service : 11. Normalize money and persist rule
+  activate Service
+  deactivate Service
+else Validation, authorization, or state rule fails
+  note over Service,Controller
+    Overlap blocked by UI; invalid range -> HTTP 400
+    The service propagates ApiException to ApiExceptionHandler.
+  end note
+end
+
+Service --> Controller : 12. Domain result or propagated error
+deactivate Service
+
+Controller -> Controller : 13. Serialize response
+activate Controller
+deactivate Controller
+
+Controller --> UI : 14. HTTP 200 or mapped 4xx\nresponse body or error payload
+deactivate Controller
+
+UI -> UI : 15. loadFieldPrices(fieldId); refreshAll()
+activate UI
+deactivate UI
+
+UI --> User : 16. Show price rule saved
+
+deactivate UI
+deactivate User
+
+@enduml

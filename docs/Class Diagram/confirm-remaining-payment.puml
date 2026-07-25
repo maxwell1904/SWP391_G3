@@ -10,12 +10,12 @@ class PaymentController <<controller>> {
 }
 
 class PaymentWorkflowService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +capturePayment(request : ApiRequests.PaymentCapture) : Map<String, Object>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -bookingRepository : BookingRepository
     -userRepository : AppUserRepository
     -paymentRepository : PaymentRepository
@@ -99,12 +99,10 @@ class AppUser <<entity>> {
     -email : String
     -phone : String
     -passwordHash : String
-    -avatarUrl : String
     -dateOfBirth : LocalDate
     -address : String
     -status : AccountStatus
-    -bookingRestricted : boolean
-    -restrictionReason : String
+    -lockReason : String
     -lastLoginAt : LocalDateTime
     -emailVerified : boolean
     -emailVerificationToken : String
@@ -207,18 +205,18 @@ enum NotificationType {
 ' Relationships
 PaymentController ..> PaymentWorkflowService
 PaymentController ..> PaymentCaptureDTO
-PaymentWorkflowService ..> DemoSupportService
+PaymentWorkflowService ..> DomainSupportService
 PaymentWorkflowService ..> PaymentCaptureDTO
-DemoSupportService ..> BookingRepository
-DemoSupportService ..> AppUserRepository
-DemoSupportService ..> PaymentRepository
-DemoSupportService ..> NotificationRepository
-DemoSupportService ..> InvoiceRepository
-DemoSupportService ..> Booking
-DemoSupportService ..> Payment
-DemoSupportService ..> Notification
-DemoSupportService ..> Invoice
-DemoSupportService ..> AppUser
+DomainSupportService ..> BookingRepository
+DomainSupportService ..> AppUserRepository
+DomainSupportService ..> PaymentRepository
+DomainSupportService ..> NotificationRepository
+DomainSupportService ..> InvoiceRepository
+DomainSupportService ..> Booking
+DomainSupportService ..> Payment
+DomainSupportService ..> Notification
+DomainSupportService ..> Invoice
+DomainSupportService ..> AppUser
 BookingRepository --> Booking
 AppUserRepository --> AppUser
 PaymentRepository --> Payment

@@ -121,12 +121,10 @@ Table app_user {
   email varchar(120) [unique]
   phone varchar(20) [unique]
   password_hash varchar(255) [not null]
-  avatar_url varchar(255)
   date_of_birth date
   address varchar(255)
   status account_status [not null, default: 'active']
-  booking_restricted boolean [not null, default: false]
-  restriction_reason varchar(255)
+  lock_reason varchar(255)
   last_login_at timestamp
   auth_version bigint [not null, default: 0, note: "Increment to revoke existing JWTs after logout, password change, or administrative lock."]
   email_verified boolean [not null, default: false]
@@ -137,7 +135,7 @@ Table app_user {
   created_at timestamp
   updated_at timestamp
 
-  Note: "Stores Customer, Staff, and Admin accounts. Guest is unauthenticated. Email or phone should be unique. Verification and reset tokens support the account recovery flow."
+  Note: "Stores Customer, Staff, and Admin accounts. Guest is unauthenticated. status is the single source of truth for active/inactive/locked access; lock_reason explains an administrative Customer lock. Verification and reset tokens support the account recovery flow."
 }
 
 Table membership_level {
@@ -226,7 +224,7 @@ Table slot {
     (field_id, slot_date, start_time, end_time) [unique]
   }
 
-  Note: "A slot can be bookable or blocked. PostgreSQL additionally prevents time-range overlap for the same field/date. Block reasons include maintenance, weather, private event, internal use, or other."
+  Note: "Available rows are materialized automatically from Admin slot-generation rules. Staff Block/Unblock preserves maintenance, weather, private-event, VIP/internal-use, or other exceptions. PostgreSQL prevents time-range overlap for the same field/date."
 }
 
 Table booking {
@@ -261,7 +259,7 @@ Table booking {
     (slot_id, status)
   }
 
-  Note: "Do not create another valid booking for a slot with pending, confirmed, or checked_in status. In PostgreSQL, enforce with a partial unique index on slot_id for those active statuses."
+  Note: "Do not create another valid booking for a slot with pending, confirmed, or checked_in status. paid_amount is gross collected value; refunds are separate. Financial checks cap total discounts at field plus service subtotal, deposit at total, remaining at total, and refundable at gross paid."
 }
 
 Table extra_service {
@@ -340,7 +338,7 @@ Table promotion {
   created_at timestamp
   updated_at timestamp
 
-  Note: "Practical promotion conditions are kept here instead of a separate promotion_condition table."
+  Note: "Practical promotion conditions are kept here instead of a separate promotion_condition table. One code may be applied per booking; stackable controls whether the membership discount may also apply."
 }
 
 Table booking_promotion {
@@ -369,6 +367,8 @@ Table payment {
   provider_capture_id varchar(120)
   provider_status varchar(50)
   currency varchar(10)
+  provider_fee_amount decimal(12,2)
+  provider_net_amount decimal(12,2)
   idempotency_key varchar(120)
   gateway_message varchar(255)
   paid_at timestamp
@@ -377,7 +377,7 @@ Table payment {
   created_at timestamp
   updated_at timestamp
 
-  Note: "Supports sandbox online payment and manual/on-site payment. Provider fields retain PayPal/sandbox order and capture references."
+  Note: "Supports PayPal Sandbox customer payment and Staff/Admin cash recording. Provider fee and net are the actual capture breakdown, not a customer tax. PayPal request identity is persisted for safe retries."
 }
 
 Table invoice {
@@ -407,12 +407,15 @@ Table refund {
   refund_reason varchar(255)
   status refund_status [not null, default: 'requested']
   transaction_code varchar(100)
+  provider_status varchar(50)
+  idempotency_key varchar(120)
+  gateway_message varchar(255)
   requested_at timestamp
   processed_at timestamp
   created_at timestamp
   updated_at timestamp
 
-  Note: "Refund can be created after cancellation or special support cases. Payment-linked refunds must point to a payment of the same booking; approved/processing/completed refunds cannot exceed the booking paid amount."
+  Note: "Refund can be created after cancellation, a lower-price reschedule, a service amendment, or an approved support case. Payment-linked refunds must use a payment of the same booking; pending work reserves capacity once, completed refunds reduce refundable balance once, and committed refunds cannot exceed gross paid."
 }
 
 Table notification {
@@ -433,14 +436,14 @@ Table system_setting {
   setting_id bigint [pk, increment]
   setting_key varchar(100) [not null, unique]
   setting_value varchar(255) [not null]
-  setting_group varchar(50) [not null, note: "deposit, refund, booking, payment, notification"]
+  setting_group varchar(50) [not null, note: "deposit, refund, booking, payment, notification, slot_generation"]
   description varchar(255)
   status common_status [not null, default: 'active']
   updated_by bigint
   created_at timestamp
   updated_at timestamp
 
-  Note: "Stores small runtime configuration values such as deposit percent, payment timeout, refund windows, and cancellation fee rules."
+  Note: "Stores runtime policies including deposit/refund/payment/reminder values and slot opening time, closing time, duration, and rolling generation horizon."
 }
 
 Ref: app_user.role_id > role.role_id

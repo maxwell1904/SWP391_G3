@@ -10,12 +10,12 @@ class BookingController <<controller>> {
 }
 
 class BookingWorkflowService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +updateBookingStatus(bookingId : Long, request : ApiRequests.BookingStatusUpdate) : Map<String, Object>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -bookingRepository : BookingRepository
     -userRepository : AppUserRepository
     -notificationRepository : NotificationRepository
@@ -85,12 +85,10 @@ class AppUser <<entity>> {
     -email : String
     -phone : String
     -passwordHash : String
-    -avatarUrl : String
     -dateOfBirth : LocalDate
     -address : String
     -status : AccountStatus
-    -bookingRestricted : boolean
-    -restrictionReason : String
+    -lockReason : String
     -lastLoginAt : LocalDateTime
     -emailVerified : boolean
     -emailVerificationToken : String
@@ -137,12 +135,12 @@ enum NotificationType {
 ' Relationships
 BookingController ..> BookingWorkflowService
 BookingController ..> BookingStatusUpdateDTO
-BookingWorkflowService ..> DemoSupportService
+BookingWorkflowService ..> DomainSupportService
 BookingWorkflowService ..> BookingStatusUpdateDTO
 
-DemoSupportService ..> BookingRepository
-DemoSupportService ..> AppUserRepository
-DemoSupportService ..> NotificationRepository
+DomainSupportService ..> BookingRepository
+DomainSupportService ..> AppUserRepository
+DomainSupportService ..> NotificationRepository
 
 
 BookingRepository --> Booking

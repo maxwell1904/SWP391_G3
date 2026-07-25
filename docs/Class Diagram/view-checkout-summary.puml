@@ -10,12 +10,12 @@ class BookingController <<controller>> {
 }
 
 class BookingWorkflowService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +previewCheckout(request : ApiRequests.PromotionApply) : Map<String, Object>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -userRepository : AppUserRepository
     -slotRepository : SlotRepository
     -extraServiceRepository : ExtraServiceRepository
@@ -28,9 +28,10 @@ class DemoSupportService <<service>> {
     +getExtraService(serviceId : Long) : ExtraService
     +parseEnum(enumType : Class<T>, value : String, fallback : T) : T
     +calculateFieldPrice(slot : Slot) : BigDecimal
-    +calculateServiceTotal(selections : List<ApiRequests.ServiceSelection>) : BigDecimal
+    +calculateServiceTotal(selections : List<ApiRequests.ServiceSelection>, slot : Slot, excludedBookingId : Long) : BigDecimal
     +validateServiceQuantity(service : ExtraService, quantity : Integer) : int
     +calculatePromotionDiscount(code : String, slot : Slot, amount : BigDecimal, services : List<ApiRequests.ServiceSelection>) : BigDecimal
+    +promotionAllowsMembershipStacking(code : String) : boolean
     +calculateMembershipDiscount(customer : AppUser, amount : BigDecimal, source : BookingSource) : BigDecimal
     +calculateDeposit(total : BigDecimal) : BigDecimal
     +userSummary(customer : AppUser) : Map<String, Object>
@@ -87,12 +88,10 @@ class AppUser <<entity>> {
     -email : String
     -phone : String
     -passwordHash : String
-    -avatarUrl : String
     -dateOfBirth : LocalDate
     -address : String
     -status : AccountStatus
-    -bookingRestricted : boolean
-    -restrictionReason : String
+    -lockReason : String
     -lastLoginAt : LocalDateTime
     -emailVerified : boolean
     -emailVerificationToken : String
@@ -210,16 +209,16 @@ enum SlotStatus {
 ' Relationships
 BookingController ..> BookingWorkflowService
 BookingController ..> PromotionApplyDTO
-BookingWorkflowService ..> DemoSupportService
+BookingWorkflowService ..> DomainSupportService
 BookingWorkflowService ..> PromotionApplyDTO
 BookingWorkflowService ..> ServiceSelectionDTO
 
-DemoSupportService ..> AppUserRepository
-DemoSupportService ..> SlotRepository
-DemoSupportService ..> ExtraServiceRepository
-DemoSupportService ..> FieldPriceRepository
-DemoSupportService ..> PromotionRepository
-DemoSupportService ..> CustomerMembershipRepository
+DomainSupportService ..> AppUserRepository
+DomainSupportService ..> SlotRepository
+DomainSupportService ..> ExtraServiceRepository
+DomainSupportService ..> FieldPriceRepository
+DomainSupportService ..> PromotionRepository
+DomainSupportService ..> CustomerMembershipRepository
 
 AppUserRepository --> AppUser
 SlotRepository --> Slot

@@ -1,0 +1,69 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+actor "Customer" as Actor
+participant "AvailabilityAssistantPage" as UI
+participant "AvailabilityAssistantController" as Controller
+participant "AvailabilityAssistantService" as Assistant
+participant "Gemini API" as Gemini
+participant "FieldOperationService" as Fields
+database "Database" as DB
+
+== Ask natural-language availability question ==
+
+Actor -> UI : 1. Enter a field request
+activate Actor
+activate UI
+UI -> Controller : 2. POST /api/assistant/availability\n{question}
+activate Controller
+Controller -> Assistant : 3. answerAvailabilityQuestion(request)
+activate Assistant
+Assistant -> Assistant : 4. Require authenticated Customer\nand configured API key
+activate Assistant
+deactivate Assistant
+
+alt Request and configuration are valid
+  Assistant -> Fields : 5. fieldTypes()
+  activate Fields
+  Fields -> DB : 6. Load active field types
+  activate DB
+  DB --> Fields : 7. Field type summaries
+  deactivate DB
+  Fields --> Assistant : 8. Field types
+  deactivate Fields
+
+  Assistant -> Gemini : 9. Extract date/time/type/budget\nas constrained JSON
+  activate Gemini
+  Gemini --> Assistant : 10. Search criteria JSON
+  deactivate Gemini
+
+  Assistant -> Fields : 11. suggestSlots(verified criteria)
+  activate Fields
+  Fields -> DB : 12. Load live slots, prices,\nbookings and promotions
+  activate DB
+  DB --> Fields : 13. Current candidate data
+  deactivate DB
+  Fields --> Assistant : 14. Ranked verified suggestions
+  deactivate Fields
+
+  Assistant -> Gemini : 15. Phrase answer from verified data only
+  activate Gemini
+  Gemini --> Assistant : 16. Grounded short answer
+  deactivate Gemini
+  Assistant --> Controller : 17. Answer, criteria and suggestions
+else Missing key, invalid request or provider failure
+  Assistant --> Controller : 17. ApiException
+end
+deactivate Assistant
+Controller --> UI : 18. HTTP response
+deactivate Controller
+UI --> Actor : 19. Show answer/suggestions or corrective message
+deactivate UI
+deactivate Actor
+
+@enduml

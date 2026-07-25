@@ -53,6 +53,15 @@ public class Refund extends AuditEntity {
     @Column(name = "transaction_code", length = 100)
     private String transactionCode;
 
+    @Column(name = "provider_status", length = 50)
+    private String providerStatus;
+
+    @Column(name = "idempotency_key", length = 120)
+    private String idempotencyKey;
+
+    @Column(name = "gateway_message")
+    private String gatewayMessage;
+
     @Column(name = "requested_at")
     private LocalDateTime requestedAt;
 

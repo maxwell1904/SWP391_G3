@@ -10,13 +10,13 @@ class BookingController <<controller>> {
 }
 
 class BookingWorkflowService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +createBooking(request : ApiRequests.BookingCreate) : Map<String, Object>
     +bookingDetail(bookingId : Long) : Map<String, Object>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -bookingRepository : BookingRepository
     -bookingServiceItemRepository : BookingServiceItemRepository
     -bookingPromotionRepository : BookingPromotionRepository
@@ -151,14 +151,14 @@ enum BookingSource {
 BookingController ..> BookingWorkflowService
 BookingController ..> BookingCreateDTO
 BookingWorkflowService ..> BookingCreateDTO
-BookingWorkflowService ..> DemoSupportService
+BookingWorkflowService ..> DomainSupportService
 BookingWorkflowService ..> ServiceSelectionDTO
-DemoSupportService ..> BookingRepository
-DemoSupportService ..> BookingServiceItemRepository
-DemoSupportService ..> BookingPromotionRepository
-DemoSupportService ..> Booking
-DemoSupportService ..> BookingServiceItem
-DemoSupportService ..> BookingPromotion
+DomainSupportService ..> BookingRepository
+DomainSupportService ..> BookingServiceItemRepository
+DomainSupportService ..> BookingPromotionRepository
+DomainSupportService ..> Booking
+DomainSupportService ..> BookingServiceItem
+DomainSupportService ..> BookingPromotion
 BookingRepository --> Booking
 BookingServiceItemRepository --> BookingServiceItem
 BookingPromotionRepository --> BookingPromotion

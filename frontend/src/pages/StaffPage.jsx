@@ -14,9 +14,11 @@ export function StaffPage({
   setSelectedBookingId,
   selectedBooking,
   selectedBookingDetail,
+  cancellationPreview,
   billingLoading,
   billingError,
   updateBooking,
+  previewCancellation,
   rescheduleBooking,
   availableSlots,
   capturePayment,
@@ -24,7 +26,6 @@ export function StaffPage({
   setIssueDraft,
   createIssue,
   issues,
-  createRefund,
   refunds,
   updateRefund,
   services,
@@ -33,7 +34,8 @@ export function StaffPage({
   refreshAll,
   loadSlots,
   updateBookingServices,
-  updateIssue
+  updateIssue,
+  navigatePage
 }) {
   const [rescheduleSlotId, setRescheduleSlotId] = useState('')
   const [calendarDate, setCalendarDate] = useState(today)
@@ -42,11 +44,10 @@ export function StaffPage({
   const [blockForm, setBlockForm] = useState({ fieldId: '', startTime: '06:00', endTime: '08:00', blockReason: '', blockNote: '' })
   const [bookingServices, setBookingServices] = useState({})
   const [resolutionNotes, setResolutionNotes] = useState({})
-  const [customerActivity, setCustomerActivity] = useState(null)
-  const [customerActivityNotice, setCustomerActivityNotice] = useState('Select a booking to review its customer history.')
   const [activePanel, setActivePanel] = useState('bookings')
   const pendingBookings = bookings.filter(booking => booking.status === 'pending').length
   const activeIssues = issues.filter(issue => issue.status === 'open' || issue.status === 'in_progress').length
+  const cancellationReviewed = cancellationPreview?.bookingId === selectedBooking?.bookingId
 
   useEffect(() => {
     let cancelled = false
@@ -61,29 +62,6 @@ export function StaffPage({
     selectedBookingDetail?.services?.forEach(service => { next[service.serviceId] = service.quantity })
     setBookingServices(next)
   }, [selectedBookingDetail?.bookingId])
-
-  useEffect(() => {
-    const customerId = selectedBooking?.customerId
-    if (!customerId) {
-      setCustomerActivity(null)
-      setCustomerActivityNotice('Select a booking to review its customer history.')
-      return undefined
-    }
-    let cancelled = false
-    setCustomerActivity(null)
-    setCustomerActivityNotice('Loading customer history…')
-    api.get(`/account/users/${customerId}/activity`)
-      .then(response => {
-        if (!cancelled) {
-          setCustomerActivity(response.data)
-          setCustomerActivityNotice('')
-        }
-      })
-      .catch(error => {
-        if (!cancelled) setCustomerActivityNotice(error.response?.data?.error || 'Could not load customer history.')
-      })
-    return () => { cancelled = true }
-  }, [selectedBooking?.customerId])
 
   async function refreshOperations(message) {
     setOperationNotice(message)
@@ -155,9 +133,18 @@ export function StaffPage({
         ]}
       />
       <div className="roleGrid operationGrid">
-        <InfoPanel title="Booking calendar" className={activePanel === 'bookings' ? '' : 'workspacePanelHidden'}>
+        {activePanel === 'bookings' && bookings.length === 0 && (
+          <InfoPanel title="No bookings scheduled" className="workspaceEmptyPanel">
+            <p className="panelHint">There are no bookings in the current queue. Create a walk-in booking or check the field schedule while you wait for an online booking.</p>
+            <div className="buttonRow">
+              <Button onClick={() => navigatePage?.('booking')}>Create walk-in booking</Button>
+              <Button variant="light" onClick={() => setActivePanel('schedule')}>View field schedule</Button>
+            </div>
+          </InfoPanel>
+        )}
+        {bookings.length > 0 && <InfoPanel title="Booking calendar" className={activePanel === 'bookings' ? '' : 'workspacePanelHidden'}>
           <BookingList bookings={bookings} selectedBookingId={selectedBookingId} onSelect={setSelectedBookingId} />
-        </InfoPanel>
+        </InfoPanel>}
         <InfoPanel title="Operational slot calendar" className={activePanel === 'schedule' ? '' : 'workspacePanelHidden'}>
           <FieldControl label="Date">
             <input type="date" value={calendarDate} onChange={event => setCalendarDate(event.target.value)} />
@@ -190,46 +177,51 @@ export function StaffPage({
           </div>
           <Button variant="light" onClick={blockSlot}>Block slot</Button>
         </InfoPanel>
-        <InfoPanel title="Lifecycle actions" className={activePanel === 'bookings' ? '' : 'workspacePanelHidden'}>
+        {bookings.length > 0 && <InfoPanel title="Lifecycle actions" className={activePanel === 'bookings' ? '' : 'workspacePanelHidden'}>
           <SelectedBooking booking={selectedBooking} />
           <div className="actionGrid">
-            <Button onClick={() => updateBooking('confirmed')}>Confirm</Button>
-            <Button color="red" variant="light" onClick={() => updateBooking('rejected')}>Reject</Button>
-            <Button variant="light" onClick={() => updateBooking('checked_in')}>Check-in</Button>
-            <Button variant="light" onClick={() => updateBooking('completed')}>Complete</Button>
-            <Button color="red" variant="light" onClick={() => updateBooking('cancelled')}>Cancel</Button>
-            <Button color="yellow" variant="light" onClick={() => updateBooking('no_show')}>No-show</Button>
-            <select value={rescheduleSlotId} onChange={event => setRescheduleSlotId(event.target.value)} aria-label="New slot for reschedule">
+            <Button disabled={!canTransition(selectedBooking?.status, 'confirmed')} onClick={() => updateBooking('confirmed')}>Confirm</Button>
+            <Button disabled={!canTransition(selectedBooking?.status, 'rejected')} color="red" variant="light" onClick={() => updateBooking('rejected')}>Reject</Button>
+            <Button disabled={!canTransition(selectedBooking?.status, 'checked_in')} variant="light" onClick={() => updateBooking('checked_in')}>Check-in</Button>
+            <Button disabled={!canTransition(selectedBooking?.status, 'completed')} variant="light" onClick={() => updateBooking('completed')}>Complete</Button>
+            <Button
+              disabled={!canTransition(selectedBooking?.status, 'cancelled')}
+              color="red"
+              variant="light"
+              onClick={() => cancellationReviewed ? updateBooking('cancelled') : previewCancellation()}
+            >
+              {cancellationReviewed ? 'Confirm cancellation' : 'Review cancellation'}
+            </Button>
+            <Button disabled={!canTransition(selectedBooking?.status, 'no_show')} color="yellow" variant="light" onClick={() => updateBooking('no_show')}>No-show</Button>
+            <select disabled={!['pending', 'confirmed'].includes(selectedBooking?.status)} value={rescheduleSlotId} onChange={event => setRescheduleSlotId(event.target.value)} aria-label="New slot for reschedule">
               <option value="">Reschedule to…</option>
               {availableSlots.map(slot => <option key={slot.slotId} value={slot.slotId}>{slot.fieldName} · {slot.slotDate} · {slot.startTime}</option>)}
             </select>
-            <Button variant="light" disabled={!rescheduleSlotId} onClick={() => rescheduleBooking(rescheduleSlotId)}>Reschedule</Button>
+            <Button variant="light" disabled={!rescheduleSlotId || !['pending', 'confirmed'].includes(selectedBooking?.status)} onClick={() => rescheduleBooking(rescheduleSlotId)}>Reschedule</Button>
             <Button
               className="wideAction"
               variant="outline"
-              disabled={!selectedBooking || Number(selectedBooking.remainingAmount) <= 0}
+              disabled={
+                !selectedBooking
+                || !['pending', 'confirmed', 'checked_in', 'completed'].includes(selectedBooking.status)
+                || Number(selectedBooking.remainingAmount) <= 0
+              }
               onClick={() => capturePayment('remaining')}
             >
               Remaining payment
             </Button>
           </div>
-        </InfoPanel>
-        <InfoPanel title="Invoice and payment status" className={activePanel === 'bookings' ? '' : 'workspacePanelHidden'}>
-          <BillingDetails detail={selectedBookingDetail} loading={billingLoading} error={billingError} />
-        </InfoPanel>
-        <InfoPanel title="Customer booking activity" className={activePanel === 'bookings' ? '' : 'workspacePanelHidden'}>
-          {!customerActivity ? <p className="panelHint">{customerActivityNotice}</p> : (
-            <>
-              <p className="panelHint"><strong>{customerActivity.user.fullName}</strong> · {customerActivity.bookingCount} recent booking(s), {customerActivity.completedBookingCount} completed.</p>
-              <DataList items={customerActivity.bookings.map(booking => ({
-                title: `${booking.bookingCode} · ${booking.fieldName}`,
-                meta: `${booking.slotDate} · ${String(booking.startTime).slice(0, 5)}`,
-                value: booking.status
-              }))} />
-            </>
+          {cancellationReviewed && (
+            <p className="panelHint">
+              Cancellation terms reviewed: {formatMoney(cancellationPreview.refundableAmount)} refundable
+              {' · '}{formatMoney(cancellationPreview.cancellationFeeAmount)} fee.
+            </p>
           )}
-        </InfoPanel>
-        <InfoPanel title="Edit booking services (before check-in)" className={activePanel === 'bookings' ? '' : 'workspacePanelHidden'}>
+        </InfoPanel>}
+        {bookings.length > 0 && <InfoPanel title="Invoice and payment status" className={activePanel === 'bookings' ? '' : 'workspacePanelHidden'}>
+          <BillingDetails detail={selectedBookingDetail} loading={billingLoading} error={billingError} />
+        </InfoPanel>}
+        {bookings.length > 0 && <InfoPanel title="Edit booking services (before check-in)" className={activePanel === 'bookings' ? '' : 'workspacePanelHidden'}>
           {!selectedBooking ? <p className="panelHint">Select a booking first.</p> : (
             <>
               {services.map(service => (
@@ -251,7 +243,7 @@ export function StaffPage({
               >Save services</Button>
             </>
           )}
-        </InfoPanel>
+        </InfoPanel>}
         <InfoPanel title="Issue report" className={activePanel === 'support' ? '' : 'workspacePanelHidden'}>
           <FieldControl label="Title">
             <input value={issueDraft.title} onChange={event => setIssueDraft({ ...issueDraft, title: event.target.value })} />
@@ -259,7 +251,7 @@ export function StaffPage({
           <FieldControl label="Description">
             <textarea value={issueDraft.description} onChange={event => setIssueDraft({ ...issueDraft, description: event.target.value })} />
           </FieldControl>
-          <Button className="secondaryButton" onClick={createIssue}>
+          <Button className="secondaryButton" disabled={!issueDraft.title.trim() || !issueDraft.description.trim()} onClick={createIssue}>
             <Wrench size={18} />
             <span>Save issue</span>
           </Button>
@@ -278,10 +270,10 @@ export function StaffPage({
           ))}
         </InfoPanel>
         <InfoPanel title="Refunds" className={activePanel === 'support' ? '' : 'workspacePanelHidden'}>
-          <Button className="secondaryButton" onClick={createRefund}>Request refund for cancelled booking</Button>
+          <p className="panelHint">Customers submit refund requests. Staff verify the case, approve or reject it, then complete the cash or PayPal return.</p>
           <DataList items={refunds.map(refund => ({
             title: refund.refundCode,
-            meta: `${refund.bookingCode} · ${refund.refundReason || 'support case'}`,
+            meta: `${refund.bookingCode} · ${refund.paymentMethod === 'paypal_sandbox' ? 'PayPal' : 'Cash'} · ${refund.gatewayMessage || refund.refundReason || 'support case'}`,
             value: `${refund.status} · ${formatMoney(refund.refundAmount)}`
           }))} />
           {refunds.filter(refund => refund.status === 'requested').map(refund => (
@@ -291,10 +283,24 @@ export function StaffPage({
             </div>
           ))}
           {refunds.filter(refund => refund.status === 'approved').map(refund => (
-            <Button key={`complete-${refund.refundId}`} size="xs" variant="light" onClick={() => updateRefund(refund, 'completed')}>Complete {refund.refundCode}</Button>
+            <Button key={`complete-${refund.refundId}`} size="xs" variant="light" onClick={() => updateRefund(refund, refund.paymentMethod === 'paypal_sandbox' ? 'processing' : 'completed')}>
+              {refund.paymentMethod === 'paypal_sandbox' ? `Send ${refund.refundCode} to PayPal` : `Record cash refund ${refund.refundCode}`}
+            </Button>
+          ))}
+          {refunds.filter(refund => refund.paymentMethod === 'paypal_sandbox' && (refund.status === 'processing' || refund.status === 'failed')).map(refund => (
+            <Button key={`retry-${refund.refundId}`} size="xs" variant="light" onClick={() => updateRefund(refund, 'processing')}>Retry/check {refund.refundCode}</Button>
           ))}
         </InfoPanel>
       </div>
     </section>
   )
+}
+
+function canTransition(current, next) {
+  const transitions = {
+    pending: ['confirmed', 'rejected', 'cancelled'],
+    confirmed: ['checked_in', 'cancelled', 'no_show'],
+    checked_in: ['completed']
+  }
+  return Boolean(current && transitions[current]?.includes(next))
 }

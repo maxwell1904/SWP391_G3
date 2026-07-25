@@ -1,126 +1,52 @@
 @startuml
-
 skinparam classAttributeIconSize 0
 skinparam linetype polyline
 
-class BookingController <<controller>> {
-    -bookingWorkflowService : BookingWorkflowService
-
-    +bookings(@RequestParam Long customerId, @RequestParam LocalDate date) : Object
-    +bookingDetail(@PathVariable Long bookingId) : Object
+class FieldOperationController <<controller>> {
+  -fieldOperationService : FieldOperationService
+  +operationCalendar(date : LocalDate) : Object
 }
-
-class BookingWorkflowService <<service>> {
-    -support : DemoSupportService
-
-    +bookings(customerId : Long, date : LocalDate) : List<Map<String, Object>>
-    +bookingDetail(bookingId : Long) : Map<String, Object>
+class FieldOperationService <<service>> {
+  -support : DomainSupportService
+  -slotGenerationService : SlotGenerationService
+  +operationCalendar(date : LocalDate) : List<Map<String, Object>>
+  -requireOperator() : void
 }
-
-class DemoSupportService <<service>> {
-    -bookingRepository : BookingRepository
-    
-
-    +getBooking(bookingId : Long) : Booking
-    +bookingSummary(booking : Booking) : Map<String, Object>
-    +paymentStatus(booking : Booking) : String
+class SlotGenerationService <<service>> {
+  +ensureDate(date : LocalDate) : int
 }
-
+class DomainSupportService <<service>> {
+  -slotRepository : SlotRepository
+  -bookingRepository : BookingRepository
+  +slotSummary(slot : Slot) : Map<String, Object>
+  +bookingSummary(booking : Booking) : Map<String, Object>
+}
+interface SlotRepository <<repository>> {
+  +findBySlotDate(slotDate : LocalDate) : List<Slot>
+}
 interface BookingRepository <<repository>> {
-    +findBySlot_SlotDateOrderBySlot_StartTimeAsc(date : LocalDate) : List<Booking>
-    +findByCustomer_UserIdOrderByBookingIdDesc(customerId : Long) : List<Booking>
-    +findById(id : Long) : Optional<Booking>
+  +findBySlot_SlotDateOrderBySlot_StartTimeAsc(slotDate : LocalDate) : List<Booking>
 }
-
-class AuditEntity <<entity>> {
-    -createdAt : LocalDateTime
-    -updatedAt : LocalDateTime
-}
-
-class Booking <<entity>> {
-    -bookingId : Long
-    -customer : AppUser
-    -staff : AppUser
-    -slot : Slot
-    -bookingCode : String
-    -status : BookingStatus
-    -bookingSource : BookingSource
-    -fieldPriceAmount : BigDecimal
-    -serviceTotalAmount : BigDecimal
-    -promotionDiscountAmount : BigDecimal
-    -membershipDiscountAmount : BigDecimal
-    -totalAmount : BigDecimal
-    -depositAmount : BigDecimal
-    -paidAmount : BigDecimal
-    -remainingAmount : BigDecimal
-    -cancellationFeeAmount : BigDecimal
-    -refundableAmount : BigDecimal
-    -note : String
-    -confirmedAt : LocalDateTime
-    -checkedInAt : LocalDateTime
-    -completedAt : LocalDateTime
-    -cancelledAt : LocalDateTime
-    -expiredAt : LocalDateTime
-}
-
 class Slot <<entity>> {
-    -slotId : Long
-    -field : FootballField
-    -slotDate : LocalDate
-    -startTime : LocalTime
-    -endTime : LocalTime
-    -status : SlotStatus
-    -blockReason : String
-    -blockNote : String
-    -createdBy : AppUser
+  -slotId : Long
+  -slotDate : LocalDate
+  -startTime : LocalTime
+  -endTime : LocalTime
+  -status : SlotStatus
 }
-
-class AppUser <<entity>> {
-    -userId : Long
-    -fullName : String
-    -email : String
-    -phone : String
-    -passwordHash : String
-    -avatarUrl : String
-    -dateOfBirth : LocalDate
-    -address : String
-    -status : AccountStatus
-    -bookingRestricted : boolean
-    -restrictionReason : String
-    -lastLoginAt : LocalDateTime
-    -emailVerified : boolean
-    -emailVerificationToken : String
-    -emailVerificationSentAt : LocalDateTime
-    -passwordResetToken : String
-    -passwordResetSentAt : LocalDateTime
+class Booking <<entity>> {
+  -bookingId : Long
+  -bookingCode : String
+  -status : BookingStatus
+  -slot : Slot
 }
-
-enum BookingStatus {
-    + pending
-    + confirmed
-    + checked_in
-    + completed
-    + cancelled
-    + no_show
-    + expired
-    + rejected
-}
-
-enum BookingSource {
-    + online
-    + walk_in
-}
-
-' Relationships
-BookingController ..> BookingWorkflowService
-BookingWorkflowService ..> DemoSupportService
-DemoSupportService ..> BookingRepository
+FieldOperationController ..> FieldOperationService
+FieldOperationService ..> SlotGenerationService
+FieldOperationService ..> DomainSupportService
+SlotGenerationService ..> SlotRepository
+DomainSupportService ..> SlotRepository
+DomainSupportService ..> BookingRepository
+SlotRepository --> Slot
 BookingRepository --> Booking
 Booking --> Slot
-Booking --> AppUser
-Booking --> BookingStatus
-Booking --> BookingSource
-Slot -|> AuditEntity
-Booking -|> AuditEntity
-
 @enduml

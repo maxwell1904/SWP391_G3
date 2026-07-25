@@ -10,15 +10,27 @@ class FieldOperationController <<controller>> {
 }
 
 class FieldOperationService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
+    -slotGenerationService : SlotGenerationService
 
     +searchSlots(date : LocalDate, fieldTypeId : Long) : List<Map<String, Object>>
 }
 
-class DemoSupportService <<service>> {
+class SlotGenerationService <<service>> {
+    -support : DomainSupportService
+
+    +ensureDate(date : LocalDate) : int
+    +generateRollingWindow() : GenerationResult
+    +rules() : SlotRules
+    -generateForDate(date : LocalDate, rules : SlotRules) : int
+}
+
+class DomainSupportService <<service>> {
     -slotRepository : SlotRepository
+    -fieldRepository : FootballFieldRepository
     -fieldPriceRepository : FieldPriceRepository
     -bookingRepository : BookingRepository
+    -systemSettingRepository : SystemSettingRepository
 
     +calculateFieldPrice(slot : Slot) : BigDecimal
 }
@@ -27,12 +39,27 @@ interface SlotRepository <<repository>> {
     +findBySlotDate(date : LocalDate) : List<Slot>
 }
 
+interface FootballFieldRepository <<repository>> {
+    +findByStatus(status : CommonStatus) : List<FootballField>
+}
+
 interface FieldPriceRepository <<repository>> {
     +findByField_FieldId(fieldId : Long) : List<FieldPrice>
 }
 
 interface BookingRepository <<repository>> {
     +existsBySlotAndStatusIn(slot : Slot, statuses : Collection<BookingStatus>) : boolean
+}
+
+interface SystemSettingRepository <<repository>> {
+    +findBySettingKey(settingKey : String) : Optional<SystemSetting>
+}
+
+class SystemSetting <<entity>> {
+    -settingKey : String
+    -settingValue : String
+    -settingGroup : String
+    -status : CommonStatus
 }
 
 class AuditEntity <<entity>> {
@@ -95,16 +122,23 @@ enum SlotStatus {
 
 ' Relationships
 FieldOperationController ..> FieldOperationService
-FieldOperationService ..> DemoSupportService
-DemoSupportService ..> SlotRepository
-DemoSupportService ..> BookingRepository
-DemoSupportService ..> FieldPriceRepository
-DemoSupportService ..> Slot
-DemoSupportService ..> FootballField
-DemoSupportService ..> FieldPrice
+FieldOperationService ..> SlotGenerationService
+FieldOperationService ..> DomainSupportService
+SlotGenerationService ..> DomainSupportService
+DomainSupportService ..> SlotRepository
+DomainSupportService ..> FootballFieldRepository
+DomainSupportService ..> BookingRepository
+DomainSupportService ..> FieldPriceRepository
+DomainSupportService ..> SystemSettingRepository
+DomainSupportService ..> Slot
+DomainSupportService ..> FootballField
+DomainSupportService ..> FieldPrice
 SlotRepository --> Slot
+FootballFieldRepository --> FootballField
 BookingRepository --> Booking
 FieldPriceRepository --> FieldPrice
+SystemSettingRepository --> SystemSetting
+SystemSetting --> CommonStatus
 Slot --> FootballField
 FootballField --> FieldType
 FieldPrice --> FootballField

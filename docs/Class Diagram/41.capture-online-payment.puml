@@ -10,13 +10,16 @@ class PaymentController <<controller>> {
 }
 
 class PayPalCheckoutService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
     -bookingWorkflowService : BookingWorkflowService
 
     +captureOrder(bookingId : Long, orderId : String, request : ApiRequests.PayPalOrderCapture) : Map<String, Object>
+    -captureRemoteOrderWithRecovery(payment : Payment) : JsonNode
+    -captureRemoteOrder(orderId : String, requestId : String) : JsonNode
+    -showRemoteOrder(orderId : String) : JsonNode
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -bookingRepository : BookingRepository
     -userRepository : AppUserRepository
     -paymentRepository : PaymentRepository
@@ -96,12 +99,10 @@ class AppUser <<entity>> {
     -email : String
     -phone : String
     -passwordHash : String
-    -avatarUrl : String
     -dateOfBirth : LocalDate
     -address : String
     -status : AccountStatus
-    -bookingRestricted : boolean
-    -restrictionReason : String
+    -lockReason : String
     -lastLoginAt : LocalDateTime
     -emailVerified : boolean
     -emailVerificationToken : String
@@ -117,6 +118,8 @@ class Payment <<entity>> {
     -paymentOption : PaymentOption
     -paymentMethod : PaymentMethod
     -amount : BigDecimal
+    -providerFeeAmount : BigDecimal
+    -providerNetAmount : BigDecimal
     -status : PaymentStatus
     -transactionCode : String
     -providerOrderId : String
@@ -191,13 +194,13 @@ enum NotificationType {
 ' Relationships
 PaymentController ..> PayPalCheckoutService
 PaymentController ..> PayPalOrderCaptureDTO
-PayPalCheckoutService ..> DemoSupportService
+PayPalCheckoutService ..> DomainSupportService
 PayPalCheckoutService ..> PayPalOrderCaptureDTO
-DemoSupportService ..> BookingRepository
-DemoSupportService ..> AppUserRepository
-DemoSupportService ..> PaymentRepository
-DemoSupportService ..> NotificationRepository
-DemoSupportService ..> InvoiceRepository
+DomainSupportService ..> BookingRepository
+DomainSupportService ..> AppUserRepository
+DomainSupportService ..> PaymentRepository
+DomainSupportService ..> NotificationRepository
+DomainSupportService ..> InvoiceRepository
 
 BookingRepository --> Booking
 AppUserRepository --> AppUser

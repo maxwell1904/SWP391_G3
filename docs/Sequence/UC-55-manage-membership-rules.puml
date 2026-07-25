@@ -1,0 +1,121 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Admin" as Actor
+participant "MembershipRulesPage" as UI
+participant "App.jsx" as App
+participant "PromotionReportController" as Controller
+participant "PromotionReportService" as Service
+participant "DomainSupportService" as Support
+participant "MembershipLevelRepository" as LevelRepo
+participant "AppUserRepository" as UserRepo
+participant "CustomerMembershipRepository" as MembershipRepo
+database "Database" as DB
+
+== Manage membership rules ==
+
+Actor -> UI : 1. Create or edit membership tier
+activate Actor
+activate UI
+
+UI -> App : 2. createMembershipLevel(payload) / updateMembershipLevel(id,payload)
+activate App
+
+App -> Controller : 3. POST /api/membership/levels or PUT /api/membership/levels/{id}
+activate Controller
+
+Controller -> Service : 4. createMembershipLevel(request) / updateMembershipLevel(id,request)
+activate Service
+
+Service -> LevelRepo : 5. findAllByOrderByDisplayOrderAsc()
+activate LevelRepo
+
+LevelRepo -> DB : 6. SELECT membership_level ORDER BY display_order
+activate DB
+DB --> LevelRepo : 7. Current record(s)
+deactivate DB
+LevelRepo --> Service : 8. Domain object(s)
+deactivate LevelRepo
+
+Service -> Service : 9. Require Admin\nvalidate level name, threshold, discount and status
+activate Service
+deactivate Service
+
+alt Validation fails
+  Service -> Service : 10. Build ApiException
+  activate Service
+  deactivate Service
+else Validation succeeds
+  Service -> LevelRepo : 10. save(level)
+  activate LevelRepo
+  LevelRepo -> DB : 11. INSERT or UPDATE membership_level
+  activate DB
+  DB --> LevelRepo : 12. Saved row
+  deactivate DB
+  LevelRepo --> Service : 13. Saved domain object
+  deactivate LevelRepo
+
+  Service -> Support : 14. refreshAllMembershipAssignments()
+  activate Support
+  Support -> UserRepo : 15. findAll()
+  activate UserRepo
+  UserRepo -> DB : 16. SELECT app_user
+  activate DB
+  DB --> UserRepo : 17. Users
+  deactivate DB
+  UserRepo --> Support : 18. Customer accounts
+  deactivate UserRepo
+
+  loop Each Customer
+    Support -> MembershipRepo : 19. findByCustomer_UserId(customerId)
+    activate MembershipRepo
+    MembershipRepo -> DB : 20. SELECT current membership row
+    activate DB
+    DB --> MembershipRepo : 21. Existing row or empty
+    deactivate DB
+    MembershipRepo --> Support : 22. Optional<CustomerMembership>
+    deactivate MembershipRepo
+    Support -> Support : 23. Recalculate completed count\nand eligible active tier
+    activate Support
+    deactivate Support
+    Support -> MembershipRepo : 24. save(existing row or first enrollment)
+    activate MembershipRepo
+    MembershipRepo -> DB : 25. UPDATE existing row\nor INSERT only when absent
+    activate DB
+    DB --> MembershipRepo : 26. Persisted membership
+    deactivate DB
+    MembershipRepo --> Support : 27. Saved membership
+    deactivate MembershipRepo
+  end
+  Support --> Service : 28. Membership assignments synchronized
+  deactivate Support
+end
+
+Service --> Controller : 29. membershipLevelSummary or error
+deactivate Service
+
+Controller --> App : 30. HTTP response
+deactivate Controller
+
+App -> App : 31. refreshAll()
+activate App
+deactivate App
+
+App --> UI : 32. Refresh ordered tier list
+deactivate App
+
+UI --> Actor : 33. Show saved membership rule
+deactivate UI
+deactivate Actor
+
+@enduml

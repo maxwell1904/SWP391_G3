@@ -1,0 +1,81 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor Customer
+participant "PayPalCheckout" as UI
+participant "PaymentController" as Controller
+participant "PayPalCheckoutService" as Service
+participant "PaymentRepository" as PayRepo
+participant "BookingRepository" as BookingRepo
+participant "PayPal Orders v2" as PayPal
+database "Database" as DB
+
+== Capture/confirm online payment ==
+
+Customer -> UI : 1. Approve PayPal order
+activate Customer
+activate UI
+UI -> Controller : 2. POST /api/bookings/{id}/paypal/orders/{orderId}/capture
+activate Controller
+Controller -> Service : 3. captureOrder(bookingId, orderId, request)
+activate Service
+Service -> PayRepo : 4. findByProviderOrderId(orderId)
+activate PayRepo
+PayRepo -> DB : 5. SELECT payment WHERE provider_order_id=?
+activate DB
+DB --> PayRepo : 6. pending Payment
+deactivate DB
+PayRepo --> Service : 7. Payment
+deactivate PayRepo
+Service -> PayPal : 8. POST capture with stable PayPal-Request-Id
+activate PayPal
+PayPal --> Service : 9. capture status, id, gross amount,\nPayPal fee and provider net amount
+deactivate PayPal
+alt Capture response received
+  Service -> Service : 10. Use returned capture representation
+else Timeout or ambiguous provider error
+  Service -> PayPal : 10. GET /v2/checkout/orders/{orderId}
+  activate PayPal
+  PayPal --> Service : 11. Existing order/capture representation
+  deactivate PayPal
+end
+Service -> Service : 12. Validate COMPLETED, USD and exact amount
+activate Service
+deactivate Service
+alt Provider capture is valid
+  Service -> PayRepo : 13. save paid Payment with exact provider breakdown
+  activate PayRepo
+  PayRepo -> DB : 14. UPDATE payment; UPDATE gross paid balance; UPSERT invoice
+  activate DB
+  DB --> PayRepo : 15. committed rows
+  deactivate DB
+  PayRepo --> Service : 16. paid Payment
+  deactivate PayRepo
+  Service -> BookingRepo : 17. findById(bookingId)
+  activate BookingRepo
+  BookingRepo --> Service : 18. updated Booking
+  deactivate BookingRepo
+else Provider capture fails validation
+  Service -> Service : 13. Set failed fields and throw ApiException
+  activate Service
+  deactivate Service
+end
+Service --> Controller : 19. bookingDetail or error
+deactivate Service
+Controller --> UI : 20. HTTP response
+deactivate Controller
+UI --> Customer : 21. Show confirmation/invoice or failure
+deactivate UI
+deactivate Customer
+
+@enduml

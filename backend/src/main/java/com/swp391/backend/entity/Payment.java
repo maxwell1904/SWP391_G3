@@ -60,6 +60,14 @@ public class Payment extends AuditEntity {
     @Column(name = "currency", length = 10)
     private String currency;
 
+    /** Actual processor fee returned by PayPal for this capture; null means legacy/untracked. */
+    @Column(name = "provider_fee_amount", precision = 12, scale = 2)
+    private BigDecimal providerFeeAmount;
+
+    /** Actual merchant receivable returned by PayPal; null means legacy/untracked. */
+    @Column(name = "provider_net_amount", precision = 12, scale = 2)
+    private BigDecimal providerNetAmount;
+
     @Column(name = "idempotency_key", length = 120)
     private String idempotencyKey;
 

@@ -1,0 +1,58 @@
+@startuml
+title Guest Screen Flow
+top to bottom direction
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam linetype polyline
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 13
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor white
+  BorderColor #333333
+  RoundCorner 8
+}
+skinparam note {
+  BackgroundColor #FFF4EE
+  BorderColor #C98367
+}
+
+rectangle "Landing Page" as Home
+rectangle "Field List" as Fields
+rectangle "Field Details\n(modal)" as Detail
+rectangle "Booking Page\n(browse checkout)" as Booking
+rectangle "Offers" as Offers
+rectangle "Membership Benefits" as Benefits
+rectangle "Find a Field" as Assistant
+rectangle "Ranked Live Slots" as Suggestions
+rectangle "Login / Register" as Auth
+rectangle "Forgot Password" as Forgot
+rectangle "Reset Password" as Reset
+rectangle "Verify Email" as Verify
+
+Home --> Fields : Fields
+Fields --> Detail : View details
+Detail --> Booking : Check availability
+Booking --> Auth : Sign in to book
+
+Home --> Offers : Offers
+Offers --> Fields : Browse eligible fields
+Home --> Benefits : Membership
+
+Home --> Assistant : Find a field
+Assistant --> Suggestions : Filter search
+Suggestions --> Booking : Book this slot
+Assistant --> Auth : Ask Gemini\n(sign-in required)
+
+Home --> Auth : Log in
+Auth --> Verify : Registration email link
+Auth --> Forgot : Forgot password
+Forgot --> Reset : Reset email link
+Reset --> Auth : Password changed
+Verify --> Auth : Email verified
+
+note bottom of Auth
+  Login and registration share
+  the same authentication page.
+end note
+@enduml

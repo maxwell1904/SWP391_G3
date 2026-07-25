@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { SectionIntro, FieldControl } from '../components/common'
-import { formatMoney, tomorrow } from '../utils/format'
+import { SectionIntro, FieldControl, ImageUploadField } from '../components/common'
+import { formatDate, formatMoney, resolveAssetUrl, tomorrow } from '../utils/format'
 
 const PAGE_SIZE = 5
 
@@ -14,6 +14,9 @@ export function PromotionsPage({ promotions, currentUser, createPromotion, updat
   const totalPages = Math.max(1, Math.ceil(visiblePromotions.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
   const paged = visiblePromotions.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+  const fieldTypeById = new Map(fieldTypes.map(item => [Number(item.fieldTypeId), item.typeName]))
+  const serviceById = new Map(services.map(item => [Number(item.extraServiceId), item.serviceName]))
+  const membershipById = new Map(membershipLevels.map(item => [Number(item.membershipLevelId), item.levelName]))
 
   function handleEdit(promo) {
     setEditForm({
@@ -32,7 +35,11 @@ export function PromotionsPage({ promotions, currentUser, createPromotion, updat
       status: promo.status || 'active',
       applicableFieldTypeId: promo.applicableFieldTypeId || '',
       applicableExtraServiceId: promo.applicableExtraServiceId || '',
-      applicableMembershipLevelId: promo.applicableMembershipLevelId || ''
+      applicableMembershipLevelId: promo.applicableMembershipLevelId || '',
+      applicableDayType: promo.applicableDayType || '',
+      applicableStartTime: promo.applicableStartTime?.slice(0, 5) || '',
+      applicableEndTime: promo.applicableEndTime?.slice(0, 5) || '',
+      stackable: Boolean(promo.stackable)
     })
     setIsEditing(true)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -75,19 +82,25 @@ export function PromotionsPage({ promotions, currentUser, createPromotion, updat
     <section id="promotions" className="section promotionSection">
       <SectionIntro
         kicker="Promotions"
-        title="Active offers and membership benefits"
-        text="Save on selected matches and unlock member discounts after completed bookings."
+        title={isAdmin ? 'Promotion catalogue' : 'Available offers'}
+        text={isAdmin ? 'Create, schedule, and limit offers customers can use at checkout.' : 'Offers are applied automatically when your booking meets their conditions.'}
       />
 
       {isAdmin && (
         <div className="adminControls">
           {!isEditing && (
-            <button className="primaryButton" onClick={handleNew}>+ Add New Promotion</button>
+            <button type="button" className="primaryButton" onClick={handleNew}>Add promotion</button>
           )}
 
           {isEditing && (
             <div className="promoForm">
-              <h3>{editForm.promotionId ? 'Edit Promotion' : 'New Promotion'}</h3>
+              <div className="formHeading">
+                <div>
+                  <span>Promotion editor</span>
+                  <h3>{editForm.promotionId ? 'Edit offer' : 'Create an offer'}</h3>
+                </div>
+                <p>Set the value first, then narrow where the offer applies.</p>
+              </div>
               <div className="promoFormGrid">
                 <FieldControl label="Code">
                   <input value={editForm.promotionCode} onChange={e => updateField('promotionCode', e.target.value)} placeholder="e.g. SUMMER20" />
@@ -127,7 +140,7 @@ export function PromotionsPage({ promotions, currentUser, createPromotion, updat
                 </FieldControl>
                 <FieldControl label="Condition: Field Type">
                   <select value={editForm.applicableFieldTypeId} onChange={e => updateField('applicableFieldTypeId', e.target.value)}>
-                    <option value="">-- All Field Types --</option>
+                    <option value="">All field types</option>
                     {fieldTypes.map(ft => (
                       <option key={ft.fieldTypeId} value={ft.fieldTypeId}>{ft.typeName}</option>
                     ))}
@@ -135,7 +148,7 @@ export function PromotionsPage({ promotions, currentUser, createPromotion, updat
                 </FieldControl>
                 <FieldControl label="Condition: Extra Service">
                   <select value={editForm.applicableExtraServiceId} onChange={e => updateField('applicableExtraServiceId', e.target.value)}>
-                    <option value="">-- All Services --</option>
+                    <option value="">All services</option>
                     {services.map(svc => (
                       <option key={svc.extraServiceId} value={svc.extraServiceId}>{svc.serviceName}</option>
                     ))}
@@ -143,12 +156,26 @@ export function PromotionsPage({ promotions, currentUser, createPromotion, updat
                 </FieldControl>
                 <FieldControl label="Condition: Membership">
                   <select value={editForm.applicableMembershipLevelId} onChange={e => updateField('applicableMembershipLevelId', e.target.value)}>
-                    <option value="">-- All Memberships --</option>
+                    <option value="">All memberships</option>
                     {membershipLevels.map(ml => (
                       <option key={ml.membershipLevelId} value={ml.membershipLevelId}>{ml.levelName}</option>
                     ))}
                   </select>
                 </FieldControl>
+                <FieldControl label="Condition: Day">
+                  <select value={editForm.applicableDayType} onChange={e => updateField('applicableDayType', e.target.value)}>
+                    <option value="">Any day</option>
+                    <option value="weekday">Weekdays</option>
+                    <option value="weekend">Weekends</option>
+                  </select>
+                </FieldControl>
+                <FieldControl label="Condition: Starts after">
+                  <input type="time" value={editForm.applicableStartTime} onChange={e => updateField('applicableStartTime', e.target.value)} />
+                </FieldControl>
+                <FieldControl label="Condition: Ends before">
+                  <input type="time" value={editForm.applicableEndTime} onChange={e => updateField('applicableEndTime', e.target.value)} />
+                </FieldControl>
+                <ImageUploadField label="Promotion banner" value={editForm.bannerUrl} onChange={value => updateField('bannerUrl', value)} />
                 <div className="fullWidth">
                   <FieldControl label="Description">
                     <textarea value={editForm.description} onChange={e => updateField('description', e.target.value)} placeholder="Short description for customers" />
@@ -156,8 +183,8 @@ export function PromotionsPage({ promotions, currentUser, createPromotion, updat
                 </div>
               </div>
               <div className="buttonRow">
-                <button className="primaryButton" onClick={handleSave}>Save</button>
-                <button className="secondaryButton" onClick={() => setIsEditing(false)}>Cancel</button>
+                <button type="button" className="primaryButton" onClick={handleSave}>Save promotion</button>
+                <button type="button" className="secondaryButton" onClick={() => setIsEditing(false)}>Cancel</button>
               </div>
             </div>
           )}
@@ -177,7 +204,9 @@ export function PromotionsPage({ promotions, currentUser, createPromotion, updat
             key={promotion.promotionId}
             className={`promoCardFull ${promotion.status === 'inactive' ? 'inactive' : ''}`}
           >
-            {/* Header row */}
+            {promotion.bannerUrl && (
+              <img className="promoBanner" src={resolveAssetUrl(promotion.bannerUrl)} alt="" width="960" height="360" loading="lazy" />
+            )}
             <div className="promoCardFullHeader">
               <span className="promoCodeBadge">{promotion.promotionCode}</span>
               {isAdmin && (
@@ -187,17 +216,10 @@ export function PromotionsPage({ promotions, currentUser, createPromotion, updat
               )}
             </div>
 
-            {/* Title + discount */}
             <div className="promoCardFullTitle">
               <div>
                 <h3>{promotion.promotionName}</h3>
-                {(promotion.applicableFieldTypeId || promotion.applicableExtraServiceId || promotion.applicableMembershipLevelId) && (
-                  <div className="promoConditions" style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
-                    {promotion.applicableFieldTypeId && <span className="promoConditionBadge" style={{ fontSize: '0.72rem', background: 'var(--faint)', padding: '0.15rem 0.5rem', borderRadius: '4px', color: 'var(--muted)' }}>Field Type Only</span>}
-                    {promotion.applicableExtraServiceId && <span className="promoConditionBadge" style={{ fontSize: '0.72rem', background: 'var(--faint)', padding: '0.15rem 0.5rem', borderRadius: '4px', color: 'var(--muted)' }}>Service Only</span>}
-                    {promotion.applicableMembershipLevelId && <span className="promoConditionBadge" style={{ fontSize: '0.72rem', background: 'var(--faint)', padding: '0.15rem 0.5rem', borderRadius: '4px', color: 'var(--muted)' }}>Membership Only</span>}
-                  </div>
-                )}
+                <p className="promoEligibility">{describeEligibility(promotion, fieldTypeById, serviceById, membershipById)}</p>
               </div>
               <span className="promoDiscountBig">
                 {promotion.discountType === 'percent'
@@ -206,20 +228,18 @@ export function PromotionsPage({ promotions, currentUser, createPromotion, updat
               </span>
             </div>
 
-            {/* Description */}
             {promotion.description && (
               <p className="promoCardDesc">{promotion.description}</p>
             )}
 
-            {/* Detail grid */}
             <dl className="promoDetailGrid">
               <div>
-                <dt>Valid from</dt>
-                <dd>{promotion.startDate}</dd>
+                <dt>Starts</dt>
+                <dd>{formatDate(promotion.startDate)}</dd>
               </div>
               <div>
-                <dt>Valid until</dt>
-                <dd>{promotion.endDate}</dd>
+                <dt>Ends</dt>
+                <dd>{formatDate(promotion.endDate)}</dd>
               </div>
               {promotion.usageLimit && (
                 <div>
@@ -241,10 +261,9 @@ export function PromotionsPage({ promotions, currentUser, createPromotion, updat
               )}
             </dl>
 
-            {/* Admin actions */}
             {isAdmin && (
               <div className="promoCardActions">
-                <button className="ghostDarkButton" onClick={() => handleEdit(promotion)}>
+                <button type="button" className="ghostDarkButton" onClick={() => handleEdit(promotion)}>
                   Edit
                 </button>
               </div>
@@ -257,7 +276,6 @@ export function PromotionsPage({ promotions, currentUser, createPromotion, updat
         )}
       </div>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="promoPagination">
           <button
@@ -295,6 +313,16 @@ export function PromotionsPage({ promotions, currentUser, createPromotion, updat
   )
 }
 
+function describeEligibility(promotion, fieldTypeById, serviceById, membershipById) {
+  const rules = []
+  if (promotion.applicableFieldTypeId) rules.push(fieldTypeById.get(Number(promotion.applicableFieldTypeId)) || 'selected field type')
+  if (promotion.applicableExtraServiceId) rules.push(serviceById.get(Number(promotion.applicableExtraServiceId)) || 'selected service')
+  if (promotion.applicableMembershipLevelId) rules.push(`${membershipById.get(Number(promotion.applicableMembershipLevelId)) || 'selected'} members`)
+  if (promotion.applicableDayType && promotion.applicableDayType !== 'all') rules.push(promotion.applicableDayType === 'weekday' ? 'weekdays' : 'weekends')
+  if (promotion.applicableStartTime && promotion.applicableEndTime) rules.push(`${promotion.applicableStartTime.slice(0, 5)}–${promotion.applicableEndTime.slice(0, 5)}`)
+  return rules.length ? `For ${rules.join(' · ')}` : 'Applies to every eligible booking'
+}
+
 function emptyForm() {
   return {
     promotionCode: '',
@@ -311,6 +339,10 @@ function emptyForm() {
     status: 'active',
     applicableFieldTypeId: '',
     applicableExtraServiceId: '',
-    applicableMembershipLevelId: ''
+    applicableMembershipLevelId: '',
+    applicableDayType: '',
+    applicableStartTime: '',
+    applicableEndTime: '',
+    stackable: false
   }
 }

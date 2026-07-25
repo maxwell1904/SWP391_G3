@@ -1,0 +1,88 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class PromotionReportController <<controller>> {
+    -promotionReportService : PromotionReportService
+
+    +membershipLevels(includeInactive : boolean) : Object
+    +createMembershipLevel(request : ApiRequests.MembershipLevelUpsert) : Object
+    +updateMembershipLevel(id : Long, request : ApiRequests.MembershipLevelUpsert) : Object
+}
+
+class PromotionReportService <<service>> {
+    -support : DomainSupportService
+
+    +membershipLevels(includeInactive : boolean) : List<Map<String, Object>>
+    +createMembershipLevel(request : ApiRequests.MembershipLevelUpsert) : Map<String, Object>
+    +updateMembershipLevel(id : Long, request : ApiRequests.MembershipLevelUpsert) : Map<String, Object>
+    -applyMembershipLevelFields(level : MembershipLevel, request : ApiRequests.MembershipLevelUpsert, currentId : Long) : void
+    -requireAdmin() : void
+}
+
+class DomainSupportService <<service>> {
+    -userRepository : AppUserRepository
+    -customerMembershipRepository : CustomerMembershipRepository
+    -membershipLevelRepository : MembershipLevelRepository
+    -bookingRepository : BookingRepository
+
+    +refreshAllMembershipAssignments() : void
+    +updateMembershipProgress(customer : AppUser) : void
+    +attachDefaultMembership(customer : AppUser) : CustomerMembership
+    +resolveEligibleMembershipLevel(customer : AppUser, referenceDate : LocalDate) : MembershipLevel
+}
+
+class "ApiRequests.MembershipLevelUpsert" as MembershipLevelUpsertDTO <<dto>> {
+    -levelName : String
+    -requiredCompletedBookings : Integer
+    -discountPercent : BigDecimal
+    -benefitDescription : String
+    -displayOrder : Integer
+    -status : String
+    -qualificationPeriod : String
+    -requiredConsecutivePeriods : Integer
+}
+
+interface MembershipLevelRepository <<repository>> {
+    +findAllByOrderByDisplayOrderAsc() : List<MembershipLevel>
+    +findById(id : Long) : Optional<MembershipLevel>
+    +save(entity : MembershipLevel) : MembershipLevel
+}
+
+interface AppUserRepository <<repository>> {
+    +findAll() : List<AppUser>
+}
+
+interface CustomerMembershipRepository <<repository>> {
+    +findByCustomer_UserId(customerId : Long) : Optional<CustomerMembership>
+    +save(entity : CustomerMembership) : CustomerMembership
+}
+
+interface BookingRepository <<repository>> {
+    +findByCustomer_UserIdOrderByBookingIdDesc(customerId : Long) : List<Booking>
+}
+
+class MembershipLevel <<entity>> {
+    -membershipLevelId : Long
+    -levelName : String
+    -requiredCompletedBookings : int
+    -discountPercent : BigDecimal
+    -benefitDescription : String
+    -displayOrder : int
+    -status : CommonStatus
+    -qualificationPeriod : String
+    -requiredConsecutivePeriods : int
+}
+
+PromotionReportController ..> PromotionReportService
+PromotionReportController ..> MembershipLevelUpsertDTO
+PromotionReportService ..> MembershipLevelUpsertDTO
+PromotionReportService ..> DomainSupportService
+DomainSupportService ..> MembershipLevelRepository
+DomainSupportService ..> AppUserRepository
+DomainSupportService ..> CustomerMembershipRepository
+DomainSupportService ..> BookingRepository
+MembershipLevelRepository --> MembershipLevel
+
+@enduml

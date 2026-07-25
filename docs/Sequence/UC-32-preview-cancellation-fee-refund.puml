@@ -1,0 +1,74 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Customer / Staff" as Actor
+participant "AccountPage / StaffPage" as UI
+participant "App.jsx" as App
+participant "BookingController" as Controller
+participant "BookingWorkflowService" as Service
+participant "BookingRepository" as Repo
+database "Database" as DB
+
+== Preview cancellation fee/refund ==
+
+Actor -> UI : 1. Select booking and request cancellation preview
+activate Actor
+activate UI
+
+UI -> App : 2. previewCancellation()
+activate App
+
+App -> Controller : 3. GET /api/bookings/{bookingId}/cancellation-preview
+activate Controller
+
+Controller -> Service : 4. previewCancellation(bookingId)
+activate Service
+
+Service -> Repo : 5. findById(bookingId)
+activate Repo
+
+Repo -> DB : 6. SELECT booking + slot + policy settings
+activate DB
+
+alt Eligible booking exists
+  DB --> Repo : 7. Matching rows
+else Booking is missing
+  DB --> Repo : 7. Empty result
+end
+deactivate DB
+
+Repo --> Service : 8. Optional<Booking>
+deactivate Repo
+
+Service -> Service : 9. requireBookingVisible()\ncalculate policy entitlement from gross paid\nsubtract already completed refunds once
+activate Service
+deactivate Service
+
+alt Request is permitted
+  Service --> Controller : 10. {policyRefundAmount, completedRefundAmount,\nfeeAmount, refundableAmount, policy}
+else Access or data validation fails
+  Service --> Controller : 10. ApiException
+end
+deactivate Service
+
+Controller --> App : 11. HTTP response
+deactivate Controller
+
+App --> UI : 12. Store cancellationPreview
+deactivate App
+
+UI --> Actor : 13. Show fee and refundable amount
+deactivate UI
+deactivate Actor
+
+@enduml

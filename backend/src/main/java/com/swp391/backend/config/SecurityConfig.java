@@ -84,10 +84,11 @@ public class SecurityConfig {
                                 "/api/fields/{fieldId}",
                                 "/api/field-types",
                                 "/api/slots/search",
+                                "/api/slots/suggestions",
                                 "/api/services",
                                 "/api/promotions",
                                 "/api/membership/levels",
-                                "/api/settings",
+                                "/api/uploads/images/*",
                                 "/api/payments/paypal/config"
                         ).permitAll()
                         // A visitor may calculate an anonymous basket; booking itself is authenticated.
@@ -126,25 +127,27 @@ public class SecurityConfig {
                         ).hasAnyRole("Staff", "Admin")
                         .requestMatchers(HttpMethod.GET, "/api/refunds").hasAnyRole("Staff", "Admin")
                         .requestMatchers(HttpMethod.PUT, "/api/refunds/**").hasAnyRole("Staff", "Admin")
-                        .requestMatchers(HttpMethod.POST, "/api/promotions").hasAnyRole("Staff", "Admin")
-                        .requestMatchers(HttpMethod.PUT, "/api/promotions/**").hasAnyRole("Staff", "Admin")
+                        .requestMatchers(HttpMethod.GET, "/api/settings").hasRole("Admin")
+                        .requestMatchers(HttpMethod.POST, "/api/promotions").hasRole("Admin")
+                        .requestMatchers(HttpMethod.PUT, "/api/promotions/**").hasRole("Admin")
                         // The workflow service enforces that a customer may only cancel
                         // their own booking; Staff/Admin retain the other lifecycle actions.
-                        .requestMatchers(HttpMethod.PUT, "/api/bookings/*/services").hasAnyRole("Staff", "Admin")
+                        .requestMatchers(HttpMethod.PUT, "/api/bookings/*/services").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/issues/*/status").hasAnyRole("Staff", "Admin")
-                        .requestMatchers("/api/account/users/*/activity").hasAnyRole("Staff", "Admin")
+                        .requestMatchers("/api/account/users/*/activity").hasRole("Admin")
                         .requestMatchers(HttpMethod.GET, "/api/account/customers").hasAnyRole("Staff", "Admin")
                         .requestMatchers(HttpMethod.POST, "/api/membership/levels").hasRole("Admin")
                         .requestMatchers(HttpMethod.PUT, "/api/membership/levels/*").hasRole("Admin")
                         .requestMatchers(
                                 "/api/account/users",
-                                "/api/account/users/*/restriction",
+                                "/api/account/users/*/lock",
                                 "/api/account/users/*/status",
                                 "/api/account/staff/**"
                         ).hasRole("Admin")
                         // Authenticated endpoints (Customers, Staff, Admin)
                         .requestMatchers(
                                 "/api/bookings/**",
+                                "/api/assistant/**",
                                 "/api/account/users/*/profile",
                                 "/api/account/users/*/password",
                                 "/api/membership/*/progress",

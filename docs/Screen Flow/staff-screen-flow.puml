@@ -1,0 +1,68 @@
+@startuml
+title Staff Screen Flow
+top to bottom direction
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam linetype polyline
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 13
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BackgroundColor white
+  BorderColor #333333
+  RoundCorner 8
+}
+skinparam package {
+  BackgroundColor #F8FAF8
+  BorderColor #5B7A67
+}
+
+rectangle "Login" as Login
+rectangle "Staff Workspace" as Workspace
+rectangle "Walk-in Booking Page" as WalkIn
+rectangle "Cash Checkout Summary" as Cash
+
+package "Bookings tab" {
+  rectangle "Booking Queue" as Queue
+  rectangle "Lifecycle Actions" as Lifecycle
+  rectangle "Cancellation Terms\n(inline preview)" as CancelTerms
+  rectangle "Invoice & Payment Status" as Billing
+  rectangle "Edit Booking Services" as Services
+}
+
+package "Field Schedule tab" {
+  rectangle "Daily Operations Calendar" as Calendar
+  rectangle "Block / Unblock Slot" as Block
+}
+
+package "Issues & Refunds tab" {
+  rectangle "Issue Work Queue" as Issues
+  rectangle "Refund Work Queue" as Refunds
+}
+
+Login --> Workspace : Staff login
+Workspace --> Queue : Bookings
+Queue --> Lifecycle : Select booking
+Lifecycle --> Billing : Inspect / collect balance
+Lifecycle --> Services : Before check-in
+Lifecycle --> CancelTerms : Review before cancel
+CancelTerms --> Lifecycle : Confirm or keep booking
+
+Workspace --> WalkIn : Create walk-in booking
+WalkIn --> Cash : Customer + slot + services
+Cash --> Queue : Record cash deposit/full
+
+Workspace --> Calendar : Field schedule
+Calendar --> Block : Block or restore slot
+Block --> Calendar : Saved
+
+Workspace --> Issues : Issues & refunds
+Issues --> Issues : Start / resolve\nwith note
+Issues --> Refunds : Review Customer requests
+Refunds --> Refunds : Approve / reject /\nPayPal retry / cash complete
+
+note bottom of Refunds
+  Staff processes Customer requests;
+  Staff never creates a refund request.
+end note
+@enduml

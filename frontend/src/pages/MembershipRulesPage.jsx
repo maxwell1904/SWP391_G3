@@ -9,7 +9,7 @@ export function MembershipRulesPage({ membershipLevels, currentUser, createMembe
   if (!isAdmin) {
     return (
       <section className="section limitWidth">
-        <SectionIntro title="Access Denied" desc="Only administrators can manage membership rules." />
+        <SectionIntro kicker="Membership" title="Access denied" text="Only administrators can manage membership rules." />
       </section>
     )
   }
@@ -22,7 +22,9 @@ export function MembershipRulesPage({ membershipLevels, currentUser, createMembe
       discountPercent: level.discountPercent || 0,
       benefitDescription: level.benefitDescription || '',
       displayOrder: level.displayOrder || 0,
-      status: level.status || 'active'
+      status: level.status || 'active',
+      qualificationPeriod: level.qualificationPeriod || 'lifetime',
+      requiredConsecutivePeriods: level.requiredConsecutivePeriods || 1
     })
     setIsEditing(true)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -43,7 +45,8 @@ export function MembershipRulesPage({ membershipLevels, currentUser, createMembe
       ...editForm,
       requiredCompletedBookings: Number(editForm.requiredCompletedBookings),
       discountPercent: Number(editForm.discountPercent),
-      displayOrder: Number(editForm.displayOrder)
+      displayOrder: Number(editForm.displayOrder),
+      requiredConsecutivePeriods: Number(editForm.requiredConsecutivePeriods)
     }
     if (editForm.membershipLevelId) {
       await updateMembershipLevel(editForm.membershipLevelId, payload)
@@ -55,11 +58,17 @@ export function MembershipRulesPage({ membershipLevels, currentUser, createMembe
 
   return (
     <section className="section limitWidth">
-      <SectionIntro title="Membership Rules" desc="Configure membership tiers and benefits" />
+      <SectionIntro kicker="Membership" title="Tier rules" text="Define the thresholds and automatic discounts customers earn after completed bookings." />
       <div className="sectionContent">
         {isEditing ? (
           <div className="promoForm">
-            <h3>{editForm.membershipLevelId ? 'Edit Membership Level' : 'New Membership Level'}</h3>
+            <div className="formHeading">
+              <div>
+                <span>Tier editor</span>
+                <h3>{editForm.membershipLevelId ? 'Edit membership tier' : 'Create membership tier'}</h3>
+              </div>
+              <p>Customers move up automatically when they complete enough bookings.</p>
+            </div>
             <div className="promoFormGrid">
               <FieldControl label="Level Name">
                 <input type="text" value={editForm.levelName} onChange={e => updateField('levelName', e.target.value)} placeholder="e.g. Gold" />
@@ -73,6 +82,18 @@ export function MembershipRulesPage({ membershipLevels, currentUser, createMembe
               <FieldControl label="Display Order">
                 <input type="number" value={editForm.displayOrder} onChange={e => updateField('displayOrder', e.target.value)} />
               </FieldControl>
+              <FieldControl label="Qualification Period">
+                <select value={editForm.qualificationPeriod} onChange={e => updateField('qualificationPeriod', e.target.value)}>
+                  <option value="lifetime">Lifetime completed bookings</option>
+                  <option value="monthly">Completed bookings this month</option>
+                  <option value="weekly">Weekly consecutive streak</option>
+                </select>
+              </FieldControl>
+              {editForm.qualificationPeriod === 'weekly' && (
+                <FieldControl label="Consecutive Weeks Required">
+                  <input type="number" value={editForm.requiredConsecutivePeriods} onChange={e => updateField('requiredConsecutivePeriods', e.target.value)} min="1" />
+                </FieldControl>
+              )}
               <FieldControl label="Status">
                 <select value={editForm.status} onChange={e => updateField('status', e.target.value)}>
                   <option value="active">Active</option>
@@ -86,39 +107,34 @@ export function MembershipRulesPage({ membershipLevels, currentUser, createMembe
               </div>
             </div>
             <div className="buttonRow">
-              <button className="primaryButton" onClick={handleSave}>Save</button>
-              <button className="secondaryButton" onClick={() => setIsEditing(false)}>Cancel</button>
+              <button type="button" className="primaryButton" onClick={handleSave}>Save tier</button>
+              <button type="button" className="secondaryButton" onClick={() => setIsEditing(false)}>Cancel</button>
             </div>
           </div>
         ) : (
           <div className="adminControls">
-            <button className="primaryButton" onClick={handleNew}>+ Add New Level</button>
+            <button type="button" className="primaryButton" onClick={handleNew}>Add membership tier</button>
           </div>
         )}
 
-        <div className="promoCardGrid">
-          {membershipLevels.map(level => (
-            <div key={level.membershipLevelId} className={`promoCardFull ${level.status === 'inactive' ? 'inactive' : ''}`}>
-              <div className="promoCardFullHeader">
-                <span className="promoCodeBadge">{level.levelName}</span>
-                <span className={`promoStatusPill ${level.status}`}>
-                  {level.status}
-                </span>
-              </div>
-              <div className="promoCardFullTitle">
-                <div>
-                  <h3>Requires {level.requiredCompletedBookings} bookings</h3>
+        <div className="tierAdminList">
+          {[...membershipLevels].sort((a, b) => a.displayOrder - b.displayOrder).map(level => (
+            <article key={level.membershipLevelId} className={`tierAdminItem ${level.status === 'inactive' ? 'inactive' : ''}`}>
+              <div className="tierAdminRank" aria-hidden="true">{Number(level.displayOrder) + 1}</div>
+              <div className="tierAdminIdentity">
+                <div className="tierAdminNameRow">
+                  <h3>{level.levelName}</h3>
+                  <span className={`promoStatusPill ${level.status}`}>{level.status}</span>
                 </div>
-                <span className="promoDiscountBig">
-                  {level.discountPercent}% off
-                </span>
+                <p>{level.benefitDescription || 'Standard field booking access.'}</p>
               </div>
-              <p className="promoCardDesc">{level.benefitDescription}</p>
-              
-              <div className="promoCardActions">
-                <button className="ghostDarkButton" onClick={() => handleEdit(level)}>Edit</button>
-              </div>
-            </div>
+              <dl className="tierAdminMetrics">
+                <div><dt>Threshold</dt><dd>{level.requiredCompletedBookings} bookings</dd></div>
+                <div><dt>Rule</dt><dd>{level.qualificationPeriod === 'weekly' ? `${level.requiredConsecutivePeriods} weeks in a row` : level.qualificationPeriod || 'lifetime'}</dd></div>
+                <div><dt>Discount</dt><dd>{level.discountPercent}% off</dd></div>
+              </dl>
+              <button type="button" className="ghostDarkButton" onClick={() => handleEdit(level)}>Edit tier</button>
+            </article>
           ))}
           {membershipLevels.length === 0 && (
             <p className="emptyText" style={{ gridColumn: '1/-1' }}>No membership levels defined.</p>
@@ -136,6 +152,8 @@ function emptyForm() {
     discountPercent: 0,
     benefitDescription: '',
     displayOrder: 0,
-    status: 'active'
+    status: 'active',
+    qualificationPeriod: 'lifetime',
+    requiredConsecutivePeriods: 1
   }
 }

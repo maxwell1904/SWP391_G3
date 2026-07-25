@@ -10,12 +10,12 @@ class PaymentController <<controller>> {
 }
 
 class PaymentWorkflowService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +payments() : List<Map<String, Object>>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -paymentRepository : PaymentRepository
 
     +paymentSummary(payment : Payment) : Map<String, Object>
@@ -23,6 +23,7 @@ class DemoSupportService <<service>> {
 
 interface PaymentRepository <<repository>> {
     +findAllByOrderByPaymentIdDesc() : List<Payment>
+    +findByBooking_Customer_UserIdOrderByPaymentIdDesc(customerId : Long) : List<Payment>
     +findByBooking_BookingIdOrderByPaymentIdDesc(bookingId : Long) : List<Payment>
     +findByProviderOrderId(providerOrderId : String) : Optional<Payment>
     +findByProviderCaptureId(providerCaptureId : String) : Optional<Payment>
@@ -35,6 +36,8 @@ class Payment <<entity>> {
     -paymentOption : PaymentOption
     -paymentMethod : PaymentMethod
     -amount : BigDecimal
+    -providerFeeAmount : BigDecimal
+    -providerNetAmount : BigDecimal
     -status : PaymentStatus
     -transactionCode : String
     -providerOrderId : String
@@ -87,9 +90,9 @@ enum PaymentStatus {
 
 ' Relationships
 PaymentController ..> PaymentWorkflowService
-PaymentWorkflowService ..> DemoSupportService
-DemoSupportService ..> PaymentRepository
-DemoSupportService ..> Payment
+PaymentWorkflowService ..> DomainSupportService
+DomainSupportService ..> PaymentRepository
+DomainSupportService ..> Payment
 PaymentRepository --> Payment
 Payment --> Booking
 Payment -|> AuditEntity

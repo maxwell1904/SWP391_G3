@@ -1,0 +1,83 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Admin" as Actor
+participant "AdminPage" as UI
+participant "App.jsx" as App
+participant "PromotionReportController" as Controller
+participant "PromotionReportService" as Service
+participant "SystemSettingRepository" as Repo
+database "Database" as DB
+
+== Configure deposit rules ==
+
+Actor -> UI : 1. Save default deposit percentage
+activate Actor
+activate UI
+
+UI -> App : 2. updateDepositSetting(value)
+activate App
+
+App -> Controller : 3. PUT /api/settings/deposit.default_percent
+activate Controller
+
+Controller -> Service : 4. updateSetting(key, request)
+activate Service
+
+Service -> Repo : 5. findBySettingKey(key)
+activate Repo
+
+Repo -> DB : 6. SELECT system_setting WHERE setting_key = ?
+activate DB
+DB --> Repo : 7. Current record(s)
+deactivate DB
+Repo --> Service : 8. Domain object(s)
+deactivate Repo
+
+Service -> Service : 9. Require Admin\npercentage between 0 and 100
+activate Service
+deactivate Service
+
+alt Validation fails
+  Service -> Service : 10. Build ApiException
+  activate Service
+  deactivate Service
+else Validation succeeds
+  Service -> Repo : 10. persist managed SystemSetting
+  activate Repo
+  Repo -> DB : 11. UPDATE system_setting SET setting_value=?, updated_by=?
+  activate DB
+  DB --> Repo : 12. Saved row(s)
+  deactivate DB
+  Repo --> Service : 13. Saved domain object
+  deactivate Repo
+end
+
+Service --> Controller : 14. settingSummary or error
+deactivate Service
+
+Controller --> App : 15. HTTP response
+deactivate Controller
+
+App -> App : 16. refreshAll()
+activate App
+deactivate App
+
+App --> UI : 17. Refresh settings and policy form
+deactivate App
+
+UI --> Actor : 18. Show saved deposit rule
+deactivate UI
+deactivate Actor
+
+@enduml

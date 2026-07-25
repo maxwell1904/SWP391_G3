@@ -1,0 +1,55 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Customer / Staff" as Actor
+participant "BookingPage / StaffPage" as UI
+participant "App.jsx" as App
+participant "CheckoutSummary" as Summary
+participant "PaymentOptionSelector" as Selector
+participant "BookingController" as Controller
+participant "BookingWorkflowService" as Service
+
+== Choose payment option ==
+
+Actor -> UI : 1. Open checkout for selected booking
+activate Actor
+activate UI
+UI -> App : 2. Request current checkout preview
+activate App
+App -> Controller : 3. POST /api/bookings/checkout-preview
+activate Controller
+Controller -> Service : 4. previewCheckout(request)
+activate Service
+Service --> Controller : 5. {totalAmount, depositAmount, remainingAfterDeposit}
+deactivate Service
+Controller --> App : 6. HTTP 200
+deactivate Controller
+App --> Summary : 7. Render USD cost breakdown
+activate Summary
+Summary --> App : 8. Summary rendered
+deactivate Summary
+App --> UI : 9. Show payment controls
+deactivate App
+UI -> Selector : 10. Choose deposit or full
+activate Selector
+alt Customer online booking
+  Selector --> UI : 11. paymentOption = deposit / full
+else Staff walk-in booking
+  Selector --> UI : 11. cash option = deposit / full / remaining
+end
+deactivate Selector
+UI --> Actor : 12. Show exact payable amount
+deactivate UI
+deactivate Actor
+
+@enduml

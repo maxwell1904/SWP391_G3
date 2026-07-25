@@ -32,3 +32,18 @@ export const formatDateTime = value => {
     timeStyle: 'short'
   }).format(new Date(value))
 }
+
+export const formatDate = value => {
+  if (!value) return 'Not set'
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(`${value}T00:00:00`))
+}
+
+export const resolveAssetUrl = value => {
+  if (!value || !String(value).startsWith('/api/')) return value || ''
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8080/api'
+  try {
+    return `${new URL(baseUrl).origin}${value}`
+  } catch {
+    return value
+  }
+}

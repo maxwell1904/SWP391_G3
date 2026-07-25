@@ -7,23 +7,25 @@ class PromotionReportController <<controller>> {
     -promotionReportService : PromotionReportService
 
     +membershipProgress(@PathVariable Long customerId) : Object
-    +membershipLevels() : Object
+    +membershipLevels(includeInactive : boolean) : Object
 }
 
 class PromotionReportService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +membershipProgress(customerId : Long) : Map<String, Object>
-    +membershipLevels() : List<Map<String, Object>>
+    +membershipLevels(includeInactive : boolean) : List<Map<String, Object>>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -customerMembershipRepository : CustomerMembershipRepository
     -membershipLevelRepository : MembershipLevelRepository
 
     +getUser(userId : Long) : AppUser
     +userSummary(user : AppUser) : Map<String, Object>
     +membershipLevelSummary(level : MembershipLevel) : Map<String, Object>
+    +resolveEligibleMembershipLevel(customer : AppUser, referenceDate : LocalDate) : MembershipLevel
+    +membershipQualificationProgress(customer : AppUser, level : MembershipLevel, referenceDate : LocalDate) : int
 }
 
 interface CustomerMembershipRepository <<repository>> {
@@ -52,6 +54,8 @@ class MembershipLevel <<entity>> {
     -benefitDescription : String
     -displayOrder : int
     -status : CommonStatus
+    -qualificationPeriod : String
+    -requiredConsecutivePeriods : int
 }
 
 class AppUser <<entity>> {
@@ -72,12 +76,12 @@ enum CommonStatus {
 
 ' Relationships
 PromotionReportController ..> PromotionReportService
-PromotionReportService ..> DemoSupportService
-DemoSupportService ..> CustomerMembershipRepository
-DemoSupportService ..> MembershipLevelRepository
-DemoSupportService ..> CustomerMembership
-DemoSupportService ..> MembershipLevel
-DemoSupportService ..> AppUser
+PromotionReportService ..> DomainSupportService
+DomainSupportService ..> CustomerMembershipRepository
+DomainSupportService ..> MembershipLevelRepository
+DomainSupportService ..> CustomerMembership
+DomainSupportService ..> MembershipLevel
+DomainSupportService ..> AppUser
 CustomerMembershipRepository --> CustomerMembership
 MembershipLevelRepository --> MembershipLevel
 CustomerMembership --> AppUser

@@ -1,0 +1,78 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class AccountController <<controller>> {
+    -accountService : AccountService
+
+    +staff() : Object
+    +createStaff(request : ApiRequests.StaffUpsert) : Object
+    +updateStaff(userId : Long, request : ApiRequests.StaffUpsert) : Object
+}
+
+class AccountService <<service>> {
+    -support : DomainSupportService
+    -passwordEncoder : BCryptPasswordEncoder
+    -verificationEmailService : VerificationEmailService
+
+    +staff() : List<Map<String, Object>>
+    +createStaff(request : ApiRequests.StaffUpsert) : Map<String, Object>
+    +updateStaff(userId : Long, request : ApiRequests.StaffUpsert) : Map<String, Object>
+    -validateStaffRequest(request : ApiRequests.StaffUpsert, creating : boolean, currentUserId : Long) : void
+    -applyStaffRequest(staff : AppUser, request : ApiRequests.StaffUpsert, creating : boolean) : void
+    -issuePasswordReset(user : AppUser) : void
+}
+
+class VerificationEmailService <<service>> {
+    +sendStaffInvitationEmail(user : AppUser) : VerificationEmailDelivery
+}
+
+class "ApiRequests.StaffUpsert" as StaffUpsertDTO <<dto>> {
+    -fullName : String
+    -email : String
+    -phone : String
+    -password : String
+    -status : String
+}
+
+interface AppUserRepository <<repository>> {
+    +findAll() : List<AppUser>
+    +findByEmail(email : String) : Optional<AppUser>
+    +findByPhone(phone : String) : Optional<AppUser>
+    +save(entity : AppUser) : AppUser
+}
+
+interface RoleRepository <<repository>> {
+    +findByRoleName(roleName : String) : Optional<Role>
+}
+
+class AppUser <<entity>> {
+    -userId : Long
+    -role : Role
+    -fullName : String
+    -email : String
+    -phone : String
+    -passwordHash : String
+    -status : AccountStatus
+    -authVersion : long
+    -emailVerified : boolean
+}
+
+class Role <<entity>> {
+    -roleId : Long
+    -roleName : String
+    -status : CommonStatus
+}
+
+AccountController ..> AccountService
+AccountController ..> StaffUpsertDTO
+AccountService ..> StaffUpsertDTO
+AccountService ..> AppUserRepository
+AccountService ..> RoleRepository
+AccountService ..> VerificationEmailService
+AppUserRepository --> AppUser
+RoleRepository --> Role
+AppUser --> Role
+
+@enduml

@@ -16,7 +16,8 @@ participant "AuthPage" as UI
 participant "App.jsx" as App
 participant "AccountController" as Controller
 participant "AccountService" as Service
-participant "DemoSupportService" as Support
+participant "DomainSupportService" as Support
+participant "JwtService" as Jwt
 participant "AppUserRepository" as UserRepo
 database "Database" as DB
 
@@ -111,12 +112,12 @@ opt Account not active
   App --> UI : 25.3 Show error toast
 end
 
-Service -> Service : 26. Check bookingRestricted
+Service -> Service : 26. Check status is active
 activate Service
 deactivate Service
 
-opt Account restricted
-  Service --> Controller : 27.1 Throw FORBIDDEN\n"Account is restricted"
+opt Account locked
+  Service --> Controller : 27.1 Throw FORBIDDEN\n"Your account is locked.\nPlease check your email for more details."
   Controller --> App : 27.2 HTTP 403
   App --> UI : 27.3 Show error toast
 end
@@ -125,33 +126,34 @@ Service -> Service : 28. Set lastLoginAt
 activate Service
 deactivate Service
 
-Service -> Service : 29. Generate JWT token
-activate Service
-deactivate Service
+Service -> Jwt : 29. generateToken(new SecurityUser(user))
+activate Jwt
+Jwt --> Service : 30. signed JWT
+deactivate Jwt
 
-Service -> Support : 30. userSummary(user)
+Service -> Support : 31. userSummary(user)
 activate Support
-Support --> Service : 31. {userId, fullName, role, ...}
+Support --> Service : 32. {userId, fullName, role, ...}
 deactivate Support
 
-Service --> Controller : 32. {token, user}
+Service --> Controller : 33. {token, user}
 deactivate Service
 
-Controller --> App : 33. HTTP 200
+Controller --> App : 34. HTTP 200
 deactivate Controller
 
-App -> App : 34. saveStoredToken(token)\nsetCurrentUser(user)\nClear login form
+App -> App : 35. saveStoredToken(token)\nsetCurrentUser(user)\nClear login form
 activate App
 deactivate App
 
-App -> App : 35. navigatePage(page)\nby role
+App -> App : 36. navigatePage(page)\nby role
 activate App
 deactivate App
 
-App --> UI : 36. Render role-based page
+App --> UI : 37. Render role-based page
 deactivate App
 
-UI --> Guest : 37. Navigate base on role
+UI --> Guest : 36. Navigate based on role
 deactivate UI
 deactivate Guest
 

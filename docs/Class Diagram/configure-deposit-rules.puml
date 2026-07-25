@@ -1,0 +1,57 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class PromotionReportController <<controller>> {
+    -promotionReportService : PromotionReportService
+
+    +settings(group : String) : Object
+    +updateSetting(key : String, request : ApiRequests.SettingUpdate) : Object
+}
+
+class PromotionReportService <<service>> {
+    -support : DomainSupportService
+
+    +settings(group : String) : List<Map<String, Object>>
+    +updateSetting(key : String, request : ApiRequests.SettingUpdate) : Map<String, Object>
+    -validatePolicySetting(key : String, value : String) : void
+    -requireAdmin() : void
+}
+
+class DomainSupportService <<service>> {
+    -systemSettingRepository : SystemSettingRepository
+
+    +calculateDeposit(total : BigDecimal) : BigDecimal
+    +settingDecimal(key : String, fallback : BigDecimal) : BigDecimal
+    +settingSummary(setting : SystemSetting) : Map<String, Object>
+}
+
+class "ApiRequests.SettingUpdate" as SettingUpdateDTO <<dto>> {
+    -settingValue : String
+    -updatedById : Long
+}
+
+interface SystemSettingRepository <<repository>> {
+    +findBySettingKey(settingKey : String) : Optional<SystemSetting>
+    +save(entity : SystemSetting) : SystemSetting
+}
+
+class SystemSetting <<entity>> {
+    -settingId : Long
+    -settingKey : String
+    -settingValue : String
+    -settingGroup : String
+    -description : String
+    -status : CommonStatus
+    -updatedBy : AppUser
+}
+
+PromotionReportController ..> PromotionReportService
+PromotionReportController ..> SettingUpdateDTO
+PromotionReportService ..> SettingUpdateDTO
+PromotionReportService ..> DomainSupportService
+DomainSupportService ..> SystemSettingRepository
+SystemSettingRepository --> SystemSetting
+
+@enduml

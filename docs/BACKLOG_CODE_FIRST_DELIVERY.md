@@ -1,41 +1,46 @@
-# Code-first backlog delivery
+# GoalZone code-first backlog
 
-This file is the implementation source of truth for the current GoalZone
-demo. It supersedes percentage values in the original backlog: those values
-describe an earlier planning snapshot, not the code now in this repository.
+Updated: 2026-07-26. This file records the final implemented scope used by the
+RDS, SDS, Final Release, and automated tests.
 
-## Backlog decisions to update
+## Scope decisions
 
-| Backlog item | Code-first decision |
+| Area | Final decision |
 | --- | --- |
-| UC-07 Manage customer accounts and UC-10 lock/unlock booking ability | Keep UC-07 as the parent use case. Make UC-10 an alternate/sub-flow and acceptance criterion of UC-07. They share actor, data and UI; the restriction action is not a separate business capability. |
-| UC-03 logout | A stateless JWT cannot literally be deleted server-side. The implementation increments `app_user.auth_version`; tokens issued before that version are rejected. |
-| UC-47 online refund | The workflow is request → approve/reject → processing/completed and preserves provider fields. The final gateway call remains a PayPal production integration task; sandbox/demo completion is explicitly labelled as such. |
-| UC-58 reminder | The in-process Spring scheduler sends one in-app reminder per booking. A multi-instance production deployment needs a durable job queue/lock. |
-| UC-63 smart assistant / UC-64 suggested slots | Implemented as a rule-based live-availability recommender. Rename UC-63 to **Find field with guided criteria** unless the team later commits to a real LLM/RAG provider. An external AI API is not a prerequisite for the use case. |
-| Membership rules | The original example describes monthly and weekly behaviour, while the implemented and documented model is lifetime completed-booking thresholds. Keep the current simple rule or add explicit period columns before claiming the monthly rule. |
+| Customer administration | UC-07 provides a read-only View action plus Lock/Unlock. Admin cannot edit a Customer profile. Lock requires a reason, revokes active tokens, blocks login, and sends email/in-app notification evidence. |
+| Customer activity | UC-09 is Admin-only. Staff has no Customer activity API or UI access. |
+| Personal profile | Every authenticated user may update only their own name, phone, and address. `avatar_url` is not part of the final model. |
+| Reviews | Field reviews/ratings are outside the approved scope and are not modelled. |
+| Pricing and discounts | The USD subtotal is field plus services. One promotion is capped at the subtotal; `stackable=false` prevents an additional membership discount. Membership is calculated on the non-negative post-promotion balance. |
+| Payments | Customer online checkout uses PayPal Sandbox. Staff venue operations record cash payments. PayPal receives the exact final booking/deposit balance; processor fee and merchant net are captured from the provider response and are not added as customer tax. |
+| Refunds | The booking owner requests a refund; Staff/Admin process it. `paidAmount` remains gross collected value, completed refunds are recorded separately, and pending requests reserve refundable capacity once. Provider `COMPLETED` is authoritative for PayPal refunds. |
+| Slot calendar | Admin configures opening time, closing time, slot duration, and a 1–90 day rolling horizon. The backend materializes availability automatically; Staff Block/Unblock records exceptional closures or reserved periods. There is no ordinary manual Add Slot workflow. |
+| Availability assistant | UC-62 uses Gemini only to interpret and phrase the Customer's natural-language request; it remains configuration-pending until `GEMINI_API_KEY` is supplied. UC-63 deterministically ranks live field, slot, price, and promotion data and is the authoritative source for every displayed suggestion. |
 
-## Delivered coverage
+## Final numbering
 
-| Area | Delivered use cases |
+The removed booking-restriction use case is not present. All later use cases
+were shifted down by one, so the final backlog contains UC-01 through UC-63:
+
+| Range | Area |
 | --- | --- |
-| Account and access | UC-01–10: registration, verification, JWT login/logout revocation, profile/password/reset, Admin customer/staff management and activity, booking restriction. |
-| Field operations | UC-11–23: field/pricing/service management, live availability, unavailable slots, operation calendar, pre-check-in service edits, issue report and resolution. |
-| Booking lifecycle | UC-24–37: online/walk-in booking, detail/history/calendar, confirmation/rejection, reschedule, cancellation preview/cancel, check-in/completion/no-show and conflict prevention. |
-| Payments | UC-38–50: checkout, deposit/full/remaining payment, PayPal sandbox create/capture, timeout expiry, history/invoice, refund request lifecycle and configurable policies. |
-| Promotion, membership, notifications, reporting | UC-51–62: campaign and membership CRUD, benefit/progress, confirmation/cancellation/refund/reminder notifications, revenue/booking/customer reports. |
-| Discovery | UC-63–64: guided availability endpoint and UI ranking available slots by time and budget. |
+| UC-01 - UC-09 | Account and Customer Status |
+| UC-10 - UC-22 | Field, Slot, Service, and Issue Management |
+| UC-23 - UC-36 | Booking Lifecycle |
+| UC-37 - UC-49 | Payment Gateway, Refund, and Invoice |
+| UC-50 - UC-61 | Promotion, Membership, Notification, and Report |
+| UC-62 - UC-63 | Availability assistant and suggested slots |
 
-## Deliberate demo boundaries
+## Delivery rules
 
-- PayPal uses sandbox/mock support. Do not describe it as a live-money payment or live gateway refund.
-- Reviews are not modelled; UC-12 displays this honestly rather than fabricating review data.
-- Reports are aggregate operational reports, not a BI warehouse.
-- The app uses Spring Security/JWT and PostgreSQL through the backend. It does not use Supabase Auth or expose Supabase keys to the browser.
-
-## Database deployment rule
-
-Use the `postgres` Spring profile only after running
-`database/supabase/preflight.sql` and taking a backup. Flyway migrations are
-the production schema source; the local `H2` profile remains code-first for
-fast classroom development and tests. See `docs/SUPABASE_CONNECTION.md`.
+- PostgreSQL schema changes are Flyway-owned through V18; Hibernate uses
+  `ddl-auto=validate` for PostgreSQL.
+- H2 remains disposable for local automated tests.
+- USD is the display and PayPal settlement currency.
+- GoalZone does not calculate VAT/sales tax in the classroom scope. PayPal processor fees are merchant costs, not customer tax.
+- PayPal capture and refund mutations use stable idempotency identities and reconcile provider state after an ambiguous timeout.
+- Booking state transitions and slot uniqueness are server-enforced.
+- Image upload accepts JPEG/PNG/WebP/GIF up to 5 MB.
+- Customer access has one persisted source of truth: `app_user.status`.
+  `accountLocked` remains only a derived API compatibility field.
+- No production/live-money PayPal certification is claimed.

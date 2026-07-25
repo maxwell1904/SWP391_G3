@@ -4,10 +4,20 @@ dist/
 
 # Java
 target/
+backend/uploads/
+backend/data/
 .tools/
 *.class
 *.jar
+docs/generated/
+docs/tmp/
+output/playwright/
+tmp/
 *.log
+
+# Python
+__pycache__/
+*.py[cod]
 
 # IDE
 .idea/
@@ -20,5 +30,6 @@ target/
 
 # OS
 .DS_Store
+.~*
 
 .agent/

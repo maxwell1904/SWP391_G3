@@ -56,8 +56,7 @@ public final class ApiRequests {
     public record ProfileUpdate(
             String fullName,
             String phone,
-            String address,
-            String avatarUrl
+            String address
     ) {
     }
 
@@ -68,9 +67,9 @@ public final class ApiRequests {
     ) {
     }
 
-    public record RestrictionUpdate(
-            boolean bookingRestricted,
-            String restrictionReason
+    public record AccountLockUpdate(
+            boolean accountLocked,
+            String lockReason
     ) {
     }
 
@@ -200,7 +199,11 @@ public final class ApiRequests {
             String status,
             Long applicableFieldTypeId,
             Long applicableExtraServiceId,
-            Long applicableMembershipLevelId
+            Long applicableMembershipLevelId,
+            String applicableDayType,
+            String applicableStartTime,
+            String applicableEndTime,
+            Boolean stackable
     ) {
     }
 
@@ -264,7 +267,13 @@ public final class ApiRequests {
             BigDecimal discountPercent,
             String benefitDescription,
             Integer displayOrder,
-            String status
+            String status,
+            String qualificationPeriod,
+            Integer requiredConsecutivePeriods
     ) {
+    }
+
+    /** Natural-language request for UC-62. Availability is still resolved by UC-63. */
+    public record AssistantAvailability(String question) {
     }
 }

@@ -36,7 +36,10 @@ import java.util.UUID;
 @Service
 @Transactional
 public class PayPalCheckoutService {
-    private final DemoSupportService support;
+    public record RefundResult(String refundId, String status, String message) {
+    }
+
+    private final DomainSupportService support;
     private final BookingWorkflowService bookingWorkflowService;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient = HttpClient.newHttpClient();
@@ -53,13 +56,13 @@ public class PayPalCheckoutService {
     @Value("${app.paypal.currency:USD}")
     private String currency;
 
-    @Value("${app.paypal.mock-mode:true}")
+    @Value("${app.paypal.mock-mode:false}")
     private boolean configuredMockMode;
 
     @Value("${app.frontend-base-url:http://localhost:5173}")
     private String frontendBaseUrl;
 
-    public PayPalCheckoutService(DemoSupportService support, BookingWorkflowService bookingWorkflowService, ObjectMapper objectMapper) {
+    public PayPalCheckoutService(DomainSupportService support, BookingWorkflowService bookingWorkflowService, ObjectMapper objectMapper) {
         this.support = support;
         this.bookingWorkflowService = bookingWorkflowService;
         this.objectMapper = objectMapper;
@@ -68,7 +71,7 @@ public class PayPalCheckoutService {
     @Transactional(readOnly = true)
     public Map<String, Object> config() {
         boolean mockMode = isMockMode();
-        boolean checkoutEnabled = !support.isBlank(clientId) && !mockMode;
+        boolean checkoutEnabled = credentialsConfigured() && !mockMode;
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("enabled", checkoutEnabled);
         response.put("clientId", checkoutEnabled ? clientId : "");
@@ -101,6 +104,7 @@ public class PayPalCheckoutService {
             );
             return orderResponse(payment, settlementAmount, "CREATED");
         }
+        requirePayPalCredentials();
 
         try {
             String orderId = createRemoteOrder(booking, option, settlementAmount, idempotencyKey);
@@ -112,6 +116,7 @@ public class PayPalCheckoutService {
     }
 
     // Backlog owner: AnNP - UC-40 Pay deposit/full amount via online payment sandbox.
+    @Transactional(noRollbackFor = ApiException.class)
     public Map<String, Object> captureOrder(Long bookingId, String orderId, ApiRequests.PayPalOrderCapture request) {
         Booking booking = onlineBookingOwnedByCustomer(bookingId, request.createdById());
         Payment payment = support.paymentRepository.findByProviderOrderId(orderId)
@@ -119,7 +124,9 @@ public class PayPalCheckoutService {
         if (!payment.getBooking().getBookingId().equals(bookingId)) {
             throw support.badRequest("PayPal order does not belong to this booking");
         }
-        if (payment.getStatus() == PaymentStatus.paid) {
+        if (payment.getStatus() == PaymentStatus.paid
+                || payment.getStatus() == PaymentStatus.partially_refunded
+                || payment.getStatus() == PaymentStatus.refunded) {
             return bookingWorkflowService.bookingDetail(bookingId);
         }
         BigDecimal currentPayableAmount = payableAmount(booking, payment.getPaymentOption());
@@ -129,13 +136,18 @@ public class PayPalCheckoutService {
 
         String captureId;
         String providerStatus;
+        BigDecimal providerFee;
+        BigDecimal providerNet;
         if (isMockMode()) {
             captureId = "MOCK-PAYPAL-CAPTURE-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase();
             providerStatus = "COMPLETED";
+            providerFee = BigDecimal.ZERO.setScale(2);
+            providerNet = payment.getAmount();
         } else {
             try {
-                JsonNode capture = captureRemoteOrder(orderId);
-                providerStatus = capture.path("status").asText();
+                JsonNode capture = captureRemoteOrderWithRecovery(payment);
+                JsonNode captureNode = captureNode(capture);
+                providerStatus = captureNode.path("status").asText(capture.path("status").asText());
                 if (!"COMPLETED".equalsIgnoreCase(providerStatus)) {
                     payment.setProviderStatus(providerStatus);
                     payment.setGatewayMessage("PayPal capture was not completed: " + providerStatus);
@@ -144,6 +156,8 @@ public class PayPalCheckoutService {
                 }
                 validateCaptureAmount(capture, payment);
                 captureId = findCaptureId(capture);
+                providerFee = moneyFrom(captureNode.path("seller_receivable_breakdown").path("paypal_fee"), null);
+                providerNet = moneyFrom(captureNode.path("seller_receivable_breakdown").path("net_amount"), null);
             } catch (ApiException exception) {
                 throw exception;
             } catch (Exception exception) {
@@ -160,6 +174,8 @@ public class PayPalCheckoutService {
         payment.setStatus(PaymentStatus.paid);
         payment.setProviderCaptureId(captureId);
         payment.setProviderStatus(providerStatus);
+        payment.setProviderFeeAmount(providerFee);
+        payment.setProviderNetAmount(providerNet);
         payment.setTransactionCode(captureId);
         payment.setGatewayMessage(isMockMode() ? "Mock PayPal sandbox capture completed" : "PayPal capture completed");
         payment.setPaidAt(LocalDateTime.now());
@@ -196,6 +212,64 @@ public class PayPalCheckoutService {
             booking.setExpiredAt(now);
         }
         return bookingWorkflowService.bookingDetail(bookingId);
+    }
+
+    public RefundResult refundCapture(Payment payment, BigDecimal refundAmount, String requestId, String existingRefundId) {
+        if (payment.getPaymentMethod() != PaymentMethod.paypal_sandbox
+                || (payment.getStatus() != PaymentStatus.paid && payment.getStatus() != PaymentStatus.partially_refunded)
+                || support.isBlank(payment.getProviderCaptureId())) {
+            return new RefundResult(null, "FAILED", "The payment has no refundable PayPal capture.");
+        }
+        if (refundAmount == null || refundAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return new RefundResult(null, "FAILED", "The PayPal refund amount must be positive.");
+        }
+        if (isMockMode()) {
+            return new RefundResult(
+                    "MOCK-PAYPAL-REFUND-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase(),
+                    "COMPLETED",
+                    "Mock PayPal refund completed."
+            );
+        }
+        if (!credentialsConfigured()) {
+            return new RefundResult(null, "FAILED", "PayPal merchant credentials are not configured.");
+        }
+
+        try {
+            JsonNode response;
+            if (!support.isBlank(existingRefundId)) {
+                response = sendJson(
+                        "GET",
+                        paypalBaseUrl() + "/v2/payments/refunds/"
+                                + URLEncoder.encode(existingRefundId, StandardCharsets.UTF_8),
+                        accessToken(), "", null);
+            } else {
+                Map<String, Object> payload = Map.of(
+                        "amount", Map.of(
+                                "value", support.money(refundAmount).toPlainString(),
+                                "currency_code", normalizedCurrency()
+                        ),
+                        "note_to_payer", "GoalZone booking refund"
+                );
+                response = sendJson(
+                        "POST",
+                        paypalBaseUrl() + "/v2/payments/captures/"
+                                + URLEncoder.encode(payment.getProviderCaptureId(), StandardCharsets.UTF_8) + "/refund",
+                        accessToken(),
+                        objectMapper.writeValueAsString(payload),
+                        requestId
+                );
+            }
+            String refundId = response.path("id").asText();
+            String status = response.path("status").asText("PENDING").toUpperCase();
+            if (support.isBlank(refundId)) {
+                return new RefundResult(null, "FAILED", "PayPal did not return a refund transaction ID.");
+            }
+            return new RefundResult(refundId, status, "PayPal refund status: " + status + ".");
+        } catch (Exception exception) {
+            // A network timeout can happen after PayPal accepted the request. Keep the refund reserved and
+            // retry with the same PayPal-Request-Id instead of allowing a second refund request.
+            return new RefundResult(null, "PENDING", "PayPal has not confirmed the refund yet; retry safely with the same request ID.");
+        }
     }
 
     private Payment createPendingPayment(
@@ -316,9 +390,42 @@ public class PayPalCheckoutService {
         return orderId;
     }
 
-    private JsonNode captureRemoteOrder(String orderId) throws Exception {
+    private JsonNode captureRemoteOrderWithRecovery(Payment payment) throws Exception {
+        String orderId = payment.getProviderOrderId();
+        String requestId = (support.isBlank(payment.getIdempotencyKey())
+                ? "GZ-" + orderId
+                : payment.getIdempotencyKey()) + "-CAPTURE";
+        try {
+            return captureRemoteOrder(orderId, requestId);
+        } catch (Exception captureFailure) {
+            // PayPal may have captured the order even when the client timed out before
+            // receiving the response. Read the order with the same stable request identity
+            // before declaring failure so the local ledger can be reconciled safely.
+            try {
+                JsonNode existing = showRemoteOrder(orderId);
+                JsonNode existingCapture = captureNode(existing);
+                if ("COMPLETED".equalsIgnoreCase(existingCapture.path("status").asText())
+                        && !support.isBlank(existingCapture.path("id").asText())) {
+                    return existing;
+                }
+            } catch (Exception ignored) {
+                captureFailure.addSuppressed(ignored);
+            }
+            throw captureFailure;
+        }
+    }
+
+    private JsonNode captureRemoteOrder(String orderId, String requestId) throws Exception {
         String accessToken = accessToken();
-        return sendJson("POST", paypalBaseUrl() + "/v2/checkout/orders/" + URLEncoder.encode(orderId, StandardCharsets.UTF_8) + "/capture", accessToken, "{}", null);
+        return sendJson("POST", paypalBaseUrl() + "/v2/checkout/orders/"
+                        + URLEncoder.encode(orderId, StandardCharsets.UTF_8) + "/capture",
+                accessToken, "{}", requestId, true);
+    }
+
+    private JsonNode showRemoteOrder(String orderId) throws Exception {
+        return sendJson("GET", paypalBaseUrl() + "/v2/checkout/orders/"
+                        + URLEncoder.encode(orderId, StandardCharsets.UTF_8),
+                accessToken(), "", null);
     }
 
     private String accessToken() throws Exception {
@@ -341,12 +448,20 @@ public class PayPalCheckoutService {
     }
 
     private JsonNode sendJson(String method, String url, String accessToken, String body, String requestId) throws Exception {
+        return sendJson(method, url, accessToken, body, requestId, false);
+    }
+
+    private JsonNode sendJson(String method, String url, String accessToken, String body, String requestId,
+                              boolean returnRepresentation) throws Exception {
         HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .header("Authorization", "Bearer " + accessToken)
                 .header("Content-Type", "application/json");
         if (!support.isBlank(requestId)) {
             builder.header("PayPal-Request-Id", requestId);
+        }
+        if (returnRepresentation) {
+            builder.header("Prefer", "return=representation");
         }
         HttpRequest request = "POST".equalsIgnoreCase(method)
                 ? builder.POST(HttpRequest.BodyPublishers.ofString(body)).build()
@@ -359,7 +474,7 @@ public class PayPalCheckoutService {
     }
 
     private void validateCaptureAmount(JsonNode capture, Payment payment) {
-        JsonNode amount = capture.path("purchase_units").path(0).path("payments").path("captures").path(0).path("amount");
+        JsonNode amount = captureNode(capture).path("amount");
         String capturedCurrency = amount.path("currency_code").asText();
         BigDecimal capturedAmount = new BigDecimal(amount.path("value").asText("0"));
         BigDecimal expected = toSettlementAmount(payment.getAmount());
@@ -369,15 +484,39 @@ public class PayPalCheckoutService {
     }
 
     private String findCaptureId(JsonNode capture) {
-        String captureId = capture.path("purchase_units").path(0).path("payments").path("captures").path(0).path("id").asText();
+        String captureId = captureNode(capture).path("id").asText();
         if (support.isBlank(captureId)) {
             throw support.badRequest("PayPal did not return a capture id");
         }
         return captureId;
     }
 
+    private JsonNode captureNode(JsonNode orderCapture) {
+        return orderCapture.path("purchase_units").path(0).path("payments").path("captures").path(0);
+    }
+
+    private BigDecimal moneyFrom(JsonNode amountNode, BigDecimal fallback) {
+        String value = amountNode.path("value").asText("");
+        if (support.isBlank(value)) return fallback;
+        try {
+            return support.money(new BigDecimal(value));
+        } catch (NumberFormatException exception) {
+            return fallback;
+        }
+    }
+
     private boolean isMockMode() {
-        return configuredMockMode || support.isBlank(clientId) || support.isBlank(clientSecret);
+        return configuredMockMode;
+    }
+
+    private boolean credentialsConfigured() {
+        return !support.isBlank(clientId) && !support.isBlank(clientSecret);
+    }
+
+    private void requirePayPalCredentials() {
+        if (!credentialsConfigured()) {
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "PayPal checkout is not configured");
+        }
     }
 
     private String normalizedCurrency() {

@@ -1,0 +1,74 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Guest / Customer" as Actor
+participant "PromotionsPage" as UI
+participant "App.jsx" as App
+participant "PromotionReportController" as Controller
+participant "PromotionReportService" as Service
+participant "PromotionRepository" as Repo
+database "Database" as DB
+
+== View active promotions ==
+
+Actor -> UI : 1. Open Offers
+activate Actor
+activate UI
+
+UI -> App : 2. refreshAll()
+activate App
+
+App -> Controller : 3. GET /api/promotions
+activate Controller
+
+Controller -> Service : 4. promotions(false)
+activate Service
+
+Service -> Repo : 5. findByStatus(active)
+activate Repo
+
+Repo -> DB : 6. SELECT promotion WHERE status='active'
+activate DB
+
+alt Active campaigns exist
+  DB --> Repo : 7. Matching rows
+else No active campaign
+  DB --> Repo : 7. Empty result
+end
+deactivate DB
+
+Repo --> Service : 8. List<Promotion>
+deactivate Repo
+
+Service -> Service : 9. promotionSummary() including banner and eligibility
+activate Service
+deactivate Service
+
+alt Request is permitted
+  Service --> Controller : 10. active promotion summaries
+else Access or data validation fails
+  Service --> Controller : 10. ApiException
+end
+deactivate Service
+
+Controller --> App : 11. HTTP response
+deactivate Controller
+
+App --> UI : 12. setPromotions(response.data)
+deactivate App
+
+UI --> Actor : 13. Show eligible campaign catalogue
+deactivate UI
+deactivate Actor
+
+@enduml

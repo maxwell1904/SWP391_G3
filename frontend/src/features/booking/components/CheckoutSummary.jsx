@@ -1,7 +1,7 @@
 import { formatMoney } from '../../../utils/format'
 
 export function CheckoutSummary({ checkout, loading, error }) {
-  if (loading) return <p className="emptyText">Updating checkout...</p>
+  if (loading) return <p className="emptyText">Updating checkout…</p>
   if (error) return <p className="errorText">{error}</p>
   if (!checkout) return <p className="emptyText">Choose an available slot to see pricing.</p>
   const promotionDiscount = Number(checkout.promotionDiscountAmount || 0)

@@ -1,0 +1,74 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Admin" as Actor
+participant "AdminPage" as UI
+participant "App.jsx" as App
+participant "PromotionReportController" as Controller
+participant "PromotionReportService" as Service
+participant "PaymentRepository / RefundRepository" as Repo
+database "Database" as DB
+
+== View revenue report ==
+
+Actor -> UI : 1. Open Reports overview
+activate Actor
+activate UI
+
+UI -> App : 2. refreshAll()
+activate App
+
+App -> Controller : 3. GET /api/reports
+activate Controller
+
+Controller -> Service : 4. reports()
+activate Service
+
+Service -> Repo : 5. findAll paid/refund records
+activate Repo
+
+Repo -> DB : 6. SELECT payments, refunds and booking values
+activate DB
+
+alt Report data exists
+  DB --> Repo : 7. Matching rows
+else No matching activity
+  DB --> Repo : 7. Empty result
+end
+deactivate DB
+
+Repo --> Service : 8. Persisted reporting rows
+deactivate Repo
+
+Service -> Service : 9. Aggregate paid payments, completed refunds,\nfield/service value and discounts
+activate Service
+deactivate Service
+
+alt Request is permitted
+  Service --> Controller : 10. combined report payload
+else Access or data validation fails
+  Service --> Controller : 10. ApiException
+end
+deactivate Service
+
+Controller --> App : 11. HTTP response
+deactivate Controller
+
+App --> UI : 12. setReports(response.data)
+deactivate App
+
+UI --> Actor : 13. Show gross, refunded and net USD revenue
+deactivate UI
+deactivate Actor
+
+@enduml

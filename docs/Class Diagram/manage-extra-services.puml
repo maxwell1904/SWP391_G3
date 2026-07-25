@@ -1,0 +1,66 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class FieldOperationController <<controller>> {
+    -fieldOperationService : FieldOperationService
+
+    +managedServices() : Object
+    +createService(request : ApiRequests.ExtraServiceUpsert) : Object
+    +updateService(serviceId : Long, request : ApiRequests.ExtraServiceUpsert) : Object
+}
+
+class FieldOperationService <<service>> {
+    -support : DomainSupportService
+
+    +managedServices() : List<Map<String, Object>>
+    +createService(request : ApiRequests.ExtraServiceUpsert) : Map<String, Object>
+    +updateService(serviceId : Long, request : ApiRequests.ExtraServiceUpsert) : Map<String, Object>
+    -applyServiceRequest(service : ExtraService, request : ApiRequests.ExtraServiceUpsert) : void
+}
+
+class "ApiRequests.ExtraServiceUpsert" as ExtraServiceUpsertDTO <<dto>> {
+    -serviceName : String
+    -serviceType : String
+    -description : String
+    -unitName : String
+    -unitPrice : BigDecimal
+    -stockQuantity : Integer
+    -maxQuantityPerBooking : Integer
+    -status : String
+}
+
+interface ExtraServiceRepository <<repository>> {
+    +findAll() : List<ExtraService>
+    +findByStatus(status : CommonStatus) : List<ExtraService>
+    +findById(id : Long) : Optional<ExtraService>
+    +save(entity : ExtraService) : ExtraService
+}
+
+class ExtraService <<entity>> {
+    -extraServiceId : Long
+    -serviceName : String
+    -serviceType : ServiceType
+    -description : String
+    -unitName : String
+    -unitPrice : BigDecimal
+    -stockQuantity : Integer
+    -maxQuantityPerBooking : Integer
+    -status : CommonStatus
+}
+
+enum ServiceType {
+    + rental
+    + sale
+    + staff_service
+}
+
+FieldOperationController ..> FieldOperationService
+FieldOperationController ..> ExtraServiceUpsertDTO
+FieldOperationService ..> ExtraServiceUpsertDTO
+FieldOperationService ..> ExtraServiceRepository
+ExtraServiceRepository --> ExtraService
+ExtraService --> ServiceType
+
+@enduml

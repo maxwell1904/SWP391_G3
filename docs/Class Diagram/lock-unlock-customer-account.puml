@@ -1,0 +1,63 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class AccountController <<controller>> {
+    -accountService : AccountService
+
+    +updateAccountLock(userId : Long, request : AccountLockUpdate) : Object
+}
+
+class AccountService <<service>> {
+    -support : DomainSupportService
+    -verificationEmailService : VerificationEmailService
+
+    +updateAccountLock(userId : Long, request : AccountLockUpdate) : Map<String, Object>
+    -revokeAllTokens(user : AppUser) : void
+}
+
+class VerificationEmailService <<service>> {
+    +sendAccountLockEmail(user : AppUser, reason : String) : VerificationEmailDelivery
+}
+
+class DomainSupportService <<service>> {
+    -userRepository : AppUserRepository
+
+    +getUser(userId : Long) : AppUser
+    +userSummary(user : AppUser) : Map<String, Object>
+    +requireText(value : String, message : String) : void
+}
+
+interface AppUserRepository <<repository>> {
+    +findById(userId : Long) : Optional<AppUser>
+}
+
+class AppUser <<entity>> {
+    -userId : Long
+    -status : AccountStatus
+    -lockReason : String
+    -authVersion : long
+}
+
+class "ApiRequests.AccountLockUpdate" as AccountLockUpdate <<dto>> {
+    -accountLocked : boolean
+    -lockReason : String
+}
+
+enum AccountStatus {
+    +active
+    +inactive
+    +locked
+}
+
+AccountController ..> AccountService
+AccountController ..> AccountLockUpdate
+AccountService ..> AccountLockUpdate
+AccountService ..> VerificationEmailService
+AccountService ..> DomainSupportService
+DomainSupportService ..> AppUserRepository
+AppUserRepository ..> AppUser
+AppUser --> AccountStatus
+
+@enduml

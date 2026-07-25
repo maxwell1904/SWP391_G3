@@ -35,24 +35,26 @@ class "ApiRequests.BookingCreate" as BookingCreateDTO <<dto>> {
 }
 
 class PromotionReportService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
     -bookingWorkflowService : BookingWorkflowService
 
     +applyPromotionPreview(request : ApiRequests.PromotionApply) : Map<String, Object>
 }
 
 class BookingWorkflowService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +previewCheckout(request : ApiRequests.PromotionApply) : Map<String, Object>
     +createBooking(request : ApiRequests.BookingCreate) : Map<String, Object>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -promotionRepository : PromotionRepository
     -bookingPromotionRepository : BookingPromotionRepository
 
     +calculatePromotionDiscount(promotionCode : String, slot : Slot, baseAmount : BigDecimal, services : List<ServiceSelection>) : BigDecimal
+    +promotionAllowsMembershipStacking(promotionCode : String) : boolean
+    +calculateMembershipDiscount(customer : AppUser, baseAmount : BigDecimal, source : BookingSource) : BigDecimal
     +saveBookingPromotion(booking : Booking, promotionCode : String, discount : BigDecimal) : void
 }
 
@@ -137,14 +139,14 @@ BookingController ..> BookingWorkflowService
 BookingController ..> PromotionApplyDTO
 BookingController ..> BookingCreateDTO
 PromotionReportService ..> BookingWorkflowService
-PromotionReportService ..> DemoSupportService
-BookingWorkflowService ..> DemoSupportService
-DemoSupportService ..> PromotionRepository
-DemoSupportService ..> BookingPromotionRepository
-DemoSupportService ..> Promotion
-DemoSupportService ..> BookingPromotion
-DemoSupportService ..> Slot
-DemoSupportService ..> ExtraService
+PromotionReportService ..> DomainSupportService
+BookingWorkflowService ..> DomainSupportService
+DomainSupportService ..> PromotionRepository
+DomainSupportService ..> BookingPromotionRepository
+DomainSupportService ..> Promotion
+DomainSupportService ..> BookingPromotion
+DomainSupportService ..> Slot
+DomainSupportService ..> ExtraService
 PromotionRepository --> Promotion
 BookingPromotionRepository --> BookingPromotion
 Promotion --> FieldType

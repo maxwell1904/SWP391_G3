@@ -1,0 +1,55 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class AvailabilityAssistantPage <<boundary>> {
+    -question : String
+    -assistantReply : String
+    -suggestions : List<SlotSuggestion>
+    +askAssistant() : Promise<void>
+    +findSlots() : Promise<void>
+}
+
+class AvailabilityAssistantController <<controller>> {
+    -availabilityAssistantService : AvailabilityAssistantService
+    +askForAvailability(request : AssistantAvailability) : Object
+}
+
+class AvailabilityAssistantService <<service>> {
+    -fieldOperationService : FieldOperationService
+    -objectMapper : ObjectMapper
+    -httpClient : HttpClient
+    -apiKey : String
+    -model : String
+    +answerAvailabilityQuestion(request : AssistantAvailability) : Map<String, Object>
+    -authenticatedCustomerId() : Long
+    -parseIntent(question : String, fieldTypes : List<Map<String, Object>>) : SearchIntent
+    -writeAnswer(question : String, criteria : Map<String, Object>, suggestions : List<Map<String, Object>>) : String
+    -callGemini(prompt : String, jsonResponse : boolean) : String
+}
+
+class FieldOperationService <<service>> {
+    +fieldTypes() : List<Map<String, Object>>
+    +suggestSlots(date : LocalDate, preferredTime : LocalTime, fieldTypeId : Long, maxPrice : BigDecimal, customerId : Long) : List<Map<String, Object>>
+}
+
+class "ApiRequests.AssistantAvailability" as AssistantAvailability <<dto>> {
+    -question : String
+}
+
+class SearchIntent <<value object>> {
+    -date : LocalDate
+    -preferredTime : LocalTime
+    -fieldTypeId : Long
+    -maxPrice : BigDecimal
+}
+
+AvailabilityAssistantPage ..> AvailabilityAssistantController
+AvailabilityAssistantController ..> AvailabilityAssistantService
+AvailabilityAssistantController ..> AssistantAvailability
+AvailabilityAssistantService ..> AssistantAvailability
+AvailabilityAssistantService ..> SearchIntent
+AvailabilityAssistantService ..> FieldOperationService
+
+@enduml

@@ -22,9 +22,9 @@ import java.util.Objects;
 @Service
 @Transactional
 public class BookingWorkflowService {
-    private final DemoSupportService support;
+    private final DomainSupportService support;
 
-    public BookingWorkflowService(DemoSupportService support) {
+    public BookingWorkflowService(DomainSupportService support) {
         this.support = support;
     }
 
@@ -33,10 +33,15 @@ public class BookingWorkflowService {
         BookingSource source = support.parseEnum(BookingSource.class, request.bookingSource(), BookingSource.online);
         Slot slot = support.getSlot(request.slotId());
         BigDecimal fieldPrice = support.calculateFieldPrice(slot);
-        BigDecimal serviceTotal = support.calculateServiceTotal(request.services());
-        BigDecimal promotionDiscount = support.calculatePromotionDiscount(request.promotionCode(), slot, serviceTotal.add(fieldPrice), request.services());
-        BigDecimal membershipDiscount = support.calculateMembershipDiscount(customer, fieldPrice.add(serviceTotal).subtract(promotionDiscount), source);
-        BigDecimal total = support.money(fieldPrice.add(serviceTotal).subtract(promotionDiscount).subtract(membershipDiscount));
+        BigDecimal serviceTotal = support.calculateServiceTotal(request.services(), slot, null);
+        BigDecimal promotionDiscount = support.calculatePromotionDiscount(request.promotionCode(), slot, serviceTotal.add(fieldPrice), request.services(), customer);
+        BigDecimal membershipDiscount = support.promotionAllowsMembershipStacking(request.promotionCode())
+                ? support.calculateMembershipDiscount(customer, fieldPrice.add(serviceTotal).subtract(promotionDiscount), source)
+                : BigDecimal.ZERO.setScale(2);
+        BigDecimal total = support.money(fieldPrice.add(serviceTotal)
+                .subtract(promotionDiscount)
+                .subtract(membershipDiscount)
+                .max(BigDecimal.ZERO));
         BigDecimal deposit = support.calculateDeposit(total);
 
         Map<String, Object> response = new LinkedHashMap<>();
@@ -70,8 +75,8 @@ public class BookingWorkflowService {
 
     private Map<String, Object> createBookingInternal(ApiRequests.BookingCreate request) {
         AppUser customer = support.getUser(request.customerId());
-        if (customer.isBookingRestricted()) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "Customer is restricted from creating bookings");
+        if (customer.getStatus() == AccountStatus.locked) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Customer account is locked");
         }
         BookingSource source = support.parseEnum(BookingSource.class, request.bookingSource(), BookingSource.online);
         if (source == BookingSource.online && !customer.isEmailVerified()) {
@@ -92,10 +97,15 @@ public class BookingWorkflowService {
         booking.setNote(request.note());
 
         BigDecimal fieldPrice = support.calculateFieldPrice(slot);
-        BigDecimal serviceTotal = support.calculateServiceTotal(request.services());
-        BigDecimal promotionDiscount = support.calculatePromotionDiscount(request.promotionCode(), slot, fieldPrice.add(serviceTotal), request.services());
-        BigDecimal membershipDiscount = support.calculateMembershipDiscount(customer, fieldPrice.add(serviceTotal).subtract(promotionDiscount), source);
-        BigDecimal total = support.money(fieldPrice.add(serviceTotal).subtract(promotionDiscount).subtract(membershipDiscount));
+        BigDecimal serviceTotal = support.calculateServiceTotal(request.services(), slot, null);
+        BigDecimal promotionDiscount = support.calculatePromotionDiscount(request.promotionCode(), slot, fieldPrice.add(serviceTotal), request.services(), customer);
+        BigDecimal membershipDiscount = support.promotionAllowsMembershipStacking(request.promotionCode())
+                ? support.calculateMembershipDiscount(customer, fieldPrice.add(serviceTotal).subtract(promotionDiscount), source)
+                : BigDecimal.ZERO.setScale(2);
+        BigDecimal total = support.money(fieldPrice.add(serviceTotal)
+                .subtract(promotionDiscount)
+                .subtract(membershipDiscount)
+                .max(BigDecimal.ZERO));
         BigDecimal deposit = support.calculateDeposit(total);
 
         booking.setFieldPriceAmount(fieldPrice);
@@ -170,35 +180,28 @@ public class BookingWorkflowService {
                 throw new ApiException(HttpStatus.FORBIDDEN, "Customers can only cancel their own bookings");
             }
         }
+        requireValidTransition(booking.getStatus(), nextStatus);
         LocalDateTime now = LocalDateTime.now();
         switch (nextStatus) {
             case confirmed -> {
                 booking.setConfirmedAt(now);
                 support.notifyUser(booking.getCustomer(), booking, NotificationType.booking_confirmation, "Booking confirmed", "Booking " + booking.getBookingCode() + " is confirmed.");
             }
-            case checked_in -> {
-                support.requireCurrentStatus(booking, BookingStatus.confirmed);
-                booking.setCheckedInAt(now);
-            }
+            case checked_in -> booking.setCheckedInAt(now);
             case completed -> {
-                support.requireCurrentStatus(booking, BookingStatus.checked_in);
                 booking.setCompletedAt(now);
                 support.updateMembershipProgress(booking.getCustomer());
                 support.generateInvoice(booking);
             }
             case cancelled -> {
-                if (booking.getStatus() == BookingStatus.checked_in || booking.getStatus() == BookingStatus.completed) {
-                    throw support.badRequest("Checked-in or completed bookings cannot be cancelled");
-                }
                 booking.setCancelledAt(now);
                 support.previewAndStoreCancellation(booking);
                 support.notifyUser(booking.getCustomer(), booking, NotificationType.cancellation, "Booking cancelled", "Booking " + booking.getBookingCode() + " has been cancelled.");
             }
             case rejected -> {
-                support.requireCurrentStatus(booking, BookingStatus.pending);
                 support.notifyUser(booking.getCustomer(), booking, NotificationType.booking_confirmation, "Booking rejected", "Booking " + booking.getBookingCode() + " was rejected by staff.");
             }
-            case no_show -> support.requireCurrentStatus(booking, BookingStatus.confirmed);
+            case no_show -> { }
             case expired -> booking.setExpiredAt(now);
             default -> {
             }
@@ -228,14 +231,23 @@ public class BookingWorkflowService {
         }
         support.validateSlotBookable(newSlot);
 
+        List<ApiRequests.ServiceSelection> currentServices = support.bookingServiceItemRepository
+                .findByBooking_BookingId(booking.getBookingId()).stream()
+                .map(item -> new ApiRequests.ServiceSelection(item.getExtraService().getExtraServiceId(), item.getQuantity()))
+                .toList();
+        support.calculateServiceTotal(currentServices, newSlot, booking.getBookingId());
+
         BigDecimal newFieldPrice = support.calculateFieldPrice(newSlot);
         BigDecimal baseAmount = newFieldPrice.add(booking.getServiceTotalAmount());
         BigDecimal promotionDiscount = recalculatePromotionDiscount(booking, newSlot, baseAmount);
-        BigDecimal membershipDiscount = support.calculateMembershipDiscount(
-                booking.getCustomer(), baseAmount.subtract(promotionDiscount), booking.getBookingSource());
+        BigDecimal membershipDiscount = appliedPromotionsAllowMembershipStacking(booking)
+                ? support.calculateMembershipDiscount(
+                    booking.getCustomer(), baseAmount.subtract(promotionDiscount), booking.getBookingSource())
+                : BigDecimal.ZERO.setScale(2);
         BigDecimal newTotal = support.money(baseAmount.subtract(promotionDiscount).subtract(membershipDiscount).max(BigDecimal.ZERO));
         BigDecimal remainingAmount = support.money(newTotal.subtract(booking.getPaidAmount()).max(BigDecimal.ZERO));
-        BigDecimal refundableAmount = support.money(booking.getPaidAmount().subtract(newTotal).max(BigDecimal.ZERO));
+        BigDecimal refundableAmount = support.remainingRefundEntitlement(
+                booking, booking.getPaidAmount().subtract(newTotal));
         booking.setSlot(newSlot);
         booking.setFieldPriceAmount(newFieldPrice);
         booking.setPromotionDiscountAmount(promotionDiscount);
@@ -285,11 +297,24 @@ public class BookingWorkflowService {
         BigDecimal discountTotal = BigDecimal.ZERO;
         for (BookingPromotion applied : appliedPromotions) {
             Promotion promotion = applied.getPromotion();
-            boolean remainsApplicable = (promotion.getMinBookingAmount() == null || baseAmount.compareTo(promotion.getMinBookingAmount()) >= 0)
+            String slotDayType = newSlotDayType(slot);
+            boolean membershipEligible = promotion.getApplicableMembershipLevel() == null
+                    || Objects.equals(support.resolveEligibleMembershipLevel(booking.getCustomer(), slot.getSlotDate()).getMembershipLevelId(),
+                    promotion.getApplicableMembershipLevel().getMembershipLevelId());
+            boolean remainsApplicable = promotion.getStatus() == CommonStatus.active
+                    && !slot.getSlotDate().isBefore(promotion.getStartDate())
+                    && !slot.getSlotDate().isAfter(promotion.getEndDate())
+                    && (promotion.getMinBookingAmount() == null || baseAmount.compareTo(promotion.getMinBookingAmount()) >= 0)
                     && (promotion.getApplicableFieldType() == null
                     || Objects.equals(promotion.getApplicableFieldType().getFieldTypeId(), slot.getField().getFieldType().getFieldTypeId()))
                     && (promotion.getApplicableExtraService() == null
-                    || selectedServiceIds.contains(promotion.getApplicableExtraService().getExtraServiceId()));
+                    || selectedServiceIds.contains(promotion.getApplicableExtraService().getExtraServiceId()))
+                    && membershipEligible
+                    && (support.isBlank(promotion.getApplicableDayType()) || "all".equalsIgnoreCase(promotion.getApplicableDayType())
+                    || slotDayType.equalsIgnoreCase(promotion.getApplicableDayType()))
+                    && (promotion.getApplicableStartTime() == null
+                    || (!slot.getStartTime().isBefore(promotion.getApplicableStartTime())
+                    && !slot.getEndTime().isAfter(promotion.getApplicableEndTime())));
             if (!remainsApplicable) {
                 applied.setDiscountAmount(BigDecimal.ZERO.setScale(2));
                 continue;
@@ -308,25 +333,41 @@ public class BookingWorkflowService {
         return support.money(discountTotal);
     }
 
+    private boolean appliedPromotionsAllowMembershipStacking(Booking booking) {
+        return support.bookingPromotionRepository.findByBooking_BookingId(booking.getBookingId()).stream()
+                .noneMatch(applied -> applied.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0
+                        && !applied.getPromotion().isStackable());
+    }
+
+    private String newSlotDayType(Slot slot) {
+        return switch (slot.getSlotDate().getDayOfWeek()) {
+            case SATURDAY, SUNDAY -> "weekend";
+            default -> "weekday";
+        };
+    }
+
     /** UC-21: services can change until the customer has checked in. */
     public Map<String, Object> updateBookingServices(Long bookingId, ApiRequests.BookingServicesUpdate request) {
         AppUser requester = currentUser();
-        if (!isOperator(requester)) throw new ApiException(HttpStatus.FORBIDDEN, "Staff or administrator access is required");
         Booking booking = support.getBooking(bookingId);
+        requireBookingVisible(booking);
         if (booking.getStatus() != BookingStatus.pending && booking.getStatus() != BookingStatus.confirmed) {
             throw support.badRequest("Services can only be changed before check-in");
         }
 
         List<ApiRequests.ServiceSelection> selections = request.services() == null ? List.of() : request.services();
-        BigDecimal serviceTotal = support.calculateServiceTotal(selections);
+        BigDecimal serviceTotal = support.calculateServiceTotal(selections, booking.getSlot(), bookingId);
         BigDecimal baseAmount = booking.getFieldPriceAmount().add(serviceTotal);
         List<Long> selectedServiceIds = selections.stream().map(ApiRequests.ServiceSelection::serviceId).toList();
         BigDecimal promotionDiscount = recalculatePromotionDiscount(booking, booking.getSlot(), baseAmount, selectedServiceIds);
-        BigDecimal membershipDiscount = support.calculateMembershipDiscount(
-                booking.getCustomer(), baseAmount.subtract(promotionDiscount), booking.getBookingSource());
+        BigDecimal membershipDiscount = appliedPromotionsAllowMembershipStacking(booking)
+                ? support.calculateMembershipDiscount(
+                    booking.getCustomer(), baseAmount.subtract(promotionDiscount), booking.getBookingSource())
+                : BigDecimal.ZERO.setScale(2);
         BigDecimal total = support.money(baseAmount.subtract(promotionDiscount).subtract(membershipDiscount).max(BigDecimal.ZERO));
         BigDecimal remaining = support.money(total.subtract(booking.getPaidAmount()).max(BigDecimal.ZERO));
-        BigDecimal refundable = support.money(booking.getPaidAmount().subtract(total).max(BigDecimal.ZERO));
+        BigDecimal refundable = support.remainingRefundEntitlement(
+                booking, booking.getPaidAmount().subtract(total));
 
         support.bookingServiceItemRepository.deleteByBooking_BookingId(bookingId);
         support.saveBookingServices(booking, selections);
@@ -337,7 +378,7 @@ public class BookingWorkflowService {
         booking.setDepositAmount(support.calculateDeposit(total));
         booking.setRemainingAmount(remaining);
         booking.setRefundableAmount(refundable);
-        booking.setStaff(resolveOperatingStaff(null));
+        if (isOperator(requester)) booking.setStaff(resolveOperatingStaff(null));
         support.generateInvoice(booking);
         support.notifyUser(booking.getCustomer(), booking, NotificationType.booking_confirmation,
                 "Booking services updated", "Services for booking " + booking.getBookingCode() + " were updated before check-in."
@@ -347,6 +388,18 @@ public class BookingWorkflowService {
                         ? " The remaining balance is " + remaining + "."
                         : ""));
         return bookingDetail(bookingId);
+    }
+
+    private void requireValidTransition(BookingStatus current, BookingStatus next) {
+        boolean valid = switch (current) {
+            case pending -> List.of(BookingStatus.confirmed, BookingStatus.rejected, BookingStatus.cancelled, BookingStatus.expired).contains(next);
+            case confirmed -> List.of(BookingStatus.checked_in, BookingStatus.cancelled, BookingStatus.no_show).contains(next);
+            case checked_in -> next == BookingStatus.completed;
+            default -> false;
+        };
+        if (!valid) {
+            throw support.badRequest("Booking cannot change from " + current + " to " + next);
+        }
     }
 
     private AppUser currentUser() {

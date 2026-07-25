@@ -1,0 +1,87 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Admin" as User
+participant "AdminPage" as UI
+participant "AccountController" as Controller
+participant "AccountService" as Service
+participant "AppUserRepository" as Repo
+participant "BookingRepository" as BookingRepo
+database "Database" as DB
+
+== UC-07: Manage Customer Accounts ==
+
+User -> UI : 1. Open People & access
+activate User
+activate UI
+
+UI -> Controller : 2. GET /api/account/users?role=Customer
+activate Controller
+
+Controller -> Service : 3. users("Customer")
+activate Service
+
+Service -> Service : 4. requireAdmin()
+activate Service
+deactivate Service
+
+alt Admin is authorized
+  Service -> Repo : 5. findAll()
+  activate Repo
+
+  Repo -> DB : 6. SELECT Customer accounts
+  activate DB
+  DB --> Repo : 7. Customer accounts
+  deactivate DB
+
+  Repo --> Service : 8. Repository result
+  deactivate Repo
+else Authorization fails
+  note over Service,Controller
+    Non-admin -> 403
+    The service propagates ApiException to ApiExceptionHandler.
+  end note
+end
+
+Service --> Controller : 9. Customer directory or propagated error
+deactivate Service
+
+Controller --> UI : 10. HTTP 200 or mapped 4xx
+deactivate Controller
+
+User -> UI : 11. Choose View for a Customer
+UI -> Controller : 12. GET /api/account/users/{id}/activity
+activate Controller
+Controller -> Service : 13. activity(userId)
+activate Service
+Service -> BookingRepo : 14. Load recent bookings
+activate BookingRepo
+BookingRepo -> DB : 15. SELECT booking and issue history
+activate DB
+DB --> BookingRepo : 16. Activity rows
+deactivate DB
+BookingRepo --> Service : 17. Recent activity
+deactivate BookingRepo
+Service --> Controller : 18. Read-only Customer details
+deactivate Service
+Controller --> UI : 19. Activity response
+deactivate Controller
+
+UI -> UI : 20. Open read-only View modal
+
+UI --> User : 21. Show profile, bookings, and issues
+
+deactivate UI
+deactivate User
+
+@enduml

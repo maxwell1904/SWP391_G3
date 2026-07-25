@@ -1,0 +1,38 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam linetype ortho
+skinparam packageStyle folder
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 15
+skinparam ArrowColor black
+skinparam PackageBorderColor black
+skinparam PackageBackgroundColor white
+package "config" as config
+package "com.swp391.backend" as root
+package "controller" as controller
+package "dto" as dto
+package "security" as security
+package "service" as service
+package "repository" as repository
+package "entity" as entity
+package "enums" as enums
+
+root -[hidden]right- controller
+config -[hidden]right- service
+controller -[hidden]right- dto
+security -[hidden]right- repository
+repository -[hidden]down- entity
+entity -[hidden]right- enums
+
+root ..> config : <<Bootstrap>>
+config ..> security : <<Configure>>
+controller ..> security : <<Use>>
+controller ..> service : <<Use>>
+controller ..> dto : <<Use>>
+service ..> repository : <<Use>>
+service ..> dto : <<Use>>
+security ..> repository : <<Use>>
+repository ..> entity : <<Use>>
+entity ..> enums : <<Use>>
+@enduml

@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,20 +24,36 @@ import java.util.Map;
 @Service
 @Transactional
 public class PromotionReportService {
-    private final DemoSupportService support;
+    private final DomainSupportService support;
     private final BookingWorkflowService bookingWorkflowService;
+    private final SlotGenerationService slotGenerationService;
 
-    public PromotionReportService(DemoSupportService support, BookingWorkflowService bookingWorkflowService) {
+    public PromotionReportService(
+            DomainSupportService support,
+            BookingWorkflowService bookingWorkflowService,
+            SlotGenerationService slotGenerationService
+    ) {
         this.support = support;
         this.bookingWorkflowService = bookingWorkflowService;
+        this.slotGenerationService = slotGenerationService;
     }
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> promotions(boolean includeInactive) {
+        if (includeInactive) {
+            requireAdmin();
+        }
         List<Promotion> promotions = includeInactive
                 ? support.promotionRepository.findAll()
                 : support.promotionRepository.findByStatus(CommonStatus.active);
-        return promotions.stream().map(support::promotionSummary).toList();
+        LocalDate today = LocalDate.now();
+        return promotions.stream()
+                .filter(promotion -> includeInactive
+                        || (!today.isBefore(promotion.getStartDate())
+                        && !today.isAfter(promotion.getEndDate())
+                        && (promotion.getUsageLimit() == null || promotion.getUsedCount() < promotion.getUsageLimit())))
+                .map(support::promotionSummary)
+                .toList();
     }
 
     // Backlog owner: AnPTT - UC-52 Manage promotion campaigns.
@@ -64,25 +82,39 @@ public class PromotionReportService {
         AppUser customer = support.getUser(customerId);
         CustomerMembership membership = support.customerMembershipRepository.findByCustomer_UserId(customerId)
                 .orElseThrow(() -> support.notFound("Membership not found"));
-        List<MembershipLevel> levels = support.membershipLevelRepository.findAllByOrderByDisplayOrderAsc();
+        List<MembershipLevel> levels = support.membershipLevelRepository.findAllByOrderByDisplayOrderAsc().stream()
+                .filter(level -> level.getStatus() == CommonStatus.active)
+                .toList();
+        MembershipLevel current = support.resolveEligibleMembershipLevel(customer, LocalDate.now());
         MembershipLevel next = levels.stream()
-                .filter(level -> level.getRequiredCompletedBookings() > membership.getCompletedBookingCount())
+                .filter(level -> level.getDisplayOrder() > current.getDisplayOrder())
                 .findFirst()
                 .orElse(null);
+        int progress = next == null ? 0 : support.membershipQualificationProgress(customer, next, LocalDate.now());
+        boolean weekly = next != null && "weekly".equalsIgnoreCase(next.getQualificationPeriod());
+        int target = next == null ? 0 : (weekly ? next.getRequiredConsecutivePeriods() : next.getRequiredCompletedBookings());
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("customer", support.userSummary(customer));
-        response.put("currentLevel", membership.getMembershipLevel().getLevelName());
+        response.put("currentLevel", current.getLevelName());
+        response.put("membershipLevel", support.membershipLevelSummary(current));
         response.put("completedBookingCount", membership.getCompletedBookingCount());
-        response.put("discountPercent", membership.getMembershipLevel().getDiscountPercent());
+        response.put("discountPercent", current.getDiscountPercent());
         response.put("nextLevel", next == null ? null : next.getLevelName());
-        response.put("bookingsToNextLevel", next == null ? 0 : next.getRequiredCompletedBookings() - membership.getCompletedBookingCount());
+        response.put("bookingsToNextLevel", next == null ? 0 : Math.max(0, target - progress));
+        response.put("nextLevelProgress", progress);
+        response.put("nextLevelTarget", target);
+        response.put("nextLevelQualificationPeriod", next == null ? null : next.getQualificationPeriod());
         response.put("levels", levels.stream().map(support::membershipLevelSummary).toList());
         return response;
     }
 
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> membershipLevels() {
+    public List<Map<String, Object>> membershipLevels(boolean includeInactive) {
+        if (includeInactive) {
+            requireAdmin();
+        }
         return support.membershipLevelRepository.findAllByOrderByDisplayOrderAsc().stream()
+                .filter(level -> includeInactive || level.getStatus() == CommonStatus.active)
                 .map(support::membershipLevelSummary)
                 .toList();
     }
@@ -90,14 +122,18 @@ public class PromotionReportService {
     public Map<String, Object> createMembershipLevel(ApiRequests.MembershipLevelUpsert request) {
         MembershipLevel level = new MembershipLevel();
         applyMembershipLevelFields(level, request, null);
-        return support.membershipLevelSummary(support.membershipLevelRepository.save(level));
+        MembershipLevel saved = support.membershipLevelRepository.save(level);
+        support.refreshAllMembershipAssignments();
+        return support.membershipLevelSummary(saved);
     }
 
     public Map<String, Object> updateMembershipLevel(Long id, ApiRequests.MembershipLevelUpsert request) {
         MembershipLevel level = support.membershipLevelRepository.findById(id)
                 .orElseThrow(() -> support.badRequest("Membership level not found"));
         applyMembershipLevelFields(level, request, id);
-        return support.membershipLevelSummary(support.membershipLevelRepository.save(level));
+        MembershipLevel saved = support.membershipLevelRepository.save(level);
+        support.refreshAllMembershipAssignments();
+        return support.membershipLevelSummary(saved);
     }
 
     private void applyMembershipLevelFields(MembershipLevel level, ApiRequests.MembershipLevelUpsert request, Long currentId) {
@@ -111,22 +147,58 @@ public class PromotionReportService {
                 });
 
         level.setLevelName(name);
-        level.setRequiredCompletedBookings(request.requiredCompletedBookings() != null ? request.requiredCompletedBookings() : 0);
-        level.setDiscountPercent(request.discountPercent() != null ? request.discountPercent() : BigDecimal.ZERO);
+        int requiredBookings = request.requiredCompletedBookings() != null ? request.requiredCompletedBookings() : 0;
+        BigDecimal discountPercent = request.discountPercent() != null ? request.discountPercent() : BigDecimal.ZERO;
+        int displayOrder = request.displayOrder() != null ? request.displayOrder() : 0;
+        if (requiredBookings < 0) throw support.badRequest("Required completed bookings cannot be negative");
+        if (discountPercent.compareTo(BigDecimal.ZERO) < 0 || discountPercent.compareTo(BigDecimal.valueOf(100)) > 0) {
+            throw support.badRequest("Membership discount percent must be between 0 and 100");
+        }
+        if (displayOrder < 0) throw support.badRequest("Membership display order cannot be negative");
+        level.setRequiredCompletedBookings(requiredBookings);
+        level.setDiscountPercent(support.money(discountPercent));
         level.setBenefitDescription(support.clean(request.benefitDescription()));
-        level.setDisplayOrder(request.displayOrder() != null ? request.displayOrder() : 0);
+        level.setDisplayOrder(displayOrder);
         level.setStatus(support.parseEnum(CommonStatus.class, request.status(), CommonStatus.active));
+        String period = support.clean(request.qualificationPeriod());
+        period = period == null ? "lifetime" : period.toLowerCase();
+        if (!List.of("lifetime", "monthly", "weekly").contains(period)) {
+            throw support.badRequest("Qualification period must be lifetime, monthly, or weekly");
+        }
+        int consecutive = request.requiredConsecutivePeriods() == null ? 1 : request.requiredConsecutivePeriods();
+        if (consecutive < 1) throw support.badRequest("Consecutive periods must be at least one");
+        level.setQualificationPeriod(period);
+        level.setRequiredConsecutivePeriods(consecutive);
     }
 
     @Transactional(readOnly = true)
-    public Map<String, Object> reports() {
-        List<Booking> bookings = support.bookingRepository.findAll();
-        List<Payment> payments = support.paymentRepository.findAll();
-        List<Refund> refunds = support.refundRepository.findAll();
+    public Map<String, Object> reports(LocalDate from, LocalDate to) {
+        if (from != null && to != null && to.isBefore(from)) throw support.badRequest("Report end date cannot be before start date");
+        List<Booking> bookings = support.bookingRepository.findAll().stream()
+                .filter(booking -> from == null || !booking.getSlot().getSlotDate().isBefore(from))
+                .filter(booking -> to == null || !booking.getSlot().getSlotDate().isAfter(to))
+                .toList();
+        java.util.Set<Long> bookingIds = bookings.stream().map(Booking::getBookingId).collect(java.util.stream.Collectors.toSet());
+        List<Payment> payments = support.paymentRepository.findAll().stream()
+                .filter(payment -> bookingIds.contains(payment.getBooking().getBookingId()))
+                .toList();
+        List<Refund> refunds = support.refundRepository.findAll().stream()
+                .filter(refund -> bookingIds.contains(refund.getBooking().getBookingId()))
+                .toList();
         BigDecimal grossRevenue = payments.stream()
-                .filter(payment -> payment.getStatus() == PaymentStatus.paid)
+                .filter(this::isCollectedPayment)
                 .map(Payment::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal providerFees = payments.stream()
+                .filter(this::isCollectedPayment)
+                .map(Payment::getProviderFeeAmount)
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        long untrackedProviderFeeCount = payments.stream()
+                .filter(this::isCollectedPayment)
+                .filter(payment -> payment.getPaymentMethod() == com.swp391.backend.enums.PaymentMethod.paypal_sandbox)
+                .filter(payment -> payment.getProviderFeeAmount() == null)
+                .count();
         BigDecimal completedRefunds = refunds.stream()
                 .filter(refund -> refund.getStatus() == com.swp391.backend.enums.RefundStatus.completed)
                 .map(Refund::getRefundAmount)
@@ -173,9 +245,11 @@ public class PromotionReportService {
                 membershipDistribution.merge(membership.getMembershipLevel().getLevelName(), 1L, Long::sum));
 
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("totalRevenue", support.money(grossRevenue.subtract(completedRefunds)));
+        response.put("totalRevenue", support.money(grossRevenue.subtract(completedRefunds).subtract(providerFees)));
         response.put("grossRevenue", support.money(grossRevenue));
         response.put("refundTotal", support.money(completedRefunds));
+        response.put("providerFeeTotal", support.money(providerFees));
+        response.put("providerFeeUntrackedCount", untrackedProviderFeeCount);
         response.put("fieldRevenue", support.money(fieldValue));
         response.put("serviceRevenue", support.money(serviceValue));
         response.put("promotionDiscountTotal", support.money(promotionDiscount));
@@ -191,7 +265,16 @@ public class PromotionReportService {
         response.put("topCustomers", topCustomers);
         response.put("returningCustomerCount", returningCustomers);
         response.put("membershipDistribution", membershipDistribution);
+        response.put("from", from == null ? null : from.toString());
+        response.put("to", to == null ? null : to.toString());
+        response.put("dateBasis", "slotDate");
         return response;
+    }
+
+    private boolean isCollectedPayment(Payment payment) {
+        return payment.getStatus() == PaymentStatus.paid
+                || payment.getStatus() == PaymentStatus.partially_refunded
+                || payment.getStatus() == PaymentStatus.refunded;
     }
 
     @Transactional(readOnly = true)
@@ -199,7 +282,10 @@ public class PromotionReportService {
         List<SystemSetting> settings = support.isBlank(group)
                 ? support.systemSettingRepository.findAll()
                 : support.systemSettingRepository.findBySettingGroupOrderBySettingKeyAsc(group);
-        return settings.stream().map(support::settingSummary).toList();
+        return settings.stream()
+                .sorted(Comparator.comparing(SystemSetting::getSettingGroup).thenComparing(SystemSetting::getSettingKey))
+                .map(support::settingSummary)
+                .toList();
     }
 
     public Map<String, Object> updateSetting(String key, ApiRequests.SettingUpdate request) {
@@ -208,11 +294,20 @@ public class PromotionReportService {
         String value = support.clean(request.settingValue());
         support.requireText(value, "Setting value is required");
         validatePolicySetting(key, value);
+        if (key.startsWith("slot.")) {
+            slotGenerationService.validateRuleChange(key, value);
+        }
         setting.setSettingValue(value);
         if (request.updatedById() != null) {
             setting.setUpdatedBy(support.getUser(request.updatedById()));
         }
-        return support.settingSummary(setting);
+        Map<String, Object> response = new LinkedHashMap<>(support.settingSummary(setting));
+        if (key.startsWith("slot.")) {
+            SlotGenerationService.GenerationResult generated = slotGenerationService.rebuildRollingWindow();
+            response.put("generatedSlotCount", generated.createdSlots());
+            response.put("generatedThrough", generated.toDate().toString());
+        }
+        return response;
     }
 
     private void validatePolicySetting(String key, String value) {
@@ -278,6 +373,12 @@ public class PromotionReportService {
         }
     }
 
+    private void requireAdmin() {
+        if (!"Admin".equalsIgnoreCase(currentUser().getRole().getRoleName())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Administrator access is required");
+        }
+    }
+
     private void applyPromotionFields(Promotion promotion, ApiRequests.PromotionUpsert request, Long currentId) {
         String code = support.clean(request.promotionCode());
         String name = support.clean(request.promotionName());
@@ -298,6 +399,15 @@ public class PromotionReportService {
         DiscountType discountType = support.parseEnum(DiscountType.class, request.discountType(), DiscountType.percent);
         if (discountType == DiscountType.percent && request.discountValue().compareTo(BigDecimal.valueOf(100)) > 0) {
             throw support.badRequest("Percentage discount cannot exceed 100");
+        }
+        if (request.maxDiscountAmount() != null && request.maxDiscountAmount().compareTo(BigDecimal.ZERO) < 0) {
+            throw support.badRequest("Maximum discount amount cannot be negative");
+        }
+        if (request.minBookingAmount() != null && request.minBookingAmount().compareTo(BigDecimal.ZERO) < 0) {
+            throw support.badRequest("Minimum booking amount cannot be negative");
+        }
+        if (request.usageLimit() != null && request.usageLimit() < 0) {
+            throw support.badRequest("Promotion usage limit cannot be negative");
         }
 
         promotion.setPromotionCode(code.toUpperCase());
@@ -333,5 +443,31 @@ public class PromotionReportService {
         } else {
             promotion.setApplicableMembershipLevel(null);
         }
+
+        String dayType = support.clean(request.applicableDayType());
+        if (!support.isBlank(dayType) && !List.of("all", "weekday", "weekend").contains(dayType.toLowerCase())) {
+            throw support.badRequest("Applicable day type must be all, weekday, or weekend");
+        }
+        promotion.setApplicableDayType(support.isBlank(dayType) ? null : dayType.toLowerCase());
+        boolean hasStartTime = !support.isBlank(request.applicableStartTime());
+        boolean hasEndTime = !support.isBlank(request.applicableEndTime());
+        if (hasStartTime != hasEndTime) {
+            throw support.badRequest("Promotion start and end time must be provided together");
+        }
+        if (hasStartTime) {
+            try {
+                LocalTime startTime = LocalTime.parse(request.applicableStartTime());
+                LocalTime endTime = LocalTime.parse(request.applicableEndTime());
+                if (!endTime.isAfter(startTime)) throw support.badRequest("Promotion end time must be after start time");
+                promotion.setApplicableStartTime(startTime);
+                promotion.setApplicableEndTime(endTime);
+            } catch (java.time.format.DateTimeParseException exception) {
+                throw support.badRequest("Promotion time range is invalid");
+            }
+        } else {
+            promotion.setApplicableStartTime(null);
+            promotion.setApplicableEndTime(null);
+        }
+        promotion.setStackable(Boolean.TRUE.equals(request.stackable()));
     }
 }

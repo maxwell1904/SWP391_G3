@@ -37,9 +37,6 @@ public class AppUser extends AuditEntity {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
-    @Column(name = "avatar_url")
-    private String avatarUrl;
-
     @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;
 
@@ -49,11 +46,8 @@ public class AppUser extends AuditEntity {
     @Column(nullable = false)
     private AccountStatus status = AccountStatus.active;
 
-    @Column(name = "booking_restricted", nullable = false)
-    private boolean bookingRestricted;
-
-    @Column(name = "restriction_reason")
-    private String restrictionReason;
+    @Column(name = "lock_reason")
+    private String lockReason;
 
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;

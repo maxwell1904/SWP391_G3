@@ -10,12 +10,12 @@ class BookingController <<controller>> {
 }
 
 class BookingWorkflowService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
 
     +bookings(customerId : Long, date : LocalDate) : List<Map<String, Object>>
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -bookingRepository : BookingRepository
 
     +bookingSummary(booking : Booking) : Map<String, Object>
@@ -74,9 +74,9 @@ enum BookingSource {
 
 ' Relationships
 BookingController ..> BookingWorkflowService
-BookingWorkflowService ..> DemoSupportService
-DemoSupportService ..> BookingRepository
-DemoSupportService ..> Booking
+BookingWorkflowService ..> DomainSupportService
+DomainSupportService ..> BookingRepository
+DomainSupportService ..> Booking
 BookingRepository --> Booking
 Booking -|> AuditEntity
 Booking --> BookingStatus

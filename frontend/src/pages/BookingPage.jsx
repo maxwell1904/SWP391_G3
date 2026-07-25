@@ -14,7 +14,10 @@ export function BookingPage({
   setSearchDate,
   fieldTypeFilter,
   setFieldTypeFilter,
+  fieldFilter,
+  setFieldFilter,
   fieldTypes,
+  fields,
   canOperate,
   selectedCustomerId,
   setSelectedCustomerId,
@@ -78,6 +81,14 @@ export function BookingPage({
                 {fieldTypes.map(type => <option key={type.fieldTypeId} value={type.fieldTypeId}>{type.typeName}</option>)}
               </select>
             </FieldControl>
+            <FieldControl label="Field">
+              <select value={fieldFilter} onChange={event => setFieldFilter(event.target.value)}>
+                <option value="">All fields</option>
+                {fields
+                  .filter(field => !fieldTypeFilter || Number(field.fieldTypeId) === Number(fieldTypeFilter))
+                  .map(field => <option key={field.fieldId} value={field.fieldId}>{field.fieldName}</option>)}
+              </select>
+            </FieldControl>
             {canOperate && (
               <FieldControl label="Customer">
                 <select value={selectedCustomerId} onChange={event => setSelectedCustomerId(Number(event.target.value))}>
@@ -85,6 +96,10 @@ export function BookingPage({
                 </select>
               </FieldControl>
             )}
+          </div>
+          <div className="bookingStepHeader">
+            <div><span>Step 1</span><h3>Choose a time</h3></div>
+            <p>{slots.filter(slot => slot.available).length} available slot(s)</p>
           </div>
           <SlotList slots={slots} selectedSlotId={selectedSlotId} onSelect={setSelectedSlotId} />
           <ServicePicker services={services} selectedServices={selectedServices} setSelectedServices={setSelectedServices} />
@@ -95,7 +110,7 @@ export function BookingPage({
           <FieldControl label="Promotion code">
             <input
               value={promotionCode}
-              placeholder="WELCOME10"
+              placeholder="e.g. WELCOME10"
               onChange={event => setPromotionCode(event.target.value.toUpperCase())}
             />
           </FieldControl>
@@ -110,7 +125,7 @@ export function BookingPage({
               <PayPalCheckout
                 key={`${selectedSlotId}-${paymentOption}-${promotionCode}-${JSON.stringify(selectedServices)}`}
                 config={paypalConfig}
-                disabled={!checkout || currentUser.bookingRestricted}
+                disabled={!checkout || currentUser.accountLocked}
                 paymentOption={paymentOption}
                 onPrepareBooking={preparePayPalBooking}
                 onPaymentComplete={completePayPalPayment}
@@ -126,9 +141,9 @@ export function BookingPage({
           </div>
           {isCustomer && paypalConfigError && <p className="errorText">{paypalConfigError}</p>}
           {!currentUser && <p className="hintText">You can browse prices now. Login or register is required before the booking is saved.</p>}
-          {currentUser?.bookingRestricted && (
+          {currentUser?.accountLocked && (
             <p className="errorText" style={{ marginTop: '0.5rem', color: 'var(--orange, #ff6b6b)' }}>
-              Your account is restricted from booking: {currentUser.restrictionReason || 'Booking restricted by admin.'}
+              Your account is locked: {currentUser.lockReason || 'Please check your email for details.'}
             </p>
           )}
         </aside>

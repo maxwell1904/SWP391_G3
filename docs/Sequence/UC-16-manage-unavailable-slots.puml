@@ -1,0 +1,93 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+actor "Admin" as Admin
+actor "Staff" as Staff
+participant "AdminPage / StaffPage" as UI
+participant "PromotionReportController /\nFieldOperationController" as Controller
+participant "PromotionReportService /\nFieldOperationService" as Service
+participant "SlotGenerationService" as Generator
+participant "SystemSetting / Slot /\nBooking Repositories" as Repo
+database "Database" as DB
+
+== UC-15: Automatic Availability Rules and Slot Exceptions ==
+
+alt Admin updates automatic generation rules
+  Admin -> UI : 1. Save opening, closing,\nduration or horizon
+  activate Admin
+  activate UI
+  UI -> Controller : 2. PUT /api/settings/{slotRuleKey}
+  activate Controller
+  Controller -> Service : 3. updateSetting(key, request)
+  activate Service
+  Service -> Generator : 4. validateRuleChange();\nrebuildRollingWindow()
+  activate Generator
+  Generator -> Repo : 5. Preserve booked/blocked exceptions;\nreplace unbooked generated rows
+  activate Repo
+  Repo -> DB : 6. UPDATE setting;\nDELETE/INSERT generated slots
+  activate DB
+  DB --> Repo : 7. Saved rule and calendar
+  deactivate DB
+  Repo --> Generator : 8. Created count
+  deactivate Repo
+  Generator --> Service : 9. GenerationResult
+  deactivate Generator
+  Service --> Controller : 10. Setting summary
+  deactivate Service
+  Controller --> UI : 11. HTTP 200
+  deactivate Controller
+  UI --> Admin : 12. Show saved rule and new horizon
+  deactivate UI
+  deactivate Admin
+
+else Staff blocks or unblocks an exception
+  Staff -> UI : 1. Choose field/date/time and action
+  activate Staff
+  activate UI
+  UI -> Controller : 2. POST /api/slots/block\nor PUT /api/slots/{slotId}/unblock
+  activate Controller
+  Controller -> Service : 3. blockSlot(request) /\nunblockSlot(slotId)
+  activate Service
+  Service -> Repo : 4. Find overlapping slots\nand active bookings
+  activate Repo
+  Repo -> DB : 5. SELECT slot and booking state
+  activate DB
+  DB --> Repo : 6. Matching rows
+  deactivate DB
+  Repo --> Service : 7. Repository result
+  deactivate Repo
+
+  alt Range has no active booking
+    Service -> Repo : 8. saveAll(blocked overlaps)\nor restore one blocked slot
+    activate Repo
+    Repo -> DB : 9. INSERT/UPDATE slot exception
+    activate DB
+    DB --> Repo : 10. Saved state
+    deactivate DB
+    Repo --> Service : 11. Repository result
+    deactivate Repo
+  else Invalid rule, range, role or active booking
+    note over Service,Controller
+      Reject without overwriting the booking or exception.
+      ApiExceptionHandler maps the response.
+    end note
+  end
+
+  Service --> Controller : 12. Domain result or propagated error
+  deactivate Service
+  Controller --> UI : 13. HTTP 200 or mapped 4xx
+  deactivate Controller
+  UI -> UI : 14. reloadCalendar()
+  activate UI
+  deactivate UI
+  UI --> Staff : 15. Refresh operational calendar
+  deactivate UI
+  deactivate Staff
+end
+
+@enduml

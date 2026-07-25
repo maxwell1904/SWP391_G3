@@ -1,0 +1,83 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class BookingController <<controller>> {
+    -bookingWorkflowService : BookingWorkflowService
+
+    +updateServices(bookingId : Long, request : ApiRequests.BookingServicesUpdate) : Object
+}
+
+class BookingWorkflowService <<service>> {
+    -support : DomainSupportService
+
+    +updateBookingServices(bookingId : Long, request : ApiRequests.BookingServicesUpdate) : Map<String, Object>
+    -recalculatePromotionDiscount(booking : Booking, slot : Slot, baseAmount : BigDecimal, selectedServiceIds : List<Long>) : BigDecimal
+}
+
+class DomainSupportService <<service>> {
+    -bookingServiceItemRepository : BookingServiceItemRepository
+    -invoiceRepository : InvoiceRepository
+
+    +calculateServiceTotal(selections : List<ServiceSelection>, slot : Slot, excludedBookingId : Long) : BigDecimal
+    +saveBookingServices(booking : Booking, selections : List<ServiceSelection>) : void
+    +remainingRefundEntitlement(booking : Booking, grossEntitlement : BigDecimal) : BigDecimal
+    +generateInvoice(booking : Booking) : void
+}
+
+class "ApiRequests.BookingServicesUpdate" as BookingServicesUpdateDTO <<dto>> {
+    -services : List<ServiceSelection>
+}
+
+interface BookingServiceItemRepository <<repository>> {
+    +findByBooking_BookingId(bookingId : Long) : List<BookingServiceItem>
+    +deleteByBooking_BookingId(bookingId : Long) : void
+}
+
+interface InvoiceRepository <<repository>> {
+    +findByBooking_BookingId(bookingId : Long) : Optional<Invoice>
+}
+
+class Booking <<entity>> {
+    -bookingId : Long
+    -slot : Slot
+    -status : BookingStatus
+    -serviceTotalAmount : BigDecimal
+    -totalAmount : BigDecimal
+    -paidAmount : BigDecimal
+    -remainingAmount : BigDecimal
+    -refundableAmount : BigDecimal
+}
+
+class BookingServiceItem <<entity>> {
+    -bookingServiceId : Long
+    -booking : Booking
+    -extraService : ExtraService
+    -quantity : int
+    -unitPrice : BigDecimal
+    -lineTotal : BigDecimal
+}
+
+class Invoice <<entity>> {
+    -invoiceId : Long
+    -booking : Booking
+    -serviceAmount : BigDecimal
+    -totalAmount : BigDecimal
+    -paidAmount : BigDecimal
+    -remainingAmount : BigDecimal
+    -refundAmount : BigDecimal
+}
+
+BookingController ..> BookingWorkflowService
+BookingController ..> BookingServicesUpdateDTO
+BookingWorkflowService ..> BookingServicesUpdateDTO
+BookingWorkflowService ..> DomainSupportService
+DomainSupportService ..> BookingServiceItemRepository
+DomainSupportService ..> InvoiceRepository
+BookingServiceItemRepository --> BookingServiceItem
+InvoiceRepository --> Invoice
+BookingServiceItem --> Booking
+Invoice --> Booking
+
+@enduml
