@@ -252,11 +252,7 @@ public class VerificationEmailService {
 
     private String accountLockPlainText(AppUser user, String reason) {
         return "Hi " + user.getFullName() + ",\n\n"
-<<<<<<< HEAD
                 + "Your GoalZone account has been locked and you can no longer sign in.\n\n"
-=======
-                + "Your GoalZone account has been restricted from creating new bookings. You can still sign in and manage existing bookings.\n\n"
->>>>>>> 327a19993fe956540087376c122302c65ddffcde
                 + "Reason:\n"
                 + reason + "\n\n"
                 + "Please contact GoalZone staff if you need support.";
@@ -268,11 +264,7 @@ public class VerificationEmailService {
         return "<div style=\"font-family:Arial,sans-serif;line-height:1.5;color:#17211b;max-width:560px\">"
                 + "<h2 style=\"margin:0 0 12px\">GoalZone account locked</h2>"
                 + "<p>Hi " + name + ",</p>"
-<<<<<<< HEAD
                 + "<p>Your GoalZone account has been locked and you can no longer sign in.</p>"
-=======
-                + "<p>Your GoalZone account has been restricted from creating new bookings. You can still sign in and manage existing bookings.</p>"
->>>>>>> 327a19993fe956540087376c122302c65ddffcde
                 + "<div style=\"border:1px solid #d8e2d8;background:#f7fbf7;border-radius:6px;padding:12px;margin:12px 0\">"
                 + "<strong>Reason</strong>"
                 + "<p style=\"margin:8px 0 0\">" + safeReason + "</p>"
