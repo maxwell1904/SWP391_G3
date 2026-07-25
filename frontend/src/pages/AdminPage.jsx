@@ -79,6 +79,7 @@ export function AdminPage({
   const [staffAccounts, setStaffAccounts] = useState([])
   const [selectedStaffId, setSelectedStaffId] = useState('new')
   const [staffForm, setStaffForm] = useState(emptyStaffForm)
+  const [staffErrors, setStaffErrors] = useState({})
   const [customerActivity, setCustomerActivity] = useState(null)
   const [policyValues, setPolicyValues] = useState({})
   const [activePanel, setActivePanel] = useState('overview')
@@ -109,6 +110,7 @@ export function AdminPage({
   }, [])
 
   useEffect(() => {
+    setStaffErrors({})
     const staff = staffAccounts.find(account => Number(account.userId) === Number(selectedStaffId))
     setStaffForm(staff ? {
       fullName: staff.fullName || '', email: staff.email || '', phone: staff.phone || '', status: staff.status || 'active'
@@ -433,6 +435,19 @@ export function AdminPage({
   }
 
   async function saveStaff() {
+    const errors = {}
+    if (!staffForm.fullName.trim()) errors.fullName = 'Full name is required.'
+    if (selectedStaffId === 'new') {
+      if (!staffForm.email.trim()) errors.email = 'Email is required.'
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(staffForm.email.trim())) errors.email = 'Email format is invalid.'
+    }
+    if (!staffForm.phone.trim()) errors.phone = 'Phone is required.'
+    else if (!/^0\d{9}$/.test(staffForm.phone.trim())) errors.phone = 'Phone must be 10 digits and start with 0.'
+    if (Object.keys(errors).length) {
+      setStaffErrors(errors)
+      return
+    }
+    setStaffErrors({})
     try {
       const staff = staffAccounts.find(account => Number(account.userId) === Number(selectedStaffId))
       const response = staff
@@ -442,7 +457,15 @@ export function AdminPage({
       await refreshAll?.()
       setFieldNotice(staff ? 'Staff account updated.' : (response.data.message || 'Staff invitation sent.'))
     } catch (error) {
-      setFieldNotice(error.response?.data?.error || 'Could not save staff account.')
+      const message = error.response?.data?.error || 'Could not save staff account.'
+      const fieldErrors = {}
+      if (/email/i.test(message) && /exists/i.test(message)) fieldErrors.email = message
+      else if (/phone/i.test(message) && /exists/i.test(message)) fieldErrors.phone = message
+      if (Object.keys(fieldErrors).length) {
+        setStaffErrors(fieldErrors)
+      } else {
+        setFieldNotice(message)
+      }
     }
   }
 
@@ -874,9 +897,9 @@ export function AdminPage({
             ))}
           </div>
           <div className="adminFormGrid compact">
-            <FieldControl label="Full name"><input value={staffForm.fullName} onChange={event => setStaffForm(form => ({ ...form, fullName: event.target.value }))} /></FieldControl>
-            <FieldControl label="Email"><input type="email" value={staffForm.email} onChange={event => setStaffForm(form => ({ ...form, email: event.target.value }))} disabled={selectedStaffId !== 'new'} /></FieldControl>
-            <FieldControl label="Phone"><input value={staffForm.phone} onChange={event => setStaffForm(form => ({ ...form, phone: event.target.value }))} /></FieldControl>
+            <FieldControl label="Full name" error={staffErrors.fullName}><input value={staffForm.fullName} onChange={event => { setStaffErrors(errors => ({ ...errors, fullName: '' })); setStaffForm(form => ({ ...form, fullName: event.target.value })) }} /></FieldControl>
+            <FieldControl label="Email" error={staffErrors.email}><input type="email" value={staffForm.email} onChange={event => { setStaffErrors(errors => ({ ...errors, email: '' })); setStaffForm(form => ({ ...form, email: event.target.value })) }} disabled={selectedStaffId !== 'new'} /></FieldControl>
+            <FieldControl label="Phone" error={staffErrors.phone}><input value={staffForm.phone} onChange={event => { setStaffErrors(errors => ({ ...errors, phone: '' })); setStaffForm(form => ({ ...form, phone: event.target.value })) }} /></FieldControl>
             <FieldControl label="Status"><select value={staffForm.status} onChange={event => setStaffForm(form => ({ ...form, status: event.target.value }))}><option value="active">Active</option><option value="inactive">Inactive</option></select></FieldControl>
           </div>
           {selectedStaffId !== 'new' && <p className="panelHint">* Email cannot be changed after account creation.</p>}
