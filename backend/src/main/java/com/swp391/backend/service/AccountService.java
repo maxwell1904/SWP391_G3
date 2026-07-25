@@ -150,7 +150,7 @@ public class AccountService {
     }
 
     public Map<String, Object> updateProfile(Long userId, ApiRequests.ProfileUpdate request) {
-        requireSelfOrAdmin(userId);
+        requireSelf(userId);
         AppUser user = support.getUser(userId);
         String fullName = support.clean(request.fullName());
         String phone = support.clean(request.phone());
@@ -169,7 +169,6 @@ public class AccountService {
             user.setPhone(phone);
         }
         user.setAddress(support.clean(request.address()));
-        user.setAvatarUrl(support.clean(request.avatarUrl()));
         return support.userSummary(user);
     }
 
@@ -261,11 +260,16 @@ public class AccountService {
                 delivery = verificationEmailService.sendAccountLockEmail(user, reason);
             }
             support.notifyUser(user, null, com.swp391.backend.enums.NotificationType.system,
-                    "Booking access restricted", "Reason: " + reason);
+                    "Account locked", "Your account can no longer sign in. Reason: " + reason);
         } else {
             user.setStatus(AccountStatus.active);
             user.setAccountLocked(false);
             user.setLockReason(null);
+            if (!support.isBlank(user.getEmail())) {
+                delivery = verificationEmailService.sendAccountStatusEmail(user, false);
+            }
+            support.notifyUser(user, null, com.swp391.backend.enums.NotificationType.system,
+                    "Account access restored", "Your account is active again.");
         }
         revokeAllTokens(user);
 
@@ -343,7 +347,7 @@ public class AccountService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> activity(Long userId) {
-        requireSelfOrOperator(userId);
+        requireAdmin();
         AppUser user = support.getUser(userId);
         var bookings = support.bookingRepository.findByCustomer_UserIdOrderByBookingIdDesc(userId).stream()
                 .limit(20)
@@ -448,26 +452,9 @@ public class AccountService {
         }
     }
 
-    private void requireSelfOrAdmin(Long userId) {
-        AppUser requester = currentUser();
-        if (!Objects.equals(requester.getUserId(), userId) && !"Admin".equalsIgnoreCase(requester.getRole().getRoleName())) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "You can only access your own account");
-        }
-    }
-
     private void requireSelf(Long userId) {
         if (!Objects.equals(currentUser().getUserId(), userId)) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "You can only change your own password");
-        }
-    }
-
-    /** Staff need a concise customer history while handling bookings and support cases (UC-09). */
-    private void requireSelfOrOperator(Long userId) {
-        AppUser requester = currentUser();
-        String role = requester.getRole().getRoleName();
-        boolean operator = "Staff".equalsIgnoreCase(role) || "Admin".equalsIgnoreCase(role);
-        if (!Objects.equals(requester.getUserId(), userId) && !operator) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "You can only access your own account");
+            throw new ApiException(HttpStatus.FORBIDDEN, "You can only update your own account");
         }
     }
 

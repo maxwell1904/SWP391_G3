@@ -13,7 +13,7 @@ class AccountService <<service>> {
     -support : DomainSupportService
 
     +activity(userId : Long) : Map<String, Object>
-    -requireSelfOrOperator(userId : Long) : void
+    -requireAdmin() : void
 }
 
 class DomainSupportService <<service>> {
@@ -37,7 +37,8 @@ interface IssueRepository <<repository>> {
 class AppUser <<entity>> {
     -userId : Long
     -fullName : String
-    -bookingRestricted : boolean
+    -accountLocked : boolean
+    -lockReason : String
 }
 
 class Booking <<entity>> {

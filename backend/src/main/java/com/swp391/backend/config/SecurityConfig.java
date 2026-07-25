@@ -134,7 +134,7 @@ public class SecurityConfig {
                         // their own booking; Staff/Admin retain the other lifecycle actions.
                         .requestMatchers(HttpMethod.PUT, "/api/bookings/*/services").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/issues/*/status").hasAnyRole("Staff", "Admin")
-                        .requestMatchers("/api/account/users/*/activity").hasAnyRole("Staff", "Admin")
+                        .requestMatchers("/api/account/users/*/activity").hasRole("Admin")
                         .requestMatchers(HttpMethod.GET, "/api/account/customers").hasAnyRole("Staff", "Admin")
                         .requestMatchers(HttpMethod.POST, "/api/membership/levels").hasRole("Admin")
                         .requestMatchers(HttpMethod.PUT, "/api/membership/levels/*").hasRole("Admin")

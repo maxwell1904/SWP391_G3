@@ -21,7 +21,8 @@ entity app_user {
   email : varchar <<UQ>>
   phone : varchar <<UQ>>
   status : varchar
-  booking_restricted : boolean
+  account_locked : boolean
+  lock_reason : varchar
   email_verified : boolean
   auth_version : bigint
 }

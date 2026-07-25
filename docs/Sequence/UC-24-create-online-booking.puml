@@ -59,7 +59,7 @@ alt Request is valid and authorized
   deactivate Service
 else Validation, authorization, or state rule fails
   note over Service,Controller
-    Restricted/unverified/conflicting slot -> 403/400
+    Locked/unverified/conflicting slot -> 403/400
     The service propagates ApiException to ApiExceptionHandler.
   end note
 end

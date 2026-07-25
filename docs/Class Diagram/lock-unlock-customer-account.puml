@@ -10,7 +10,7 @@ class AccountController <<controller>> {
 }
 
 class AccountService <<service>> {
-    -support : DemoSupportService
+    -support : DomainSupportService
     -verificationEmailService : VerificationEmailService
 
     +updateAccountLock(userId : Long, request : AccountLockUpdate) : Map<String, Object>
@@ -21,7 +21,7 @@ class VerificationEmailService <<service>> {
     +sendAccountLockEmail(user : AppUser, reason : String) : VerificationEmailDelivery
 }
 
-class DemoSupportService <<service>> {
+class DomainSupportService <<service>> {
     -userRepository : AppUserRepository
 
     +getUser(userId : Long) : AppUser
@@ -56,8 +56,8 @@ AccountController ..> AccountService
 AccountController ..> AccountLockUpdate
 AccountService ..> AccountLockUpdate
 AccountService ..> VerificationEmailService
-AccountService ..> DemoSupportService
-DemoSupportService ..> AppUserRepository
+AccountService ..> DomainSupportService
+DomainSupportService ..> AppUserRepository
 AppUserRepository ..> AppUser
 AppUser --> AccountStatus
 

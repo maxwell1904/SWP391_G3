@@ -251,8 +251,7 @@ class BacklogEndToEndApiTest {
                         "success", true
                 ))), staffToken), 200);
         assertThat(remainingPayment.path("paymentStatus").asText()).isEqualTo("paid");
-        JsonNode activity = exchange(auth(get("/api/account/users/" + customerId + "/activity"), staffToken), 200);
-        assertThat(activity.path("user").path("userId").asLong()).isEqualTo(customerId);
+        exchange(auth(get("/api/account/users/" + customerId + "/activity"), staffToken), 403);
         JsonNode calendar = exchange(auth(get("/api/operations/calendar").param("date", LocalDate.now().plusDays(1).toString()), staffToken), 200);
         assertThat(calendar.isArray()).isTrue();
 
@@ -564,6 +563,16 @@ class BacklogEndToEndApiTest {
         JsonNode customerLogin = login("customer@goalzone.local");
         String customerToken = token(customerLogin);
         long customerId = userId(customerLogin);
+        JsonNode customerActivity = exchange(
+                auth(get("/api/account/users/" + customerId + "/activity"), adminToken), 200);
+        assertThat(customerActivity.path("user").path("userId").asLong()).isEqualTo(customerId);
+        exchange(auth(put("/api/account/users/" + customerId + "/profile")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of(
+                        "fullName", "Admin must not edit this customer",
+                        "phone", customerActivity.path("user").path("phone").asText(),
+                        "address", "Forbidden admin edit"
+                ))), adminToken), 403);
         JsonNode reportBooking = createOnlineBooking(customerToken, customerId,
                 availableSlots(LocalDate.now().plusDays(1)).get(0).path("slotId").asLong(), "E2E report booking");
         JsonNode reportOrder = createPayPalOrder(customerToken, reportBooking.path("bookingId").asLong(), customerId, "full");
@@ -638,7 +647,7 @@ class BacklogEndToEndApiTest {
         String token = token(login);
         JsonNode profile = exchange(auth(put("/api/account/users/" + userId + "/profile")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json(Map.of("fullName", "E2E Customer Updated", "phone", phone, "address", "E2E address", "avatarUrl", ""))), token), 200);
+                .content(json(Map.of("fullName", "E2E Customer Updated", "phone", phone, "address", "E2E address"))), token), 200);
         assertThat(profile.path("fullName").asText()).isEqualTo("E2E Customer Updated");
 
         exchange(post("/api/account/forgot-password")

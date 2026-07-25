@@ -1,12 +1,18 @@
 @startuml
 
-actor Admin
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+actor "Admin" as Admin
 participant "Admin UI" as UI
-participant AccountController as Controller
-participant AccountService as Service
-participant DemoSupportService as Support
-participant VerificationEmailService as Email
-database PostgreSQL as DB
+participant "AccountController" as Controller
+participant "AccountService" as Service
+participant "DomainSupportService" as Support
+participant "VerificationEmailService" as Email
+database "PostgreSQL" as DB
 
 Admin -> UI : Select customer and choose Lock
 UI -> UI : Require lock reason

@@ -42,8 +42,6 @@ export function StaffPage({
   const [blockForm, setBlockForm] = useState({ fieldId: '', startTime: '06:00', endTime: '08:00', blockReason: '', blockNote: '' })
   const [bookingServices, setBookingServices] = useState({})
   const [resolutionNotes, setResolutionNotes] = useState({})
-  const [customerActivity, setCustomerActivity] = useState(null)
-  const [customerActivityNotice, setCustomerActivityNotice] = useState('Select a booking to review its customer history.')
   const [activePanel, setActivePanel] = useState('bookings')
   const pendingBookings = bookings.filter(booking => booking.status === 'pending').length
   const activeIssues = issues.filter(issue => issue.status === 'open' || issue.status === 'in_progress').length
@@ -61,29 +59,6 @@ export function StaffPage({
     selectedBookingDetail?.services?.forEach(service => { next[service.serviceId] = service.quantity })
     setBookingServices(next)
   }, [selectedBookingDetail?.bookingId])
-
-  useEffect(() => {
-    const customerId = selectedBooking?.customerId
-    if (!customerId) {
-      setCustomerActivity(null)
-      setCustomerActivityNotice('Select a booking to review its customer history.')
-      return undefined
-    }
-    let cancelled = false
-    setCustomerActivity(null)
-    setCustomerActivityNotice('Loading customer history…')
-    api.get(`/account/users/${customerId}/activity`)
-      .then(response => {
-        if (!cancelled) {
-          setCustomerActivity(response.data)
-          setCustomerActivityNotice('')
-        }
-      })
-      .catch(error => {
-        if (!cancelled) setCustomerActivityNotice(error.response?.data?.error || 'Could not load customer history.')
-      })
-    return () => { cancelled = true }
-  }, [selectedBooking?.customerId])
 
   async function refreshOperations(message) {
     setOperationNotice(message)
@@ -229,18 +204,6 @@ export function StaffPage({
         </InfoPanel>}
         {bookings.length > 0 && <InfoPanel title="Invoice and payment status" className={activePanel === 'bookings' ? '' : 'workspacePanelHidden'}>
           <BillingDetails detail={selectedBookingDetail} loading={billingLoading} error={billingError} />
-        </InfoPanel>}
-        {bookings.length > 0 && <InfoPanel title="Customer booking activity" className={activePanel === 'bookings' ? '' : 'workspacePanelHidden'}>
-          {!customerActivity ? <p className="panelHint">{customerActivityNotice}</p> : (
-            <>
-              <p className="panelHint"><strong>{customerActivity.user.fullName}</strong> · {customerActivity.bookingCount} recent booking(s), {customerActivity.completedBookingCount} completed.</p>
-              <DataList items={customerActivity.bookings.map(booking => ({
-                title: `${booking.bookingCode} · ${booking.fieldName}`,
-                meta: `${booking.slotDate} · ${String(booking.startTime).slice(0, 5)}`,
-                value: booking.status
-              }))} />
-            </>
-          )}
         </InfoPanel>}
         {bookings.length > 0 && <InfoPanel title="Edit booking services (before check-in)" className={activePanel === 'bookings' ? '' : 'workspacePanelHidden'}>
           {!selectedBooking ? <p className="panelHint">Select a booking first.</p> : (

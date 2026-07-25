@@ -30,33 +30,11 @@ class Slot <<entity>> {
   -endTime : LocalTime
   -status : SlotStatus
 }
-<<<<<<< HEAD
-
-class AppUser <<entity>> {
-    -userId : Long
-    -fullName : String
-    -email : String
-    -phone : String
-    -passwordHash : String
-    -avatarUrl : String
-    -dateOfBirth : LocalDate
-    -address : String
-    -status : AccountStatus
-    -accountLocked : boolean
-    -lockReason : String
-    -lastLoginAt : LocalDateTime
-    -emailVerified : boolean
-    -emailVerificationToken : String
-    -emailVerificationSentAt : LocalDateTime
-    -passwordResetToken : String
-    -passwordResetSentAt : LocalDateTime
-=======
 class Booking <<entity>> {
   -bookingId : Long
   -bookingCode : String
   -status : BookingStatus
   -slot : Slot
->>>>>>> 327a19993fe956540087376c122302c65ddffcde
 }
 FieldOperationController ..> FieldOperationService
 FieldOperationService ..> DomainSupportService

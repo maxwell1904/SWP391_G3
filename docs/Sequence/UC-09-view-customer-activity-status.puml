@@ -11,8 +11,8 @@ skinparam participant {
   BorderColor black
 }
 
-actor "Staff" as User
-participant "StaffPage" as UI
+actor "Admin" as User
+participant "AdminPage" as UI
 participant "AccountController" as Controller
 participant "AccountService" as Service
 participant "BookingRepository / IssueRepository" as Repo
@@ -20,65 +20,57 @@ database "Database" as DB
 
 == UC-09: View Customer Activity Status ==
 
-User -> UI : 1. Select customer and open activity
+User -> UI : 1. Open People & access and choose View
 activate User
 activate UI
 
-UI -> UI : 2. useEffect([selectedBooking.customerId])
-activate UI
-deactivate UI
-
-UI -> UI : 3. Validate form/filter state
-activate UI
-deactivate UI
-
-UI -> Controller : 4. GET /api/account/users/{userId}/activity
+UI -> Controller : 2. GET /api/account/users/{userId}/activity
 activate Controller
 
-Controller -> Service : 5. activity(userId)
+Controller -> Service : 3. activity(userId)
 activate Service
 
-Service -> Service : 6. requireSelfOrOperator(userId)
+Service -> Service : 4. requireAdmin()
 activate Service
 deactivate Service
 
 alt Request is valid and authorized
-  Service -> Repo : 7. findByCustomer...; findAllByOrderByIssueIdDesc()
+  Service -> Repo : 5. findByCustomer...; findAllByOrderByIssueIdDesc()
   activate Repo
 
-  Repo -> DB : 8. SELECT booking and issue by customer
+  Repo -> DB : 6. SELECT booking and issue by customer
   activate DB
-  DB --> Repo : 9. Recent bookings and reported issues
+  DB --> Repo : 7. Recent bookings and reported issues
   deactivate DB
 
-  Repo --> Service : 10. Repository result
+  Repo --> Service : 8. Repository result
   deactivate Repo
 
-  Service -> Service : 11. Count completed bookings; build activity summary
+  Service -> Service : 9. Count completed bookings; build activity summary
   activate Service
   deactivate Service
 else Validation, authorization, or state rule fails
   note over Service,Controller
-    Non-operator viewing another user -> HTTP 403
+    Non-Admin request -> HTTP 403
     The service propagates ApiException to ApiExceptionHandler.
   end note
 end
 
-Service --> Controller : 12. Domain result or propagated error
+Service --> Controller : 10. Domain result or propagated error
 deactivate Service
 
-Controller -> Controller : 13. Serialize response
+Controller -> Controller : 11. Serialize response
 activate Controller
 deactivate Controller
 
-Controller --> UI : 14. HTTP 200 or mapped 4xx\nresponse body or error payload
+Controller --> UI : 12. HTTP 200 or mapped 4xx\nresponse body or error payload
 deactivate Controller
 
-UI -> UI : 15. setCustomerActivity(response.data)
+UI -> UI : 13. setCustomerActivity(response.data)
 activate UI
 deactivate UI
 
-UI --> User : 16. Show activity, counts and recent records
+UI --> User : 14. Show read-only profile, counts and recent records
 
 deactivate UI
 deactivate User

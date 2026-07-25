@@ -20,11 +20,11 @@ WHERE role_name = 'Customer'
 4. Insert new user
 INSERT INTO app_user
   (role_id, full_name, email, phone, password_hash,
-   avatar_url, date_of_birth, address, status, account_locked,
+   date_of_birth, address, status, account_locked,
    lock_reason, last_login_at, email_verified,
    email_verification_token, email_verification_sent_at,
    password_reset_token, password_reset_sent_at, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, 'active', false,
+VALUES (?, ?, ?, ?, ?, NULL, NULL, 'active', false,
         NULL, NULL, false, ?, ?, NULL, NULL, ?, ?)
 
 5. Find membership levels ordered by display order
