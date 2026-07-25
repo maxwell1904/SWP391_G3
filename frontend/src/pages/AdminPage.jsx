@@ -80,6 +80,7 @@ export function AdminPage({
   const [selectedStaffId, setSelectedStaffId] = useState('new')
   const [staffForm, setStaffForm] = useState(emptyStaffForm)
   const [staffErrors, setStaffErrors] = useState({})
+  const [staffSaving, setStaffSaving] = useState(false)
   const [customerActivity, setCustomerActivity] = useState(null)
   const [policyValues, setPolicyValues] = useState({})
   const [activePanel, setActivePanel] = useState('overview')
@@ -448,6 +449,7 @@ export function AdminPage({
       return
     }
     setStaffErrors({})
+    setStaffSaving(true)
     try {
       const staff = staffAccounts.find(account => Number(account.userId) === Number(selectedStaffId))
       const response = staff
@@ -466,6 +468,8 @@ export function AdminPage({
       } else {
         setFieldNotice(message)
       }
+    } finally {
+      setStaffSaving(false)
     }
   }
 
@@ -904,7 +908,9 @@ export function AdminPage({
           </div>
           {selectedStaffId !== 'new' && <p className="panelHint">* Email cannot be changed after account creation.</p>}
           {selectedStaffId === 'new' && <p className="panelHint">GoalZone emails a one-time password setup link. Administrators cannot view or replace the staff member's password.</p>}
-          <Button color="green" onClick={saveStaff}>{selectedStaffId === 'new' ? 'Create & send invitation' : 'Save staff account'}</Button>
+          <Button color="green" onClick={saveStaff} loading={staffSaving} disabled={staffSaving}>
+            {selectedStaffId === 'new' ? 'Create & send invitation' : 'Save staff account'}
+          </Button>
         </InfoPanel>
       </div>
 
