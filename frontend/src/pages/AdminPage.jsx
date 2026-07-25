@@ -79,13 +79,9 @@ export function AdminPage({
   const [staffAccounts, setStaffAccounts] = useState([])
   const [selectedStaffId, setSelectedStaffId] = useState('new')
   const [staffForm, setStaffForm] = useState(emptyStaffForm)
-<<<<<<< HEAD
-  const [staffPasswordVisible, setStaffPasswordVisible] = useState(false)
-=======
   const [customerEditor, setCustomerEditor] = useState({ opened: false, customer: null })
   const [customerProfileErrors, setCustomerProfileErrors] = useState({})
   const [customerActivity, setCustomerActivity] = useState(null)
->>>>>>> 327a19993fe956540087376c122302c65ddffcde
   const [policyValues, setPolicyValues] = useState({})
   const [activePanel, setActivePanel] = useState('overview')
   const [reportRange, setReportRange] = useState({ from: '', to: '' })
@@ -452,8 +448,6 @@ export function AdminPage({
     }
   }
 
-<<<<<<< HEAD
-=======
   async function updateCustomerStatus(customer) {
     const status = customer.status === 'active' ? 'locked' : 'active'
     try {
@@ -498,7 +492,6 @@ export function AdminPage({
     }
   }
 
->>>>>>> 327a19993fe956540087376c122302c65ddffcde
   return (
     <section id="admin" className="section adminSection">
       <WorkspaceHeader
@@ -873,7 +866,6 @@ export function AdminPage({
         </InfoPanel>
 
         <InfoPanel title="Customer accounts" className={panelClass('access')}>
-<<<<<<< HEAD
           <div className="adminPanelHeader">
             <span>{lockedCustomers ? `${lockedCustomers} customer account(s) locked.` : 'All customer accounts can sign in.'}</span>
           </div>
@@ -895,46 +887,6 @@ export function AdminPage({
                 >
                   {customer.accountLocked ? 'Unlock' : 'Lock'}
                 </Button>
-=======
-          <div className="accessModeGuide">
-            <p><strong>Restrict booking</strong><span>Customer can sign in and manage existing bookings, but cannot create a new one.</span></p>
-            <p><strong>Lock account</strong><span>Customer cannot sign in. Use this for security, fraud, or full account suspension.</span></p>
-          </div>
-          <div className="customerAdminList">
-            {customers.map(customer => (
-              <div className="customerAccountRow" key={customer.userId}>
-                <div className="customerAccountTop">
-                  <span>
-                    <strong>{customer.fullName}</strong>
-                    <small>{customer.email}</small>
-                    <small>{customer.phone || 'no phone'}</small>
-                    {customer.bookingRestricted && <small>{customer.restrictionReason || 'Booking restricted'}</small>}
-                  </span>
-                  <Group gap={6}>
-                    {customer.bookingRestricted && <Badge color="yellow" variant="light">Booking restricted</Badge>}
-                    <Badge color={statusColor(customer.status)} variant="light">{customer.status === 'locked' ? 'Sign-in locked' : customer.status}</Badge>
-                  </Group>
-                </div>
-                <div className="customerAccountActions">
-                  <Button
-                    variant={customer.bookingRestricted ? 'filled' : 'light'}
-                    color={customer.bookingRestricted ? 'green' : 'red'}
-                    onClick={() => customer.bookingRestricted
-                      ? updateCustomerRestriction(customer, false)
-                      : openRestrictionModal(customer)}
-                  >
-                    {customer.bookingRestricted ? 'Restore' : 'Restrict'}
-                  </Button>
-                  <Button size="xs" variant="subtle" onClick={() => setCustomerEditor({ opened: true, customer: { ...customer } })}>Edit</Button>
-                  <Button size="xs" variant="subtle" onClick={() => viewCustomerActivity(customer)}>Activity</Button>
-                  <Button
-                    size="xs"
-                    variant="light"
-                    color={customer.status === 'active' ? 'red' : 'green'}
-                    onClick={() => updateCustomerStatus(customer)}
-                  >{customer.status === 'active' ? 'Lock' : 'Unlock'}<br />sign-in</Button>
-                </div>
->>>>>>> 327a19993fe956540087376c122302c65ddffcde
               </div>
             ))}
           </div>

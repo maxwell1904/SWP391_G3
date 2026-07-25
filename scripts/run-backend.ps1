@@ -11,6 +11,7 @@ $mavenVersion = "3.9.9"
 $localMaven = Join-Path $rootDir ".tools\apache-maven-$mavenVersion\bin\mvn.cmd"
 
 if ($Local) {
+    [Environment]::SetEnvironmentVariable("SPRING_PROFILES_ACTIVE", "local", "Process")
     [Environment]::SetEnvironmentVariable("SPRING_DATASOURCE_URL", "jdbc:h2:mem:swp391;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH", "Process")
     [Environment]::SetEnvironmentVariable("SPRING_DATASOURCE_USERNAME", "sa", "Process")
     [Environment]::SetEnvironmentVariable("SPRING_DATASOURCE_PASSWORD", "", "Process")
@@ -38,6 +39,21 @@ if ($Local) {
 
             [Environment]::SetEnvironmentVariable($name, $value, "Process")
         }
+    }
+
+    $datasourceUrl = [Environment]::GetEnvironmentVariable("SPRING_DATASOURCE_URL", "Process")
+    $activeProfiles = [Environment]::GetEnvironmentVariable("SPRING_PROFILES_ACTIVE", "Process")
+    $profileList = if ([string]::IsNullOrWhiteSpace($activeProfiles)) {
+        @()
+    } else {
+        $activeProfiles.Split(",") | ForEach-Object { $_.Trim() }
+    }
+
+    if ($datasourceUrl -like "jdbc:postgresql:*" -and $profileList -notcontains "postgres") {
+        $nextProfiles = @($profileList + "postgres" | Where-Object { $_ } | Select-Object -Unique) -join ","
+        [Environment]::SetEnvironmentVariable("SPRING_PROFILES_ACTIVE", $nextProfiles, "Process")
+        [Environment]::SetEnvironmentVariable("SPRING_JPA_DDL_AUTO", "validate", "Process")
+        Write-Host "PostgreSQL datasource detected: activating the postgres/Flyway profile."
     }
 }
 
