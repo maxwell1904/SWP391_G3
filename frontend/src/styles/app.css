@@ -2115,6 +2115,40 @@ main.pageMain .section {
   margin: 0;
 }
 
+.policyFormGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.policyEditor {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--soft);
+}
+
+.policyEditor > strong {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--green);
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.policyInputRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 9px;
+}
+
+.policyInputRow .mantine-Button-root {
+  min-height: 42px;
+}
+
 .adminGrid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -2421,7 +2455,8 @@ main.pageMain .section {
   .fieldServiceList,
   .fieldDetailOverviewGrid,
   .adminFormGrid,
-  .adminFormGrid.compact {
+  .adminFormGrid.compact,
+  .policyFormGrid {
     grid-template-columns: 1fr;
   }
 

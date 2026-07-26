@@ -28,7 +28,9 @@ class PaymentWorkflowService <<service>> {
     +updateRefundStatus(refundId : Long, request : ApiRequests.RefundStatusUpdate) : Map<String, Object>
     +refunds() : List<Map<String, Object>>
     -processProviderRefund(refund : Refund) : void
+    -refundableCapacity(payment : Payment) : BigDecimal
     -syncBookingAndInvoiceRefundAmounts(booking : Booking, newlyCompletedAmount : BigDecimal) : void
+    -syncPaymentRefundStatus(payment : Payment) : void
 }
 
 class PayPalCheckoutService <<service>> {

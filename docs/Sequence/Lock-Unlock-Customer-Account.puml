@@ -23,7 +23,7 @@ Support -> DB : SELECT app_user
 DB --> Support : customer
 Support --> Service : AppUser
 Service -> Service : Validate Customer role and reason
-Service -> Service : status = locked\naccountLocked = true\nlockReason = reason\nauthVersion++
+Service -> Service : status = locked\nlockReason = reason\nauthVersion++
 Service -> Email : sendAccountLockEmail(customer, reason)
 Email --> Service : delivery status
 Service -> DB : COMMIT account lock
@@ -35,7 +35,7 @@ group Locked customer attempts login
   UI -> Controller : POST /api/account/login
   Controller -> Service : login(credentials)
   Service -> DB : Find account
-  DB --> Service : accountLocked = true
+  DB --> Service : status = locked
   Service --> Controller : HTTP 403\nCheck email for details
   Controller --> UI : Login blocked
 end
@@ -44,7 +44,7 @@ group Admin unlocks customer
   Admin -> UI : Choose Unlock
   UI -> Controller : PUT /api/account/users/{id}/lock\n{accountLocked: false}
   Controller -> Service : updateAccountLock(userId, request)
-  Service -> Service : status = active\naccountLocked = false\nlockReason = null\nauthVersion++
+  Service -> Service : status = active\nlockReason = null\nauthVersion++
   Service -> DB : COMMIT account unlock
   Service --> Controller : active customer summary
   Controller --> UI : HTTP 200

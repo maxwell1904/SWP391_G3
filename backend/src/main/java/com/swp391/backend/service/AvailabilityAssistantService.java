@@ -29,7 +29,7 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * UC-63's AI boundary. Gemini can interpret and phrase a request, but only
+ * UC-62's AI boundary. Gemini can interpret and phrase a request, but only
  * FieldOperationService is allowed to decide which database slots are available.
  */
 @Service

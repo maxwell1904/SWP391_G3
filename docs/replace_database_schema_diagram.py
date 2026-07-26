@@ -65,7 +65,7 @@ def main() -> None:
     for properties in diagram._p.xpath(".//wp:docPr"):
         properties.set("name", "GoalZone Code-First Database Schema")
         properties.set("title", "GoalZone Code-First Database Schema")
-        properties.set("descr", "PostgreSQL schema aligned with Flyway V1 through V11")
+        properties.set("descr", "PostgreSQL schema aligned with Flyway V1 through V19")
 
     args.output_docx.parent.mkdir(parents=True, exist_ok=True)
     document.save(args.output_docx)

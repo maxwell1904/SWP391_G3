@@ -143,8 +143,9 @@ public class DomainSupportService {
 
     BigDecimal calculatePromotionDiscount(String promotionCode, Slot slot, BigDecimal baseAmount, List<ApiRequests.ServiceSelection> services, AppUser customer) {
         if (isBlank(promotionCode)) {
-            return BigDecimal.ZERO;
+            return BigDecimal.ZERO.setScale(2);
         }
+        BigDecimal eligibleBase = money(baseAmount.max(BigDecimal.ZERO));
         Promotion promotion = promotionRepository.findByPromotionCodeIgnoreCase(promotionCode)
                 .orElseThrow(() -> badRequest("Promotion not found"));
         LocalDate bookingDate = slot.getSlotDate();
@@ -154,7 +155,7 @@ public class DomainSupportService {
         if (promotion.getUsageLimit() != null && promotion.getUsedCount() >= promotion.getUsageLimit()) {
             throw badRequest("Promotion usage limit reached");
         }
-        if (promotion.getMinBookingAmount() != null && baseAmount.compareTo(promotion.getMinBookingAmount()) < 0) {
+        if (promotion.getMinBookingAmount() != null && eligibleBase.compareTo(promotion.getMinBookingAmount()) < 0) {
             throw badRequest("Booking amount does not meet promotion minimum");
         }
         if (promotion.getApplicableFieldType() != null && !Objects.equals(promotion.getApplicableFieldType().getFieldTypeId(), slot.getField().getFieldType().getFieldTypeId())) {
@@ -185,20 +186,32 @@ public class DomainSupportService {
             throw badRequest("Promotion is not valid for this time range");
         }
         BigDecimal discount = promotion.getDiscountType() == DiscountType.percent
-                ? baseAmount.multiply(promotion.getDiscountValue()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
+                ? eligibleBase.multiply(promotion.getDiscountValue()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
                 : promotion.getDiscountValue();
         if (promotion.getMaxDiscountAmount() != null) {
             discount = discount.min(promotion.getMaxDiscountAmount());
         }
-        return money(discount);
+        return money(discount.max(BigDecimal.ZERO).min(eligibleBase));
+    }
+
+    boolean promotionAllowsMembershipStacking(String promotionCode) {
+        if (isBlank(promotionCode)) {
+            return true;
+        }
+        return promotionRepository.findByPromotionCodeIgnoreCase(promotionCode)
+                .map(Promotion::isStackable)
+                .orElse(true);
     }
 
     BigDecimal calculateMembershipDiscount(AppUser customer, BigDecimal baseAmount, BookingSource source) {
         if (customer == null || source != BookingSource.online) {
-            return BigDecimal.ZERO;
+            return BigDecimal.ZERO.setScale(2);
         }
+        BigDecimal eligibleBase = money(baseAmount.max(BigDecimal.ZERO));
         MembershipLevel level = resolveEligibleMembershipLevel(customer, LocalDate.now());
-        return money(baseAmount.multiply(level.getDiscountPercent()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP));
+        BigDecimal discount = eligibleBase.multiply(level.getDiscountPercent())
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        return money(discount.max(BigDecimal.ZERO).min(eligibleBase));
     }
 
     BigDecimal calculateDeposit(BigDecimal total) {
@@ -291,14 +304,18 @@ public class DomainSupportService {
         }
 
         BigDecimal paid = money(booking.getPaidAmount());
-        BigDecimal refundable = money(paid.multiply(refundPercent).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP));
-        BigDecimal fee = money(paid.subtract(refundable).max(BigDecimal.ZERO));
+        BigDecimal policyRefund = money(paid.multiply(refundPercent).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP));
+        BigDecimal completedRefunds = completedRefundAmount(booking);
+        BigDecimal refundable = money(policyRefund.subtract(completedRefunds).max(BigDecimal.ZERO));
+        BigDecimal fee = money(paid.subtract(policyRefund).max(BigDecimal.ZERO));
         Map<String, Object> preview = new LinkedHashMap<>();
         preview.put("bookingId", booking.getBookingId());
         preview.put("bookingCode", booking.getBookingCode());
         preview.put("hoursBeforeStart", hoursBeforeStart);
         preview.put("paidAmount", paid);
         preview.put("refundPercent", refundPercent);
+        preview.put("policyRefundAmount", policyRefund);
+        preview.put("completedRefundAmount", completedRefunds);
         preview.put("cancellationFeeAmount", fee);
         preview.put("refundableAmount", refundable);
         preview.put("policy", policy);
@@ -309,6 +326,20 @@ public class DomainSupportService {
         Map<String, Object> preview = calculateCancellationPreview(booking);
         booking.setCancellationFeeAmount((BigDecimal) preview.get("cancellationFeeAmount"));
         booking.setRefundableAmount((BigDecimal) preview.get("refundableAmount"));
+    }
+
+    BigDecimal completedRefundAmount(Booking booking) {
+        BigDecimal completed = refundRepository.findByBooking_BookingIdOrderByRefundIdDesc(booking.getBookingId()).stream()
+                .filter(refund -> refund.getStatus() == RefundStatus.completed)
+                .map(Refund::getRefundAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return money(completed);
+    }
+
+    BigDecimal remainingRefundEntitlement(Booking booking, BigDecimal grossEntitlement) {
+        return money(grossEntitlement.max(BigDecimal.ZERO)
+                .subtract(completedRefundAmount(booking))
+                .max(BigDecimal.ZERO));
     }
 
     BigDecimal settingDecimal(String key, BigDecimal fallback) {
@@ -330,16 +361,22 @@ public class DomainSupportService {
     }
 
     CustomerMembership attachDefaultMembership(AppUser customer) {
-        MembershipLevel defaultLevel = membershipLevelRepository.findAllByOrderByDisplayOrderAsc().stream()
+        return customerMembershipRepository.findByCustomer_UserId(customer.getUserId())
+                .orElseGet(() -> {
+                    CustomerMembership membership = new CustomerMembership();
+                    membership.setCustomer(customer);
+                    membership.setMembershipLevel(defaultMembershipLevel());
+                    membership.setEffectiveFrom(LocalDate.now());
+                    membership.setProgressNote("Default membership");
+                    return customerMembershipRepository.save(membership);
+                });
+    }
+
+    private MembershipLevel defaultMembershipLevel() {
+        return membershipLevelRepository.findAllByOrderByDisplayOrderAsc().stream()
                 .filter(level -> level.getStatus() == CommonStatus.active)
                 .findFirst()
                 .orElseThrow(() -> serverError("Membership levels have not been seeded"));
-        CustomerMembership membership = new CustomerMembership();
-        membership.setCustomer(customer);
-        membership.setMembershipLevel(defaultLevel);
-        membership.setEffectiveFrom(LocalDate.now());
-        membership.setProgressNote("Default membership");
-        return customerMembershipRepository.save(membership);
     }
 
     boolean meetsMembershipRequirement(AppUser customer, MembershipLevel level, LocalDate referenceDate) {
@@ -355,7 +392,13 @@ public class DomainSupportService {
                 .filter(level -> level.getStatus() == CommonStatus.active)
                 .filter(level -> meetsMembershipRequirement(customer, level, referenceDate))
                 .reduce((first, second) -> second)
-                .orElseGet(() -> attachDefaultMembership(customer).getMembershipLevel());
+                .orElseGet(this::defaultMembershipLevel);
+    }
+
+    void refreshAllMembershipAssignments() {
+        userRepository.findAll().stream()
+                .filter(user -> "Customer".equalsIgnoreCase(user.getRole().getRoleName()))
+                .forEach(this::updateMembershipProgress);
     }
 
     int membershipQualificationProgress(AppUser customer, MembershipLevel level, LocalDate referenceDate) {
@@ -409,7 +452,8 @@ public class DomainSupportService {
         map.put("address", user.getAddress());
         map.put("role", user.getRole().getRoleName());
         map.put("status", user.getStatus().name());
-        map.put("accountLocked", user.isAccountLocked());
+        // Kept for frontend/API compatibility; the persisted source of truth is status.
+        map.put("accountLocked", user.getStatus() == AccountStatus.locked);
         map.put("emailVerified", user.isEmailVerified());
         map.put("lockReason", user.getLockReason());
         map.put("lastLoginAt", user.getLastLoginAt());

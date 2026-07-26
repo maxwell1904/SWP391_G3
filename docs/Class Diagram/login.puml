@@ -51,7 +51,6 @@ class AppUser <<entity>> {
     -dateOfBirth : LocalDate
     -address : String
     -status : AccountStatus
-    -accountLocked : boolean
     -lockReason : String
     -lastLoginAt : LocalDateTime
     -emailVerified : boolean

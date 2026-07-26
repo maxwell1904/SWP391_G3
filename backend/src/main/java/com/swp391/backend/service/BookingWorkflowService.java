@@ -35,8 +35,13 @@ public class BookingWorkflowService {
         BigDecimal fieldPrice = support.calculateFieldPrice(slot);
         BigDecimal serviceTotal = support.calculateServiceTotal(request.services(), slot, null);
         BigDecimal promotionDiscount = support.calculatePromotionDiscount(request.promotionCode(), slot, serviceTotal.add(fieldPrice), request.services(), customer);
-        BigDecimal membershipDiscount = support.calculateMembershipDiscount(customer, fieldPrice.add(serviceTotal).subtract(promotionDiscount), source);
-        BigDecimal total = support.money(fieldPrice.add(serviceTotal).subtract(promotionDiscount).subtract(membershipDiscount));
+        BigDecimal membershipDiscount = support.promotionAllowsMembershipStacking(request.promotionCode())
+                ? support.calculateMembershipDiscount(customer, fieldPrice.add(serviceTotal).subtract(promotionDiscount), source)
+                : BigDecimal.ZERO.setScale(2);
+        BigDecimal total = support.money(fieldPrice.add(serviceTotal)
+                .subtract(promotionDiscount)
+                .subtract(membershipDiscount)
+                .max(BigDecimal.ZERO));
         BigDecimal deposit = support.calculateDeposit(total);
 
         Map<String, Object> response = new LinkedHashMap<>();
@@ -70,7 +75,7 @@ public class BookingWorkflowService {
 
     private Map<String, Object> createBookingInternal(ApiRequests.BookingCreate request) {
         AppUser customer = support.getUser(request.customerId());
-        if (customer.isAccountLocked()) {
+        if (customer.getStatus() == AccountStatus.locked) {
             throw new ApiException(HttpStatus.FORBIDDEN, "Customer account is locked");
         }
         BookingSource source = support.parseEnum(BookingSource.class, request.bookingSource(), BookingSource.online);
@@ -94,8 +99,13 @@ public class BookingWorkflowService {
         BigDecimal fieldPrice = support.calculateFieldPrice(slot);
         BigDecimal serviceTotal = support.calculateServiceTotal(request.services(), slot, null);
         BigDecimal promotionDiscount = support.calculatePromotionDiscount(request.promotionCode(), slot, fieldPrice.add(serviceTotal), request.services(), customer);
-        BigDecimal membershipDiscount = support.calculateMembershipDiscount(customer, fieldPrice.add(serviceTotal).subtract(promotionDiscount), source);
-        BigDecimal total = support.money(fieldPrice.add(serviceTotal).subtract(promotionDiscount).subtract(membershipDiscount));
+        BigDecimal membershipDiscount = support.promotionAllowsMembershipStacking(request.promotionCode())
+                ? support.calculateMembershipDiscount(customer, fieldPrice.add(serviceTotal).subtract(promotionDiscount), source)
+                : BigDecimal.ZERO.setScale(2);
+        BigDecimal total = support.money(fieldPrice.add(serviceTotal)
+                .subtract(promotionDiscount)
+                .subtract(membershipDiscount)
+                .max(BigDecimal.ZERO));
         BigDecimal deposit = support.calculateDeposit(total);
 
         booking.setFieldPriceAmount(fieldPrice);
@@ -230,11 +240,14 @@ public class BookingWorkflowService {
         BigDecimal newFieldPrice = support.calculateFieldPrice(newSlot);
         BigDecimal baseAmount = newFieldPrice.add(booking.getServiceTotalAmount());
         BigDecimal promotionDiscount = recalculatePromotionDiscount(booking, newSlot, baseAmount);
-        BigDecimal membershipDiscount = support.calculateMembershipDiscount(
-                booking.getCustomer(), baseAmount.subtract(promotionDiscount), booking.getBookingSource());
+        BigDecimal membershipDiscount = appliedPromotionsAllowMembershipStacking(booking)
+                ? support.calculateMembershipDiscount(
+                    booking.getCustomer(), baseAmount.subtract(promotionDiscount), booking.getBookingSource())
+                : BigDecimal.ZERO.setScale(2);
         BigDecimal newTotal = support.money(baseAmount.subtract(promotionDiscount).subtract(membershipDiscount).max(BigDecimal.ZERO));
         BigDecimal remainingAmount = support.money(newTotal.subtract(booking.getPaidAmount()).max(BigDecimal.ZERO));
-        BigDecimal refundableAmount = support.money(booking.getPaidAmount().subtract(newTotal).max(BigDecimal.ZERO));
+        BigDecimal refundableAmount = support.remainingRefundEntitlement(
+                booking, booking.getPaidAmount().subtract(newTotal));
         booking.setSlot(newSlot);
         booking.setFieldPriceAmount(newFieldPrice);
         booking.setPromotionDiscountAmount(promotionDiscount);
@@ -320,6 +333,12 @@ public class BookingWorkflowService {
         return support.money(discountTotal);
     }
 
+    private boolean appliedPromotionsAllowMembershipStacking(Booking booking) {
+        return support.bookingPromotionRepository.findByBooking_BookingId(booking.getBookingId()).stream()
+                .noneMatch(applied -> applied.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0
+                        && !applied.getPromotion().isStackable());
+    }
+
     private String newSlotDayType(Slot slot) {
         return switch (slot.getSlotDate().getDayOfWeek()) {
             case SATURDAY, SUNDAY -> "weekend";
@@ -341,11 +360,14 @@ public class BookingWorkflowService {
         BigDecimal baseAmount = booking.getFieldPriceAmount().add(serviceTotal);
         List<Long> selectedServiceIds = selections.stream().map(ApiRequests.ServiceSelection::serviceId).toList();
         BigDecimal promotionDiscount = recalculatePromotionDiscount(booking, booking.getSlot(), baseAmount, selectedServiceIds);
-        BigDecimal membershipDiscount = support.calculateMembershipDiscount(
-                booking.getCustomer(), baseAmount.subtract(promotionDiscount), booking.getBookingSource());
+        BigDecimal membershipDiscount = appliedPromotionsAllowMembershipStacking(booking)
+                ? support.calculateMembershipDiscount(
+                    booking.getCustomer(), baseAmount.subtract(promotionDiscount), booking.getBookingSource())
+                : BigDecimal.ZERO.setScale(2);
         BigDecimal total = support.money(baseAmount.subtract(promotionDiscount).subtract(membershipDiscount).max(BigDecimal.ZERO));
         BigDecimal remaining = support.money(total.subtract(booking.getPaidAmount()).max(BigDecimal.ZERO));
-        BigDecimal refundable = support.money(booking.getPaidAmount().subtract(total).max(BigDecimal.ZERO));
+        BigDecimal refundable = support.remainingRefundEntitlement(
+                booking, booking.getPaidAmount().subtract(total));
 
         support.bookingServiceItemRepository.deleteByBooking_BookingId(bookingId);
         support.saveBookingServices(booking, selections);

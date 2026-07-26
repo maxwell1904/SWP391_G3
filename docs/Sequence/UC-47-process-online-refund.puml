@@ -45,7 +45,7 @@ activate Service
 deactivate Service
 Service -> PayPalService : 10. refundCapture(payment, amount, idempotencyKey, transactionCode)
 activate PayPalService
-PayPalService -> PayPal : 11. POST /v2/payments/captures/{captureId}/refund
+PayPalService -> PayPal : 11. POST refund with stable PayPal-Request-Id\nor GET existing refund id
 activate PayPal
 PayPal --> PayPalService : 12. COMPLETED / PENDING / FAILED
 deactivate PayPal
@@ -53,7 +53,7 @@ PayPalService --> Service : 13. RefundResult
 deactivate PayPalService
 Service -> Repo : 14. save provider status and transaction id
 activate Repo
-Repo -> DB : 15. UPDATE refund; UPDATE invoice; INSERT notification
+Repo -> DB : 15. UPDATE refund/payment status;\nkeep booking paid gross; UPDATE invoice refund; INSERT notification
 activate DB
 DB --> Repo : 16. committed
 deactivate DB

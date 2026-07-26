@@ -112,7 +112,7 @@ opt Account not active
   App --> UI : 25.3 Show error toast
 end
 
-Service -> Service : 26. Check accountLocked
+Service -> Service : 26. Check status is active
 activate Service
 deactivate Service
 

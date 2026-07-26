@@ -26,10 +26,16 @@ import java.util.Map;
 public class PromotionReportService {
     private final DomainSupportService support;
     private final BookingWorkflowService bookingWorkflowService;
+    private final SlotGenerationService slotGenerationService;
 
-    public PromotionReportService(DomainSupportService support, BookingWorkflowService bookingWorkflowService) {
+    public PromotionReportService(
+            DomainSupportService support,
+            BookingWorkflowService bookingWorkflowService,
+            SlotGenerationService slotGenerationService
+    ) {
         this.support = support;
         this.bookingWorkflowService = bookingWorkflowService;
+        this.slotGenerationService = slotGenerationService;
     }
 
     @Transactional(readOnly = true)
@@ -116,14 +122,18 @@ public class PromotionReportService {
     public Map<String, Object> createMembershipLevel(ApiRequests.MembershipLevelUpsert request) {
         MembershipLevel level = new MembershipLevel();
         applyMembershipLevelFields(level, request, null);
-        return support.membershipLevelSummary(support.membershipLevelRepository.save(level));
+        MembershipLevel saved = support.membershipLevelRepository.save(level);
+        support.refreshAllMembershipAssignments();
+        return support.membershipLevelSummary(saved);
     }
 
     public Map<String, Object> updateMembershipLevel(Long id, ApiRequests.MembershipLevelUpsert request) {
         MembershipLevel level = support.membershipLevelRepository.findById(id)
                 .orElseThrow(() -> support.badRequest("Membership level not found"));
         applyMembershipLevelFields(level, request, id);
-        return support.membershipLevelSummary(support.membershipLevelRepository.save(level));
+        MembershipLevel saved = support.membershipLevelRepository.save(level);
+        support.refreshAllMembershipAssignments();
+        return support.membershipLevelSummary(saved);
     }
 
     private void applyMembershipLevelFields(MembershipLevel level, ApiRequests.MembershipLevelUpsert request, Long currentId) {
@@ -137,10 +147,18 @@ public class PromotionReportService {
                 });
 
         level.setLevelName(name);
-        level.setRequiredCompletedBookings(request.requiredCompletedBookings() != null ? request.requiredCompletedBookings() : 0);
-        level.setDiscountPercent(request.discountPercent() != null ? request.discountPercent() : BigDecimal.ZERO);
+        int requiredBookings = request.requiredCompletedBookings() != null ? request.requiredCompletedBookings() : 0;
+        BigDecimal discountPercent = request.discountPercent() != null ? request.discountPercent() : BigDecimal.ZERO;
+        int displayOrder = request.displayOrder() != null ? request.displayOrder() : 0;
+        if (requiredBookings < 0) throw support.badRequest("Required completed bookings cannot be negative");
+        if (discountPercent.compareTo(BigDecimal.ZERO) < 0 || discountPercent.compareTo(BigDecimal.valueOf(100)) > 0) {
+            throw support.badRequest("Membership discount percent must be between 0 and 100");
+        }
+        if (displayOrder < 0) throw support.badRequest("Membership display order cannot be negative");
+        level.setRequiredCompletedBookings(requiredBookings);
+        level.setDiscountPercent(support.money(discountPercent));
         level.setBenefitDescription(support.clean(request.benefitDescription()));
-        level.setDisplayOrder(request.displayOrder() != null ? request.displayOrder() : 0);
+        level.setDisplayOrder(displayOrder);
         level.setStatus(support.parseEnum(CommonStatus.class, request.status(), CommonStatus.active));
         String period = support.clean(request.qualificationPeriod());
         period = period == null ? "lifetime" : period.toLowerCase();
@@ -264,7 +282,10 @@ public class PromotionReportService {
         List<SystemSetting> settings = support.isBlank(group)
                 ? support.systemSettingRepository.findAll()
                 : support.systemSettingRepository.findBySettingGroupOrderBySettingKeyAsc(group);
-        return settings.stream().map(support::settingSummary).toList();
+        return settings.stream()
+                .sorted(Comparator.comparing(SystemSetting::getSettingGroup).thenComparing(SystemSetting::getSettingKey))
+                .map(support::settingSummary)
+                .toList();
     }
 
     public Map<String, Object> updateSetting(String key, ApiRequests.SettingUpdate request) {
@@ -273,11 +294,20 @@ public class PromotionReportService {
         String value = support.clean(request.settingValue());
         support.requireText(value, "Setting value is required");
         validatePolicySetting(key, value);
+        if (key.startsWith("slot.")) {
+            slotGenerationService.validateRuleChange(key, value);
+        }
         setting.setSettingValue(value);
         if (request.updatedById() != null) {
             setting.setUpdatedBy(support.getUser(request.updatedById()));
         }
-        return support.settingSummary(setting);
+        Map<String, Object> response = new LinkedHashMap<>(support.settingSummary(setting));
+        if (key.startsWith("slot.")) {
+            SlotGenerationService.GenerationResult generated = slotGenerationService.rebuildRollingWindow();
+            response.put("generatedSlotCount", generated.createdSlots());
+            response.put("generatedThrough", generated.toDate().toString());
+        }
+        return response;
     }
 
     private void validatePolicySetting(String key, String value) {
@@ -369,6 +399,15 @@ public class PromotionReportService {
         DiscountType discountType = support.parseEnum(DiscountType.class, request.discountType(), DiscountType.percent);
         if (discountType == DiscountType.percent && request.discountValue().compareTo(BigDecimal.valueOf(100)) > 0) {
             throw support.badRequest("Percentage discount cannot exceed 100");
+        }
+        if (request.maxDiscountAmount() != null && request.maxDiscountAmount().compareTo(BigDecimal.ZERO) < 0) {
+            throw support.badRequest("Maximum discount amount cannot be negative");
+        }
+        if (request.minBookingAmount() != null && request.minBookingAmount().compareTo(BigDecimal.ZERO) < 0) {
+            throw support.badRequest("Minimum booking amount cannot be negative");
+        }
+        if (request.usageLimit() != null && request.usageLimit() < 0) {
+            throw support.badRequest("Promotion usage limit cannot be negative");
         }
 
         promotion.setPromotionCode(code.toUpperCase());

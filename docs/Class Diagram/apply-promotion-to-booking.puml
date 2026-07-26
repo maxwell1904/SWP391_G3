@@ -53,6 +53,8 @@ class DomainSupportService <<service>> {
     -bookingPromotionRepository : BookingPromotionRepository
 
     +calculatePromotionDiscount(promotionCode : String, slot : Slot, baseAmount : BigDecimal, services : List<ServiceSelection>) : BigDecimal
+    +promotionAllowsMembershipStacking(promotionCode : String) : boolean
+    +calculateMembershipDiscount(customer : AppUser, baseAmount : BigDecimal, source : BookingSource) : BigDecimal
     +saveBookingPromotion(booking : Booking, promotionCode : String, discount : BigDecimal) : void
 }
 

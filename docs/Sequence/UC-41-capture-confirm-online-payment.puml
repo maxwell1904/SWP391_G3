@@ -37,36 +37,44 @@ DB --> PayRepo : 6. pending Payment
 deactivate DB
 PayRepo --> Service : 7. Payment
 deactivate PayRepo
-Service -> PayPal : 8. POST /v2/checkout/orders/{orderId}/capture
+Service -> PayPal : 8. POST capture with stable PayPal-Request-Id
 activate PayPal
 PayPal --> Service : 9. capture status, id, gross amount,\nPayPal fee and provider net amount
 deactivate PayPal
-Service -> Service : 10. Validate COMPLETED, USD and exact amount
+alt Capture response received
+  Service -> Service : 10. Use returned capture representation
+else Timeout or ambiguous provider error
+  Service -> PayPal : 10. GET /v2/checkout/orders/{orderId}
+  activate PayPal
+  PayPal --> Service : 11. Existing order/capture representation
+  deactivate PayPal
+end
+Service -> Service : 12. Validate COMPLETED, USD and exact amount
 activate Service
 deactivate Service
 alt Provider capture is valid
-  Service -> PayRepo : 11. save paid Payment with exact provider breakdown
+  Service -> PayRepo : 13. save paid Payment with exact provider breakdown
   activate PayRepo
-  PayRepo -> DB : 12. UPDATE payment; UPDATE booking; UPSERT invoice
+  PayRepo -> DB : 14. UPDATE payment; UPDATE gross paid balance; UPSERT invoice
   activate DB
-  DB --> PayRepo : 13. committed rows
+  DB --> PayRepo : 15. committed rows
   deactivate DB
-  PayRepo --> Service : 14. paid Payment
+  PayRepo --> Service : 16. paid Payment
   deactivate PayRepo
-  Service -> BookingRepo : 15. findById(bookingId)
+  Service -> BookingRepo : 17. findById(bookingId)
   activate BookingRepo
-  BookingRepo --> Service : 16. updated Booking
+  BookingRepo --> Service : 18. updated Booking
   deactivate BookingRepo
 else Provider capture fails validation
-  Service -> Service : 11. Set failed fields and throw ApiException
+  Service -> Service : 13. Set failed fields and throw ApiException
   activate Service
   deactivate Service
 end
-Service --> Controller : 17. bookingDetail or error
+Service --> Controller : 19. bookingDetail or error
 deactivate Service
-Controller --> UI : 18. HTTP response
+Controller --> UI : 20. HTTP response
 deactivate Controller
-UI --> Customer : 19. Show confirmation/invoice or failure
+UI --> Customer : 21. Show confirmation/invoice or failure
 deactivate UI
 deactivate Customer
 

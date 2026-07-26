@@ -45,7 +45,7 @@ public class SecurityUser implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return !appUser.isAccountLocked();
+        return appUser.getStatus() != com.swp391.backend.enums.AccountStatus.locked;
     }
 
     @Override

@@ -273,7 +273,7 @@ public final class ApiRequests {
     ) {
     }
 
-    /** Natural-language request for UC-63. Availability is still resolved by the backend. */
+    /** Natural-language request for UC-62. Availability is still resolved by UC-63. */
     public record AssistantAvailability(String question) {
     }
 }

@@ -21,7 +21,6 @@ entity app_user {
   email : varchar <<UQ>>
   phone : varchar <<UQ>>
   status : varchar
-  account_locked : boolean
   lock_reason : varchar
   email_verified : boolean
   auth_version : bigint
@@ -227,6 +226,17 @@ entity system_setting {
   setting_group : varchar
   status : varchar
 }
+
+note right of slot_table
+  Available rows are materialized from
+  slot.* rules in system_setting.
+  Blocked rows preserve operator exceptions.
+end note
+
+note right of system_setting
+  slot_generation stores opening time,
+  closing time, duration and horizon.
+end note
 
 role ||--o{ app_user
 app_user ||--o| customer_membership

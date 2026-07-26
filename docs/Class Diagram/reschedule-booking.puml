@@ -26,6 +26,7 @@ class DomainSupportService <<service>> {
     +validateSlotBookable(slot : Slot) : void
     +calculateFieldPrice(slot : Slot) : BigDecimal
     +calculateMembershipDiscount(customer : AppUser, baseAmount : BigDecimal, source : BookingSource) : BigDecimal
+    +remainingRefundEntitlement(booking : Booking, grossEntitlement : BigDecimal) : BigDecimal
     +generateInvoice(booking : Booking) : void
 }
 

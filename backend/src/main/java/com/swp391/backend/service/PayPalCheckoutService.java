@@ -124,7 +124,9 @@ public class PayPalCheckoutService {
         if (!payment.getBooking().getBookingId().equals(bookingId)) {
             throw support.badRequest("PayPal order does not belong to this booking");
         }
-        if (payment.getStatus() == PaymentStatus.paid) {
+        if (payment.getStatus() == PaymentStatus.paid
+                || payment.getStatus() == PaymentStatus.partially_refunded
+                || payment.getStatus() == PaymentStatus.refunded) {
             return bookingWorkflowService.bookingDetail(bookingId);
         }
         BigDecimal currentPayableAmount = payableAmount(booking, payment.getPaymentOption());
@@ -143,8 +145,9 @@ public class PayPalCheckoutService {
             providerNet = payment.getAmount();
         } else {
             try {
-                JsonNode capture = captureRemoteOrder(orderId);
-                providerStatus = capture.path("status").asText();
+                JsonNode capture = captureRemoteOrderWithRecovery(payment);
+                JsonNode captureNode = captureNode(capture);
+                providerStatus = captureNode.path("status").asText(capture.path("status").asText());
                 if (!"COMPLETED".equalsIgnoreCase(providerStatus)) {
                     payment.setProviderStatus(providerStatus);
                     payment.setGatewayMessage("PayPal capture was not completed: " + providerStatus);
@@ -153,7 +156,6 @@ public class PayPalCheckoutService {
                 }
                 validateCaptureAmount(capture, payment);
                 captureId = findCaptureId(capture);
-                JsonNode captureNode = captureNode(capture);
                 providerFee = moneyFrom(captureNode.path("seller_receivable_breakdown").path("paypal_fee"), null);
                 providerNet = moneyFrom(captureNode.path("seller_receivable_breakdown").path("net_amount"), null);
             } catch (ApiException exception) {
@@ -388,9 +390,42 @@ public class PayPalCheckoutService {
         return orderId;
     }
 
-    private JsonNode captureRemoteOrder(String orderId) throws Exception {
+    private JsonNode captureRemoteOrderWithRecovery(Payment payment) throws Exception {
+        String orderId = payment.getProviderOrderId();
+        String requestId = (support.isBlank(payment.getIdempotencyKey())
+                ? "GZ-" + orderId
+                : payment.getIdempotencyKey()) + "-CAPTURE";
+        try {
+            return captureRemoteOrder(orderId, requestId);
+        } catch (Exception captureFailure) {
+            // PayPal may have captured the order even when the client timed out before
+            // receiving the response. Read the order with the same stable request identity
+            // before declaring failure so the local ledger can be reconciled safely.
+            try {
+                JsonNode existing = showRemoteOrder(orderId);
+                JsonNode existingCapture = captureNode(existing);
+                if ("COMPLETED".equalsIgnoreCase(existingCapture.path("status").asText())
+                        && !support.isBlank(existingCapture.path("id").asText())) {
+                    return existing;
+                }
+            } catch (Exception ignored) {
+                captureFailure.addSuppressed(ignored);
+            }
+            throw captureFailure;
+        }
+    }
+
+    private JsonNode captureRemoteOrder(String orderId, String requestId) throws Exception {
         String accessToken = accessToken();
-        return sendJson("POST", paypalBaseUrl() + "/v2/checkout/orders/" + URLEncoder.encode(orderId, StandardCharsets.UTF_8) + "/capture", accessToken, "{}", null, true);
+        return sendJson("POST", paypalBaseUrl() + "/v2/checkout/orders/"
+                        + URLEncoder.encode(orderId, StandardCharsets.UTF_8) + "/capture",
+                accessToken, "{}", requestId, true);
+    }
+
+    private JsonNode showRemoteOrder(String orderId) throws Exception {
+        return sendJson("GET", paypalBaseUrl() + "/v2/checkout/orders/"
+                        + URLEncoder.encode(orderId, StandardCharsets.UTF_8),
+                accessToken(), "", null);
     }
 
     private String accessToken() throws Exception {

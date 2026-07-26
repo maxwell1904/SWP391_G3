@@ -15,6 +15,7 @@ actor "Staff" as User
 participant "StaffPage" as UI
 participant "FieldOperationController" as Controller
 participant "FieldOperationService" as Service
+participant "SlotGenerationService" as Generator
 participant "SlotRepository / BookingRepository" as Repo
 database "Database" as DB
 
@@ -43,18 +44,31 @@ activate Service
 deactivate Service
 
 alt Request is valid and authorized
-  Service -> Repo : 7. findBySlotDate; findBySlot_SlotDate...
+  Service -> Generator : 7. ensureDate(targetDate)
+  activate Generator
+  Generator -> Repo : 8. Materialize missing slots from Admin rules
+  activate Repo
+  Repo -> DB : 9. SELECT rules/current slots; INSERT missing rows
+  activate DB
+  DB --> Repo : 10. Current daily calendar
+  deactivate DB
+  Repo --> Generator : 11. Created count
+  deactivate Repo
+  Generator --> Service : 12. Date ready
+  deactivate Generator
+
+  Service -> Repo : 13. findBySlotDate; findBySlot_SlotDate...
   activate Repo
 
-  Repo -> DB : 8. SELECT slots and bookings for date
+  Repo -> DB : 14. SELECT slots and bookings for date
   activate DB
-  DB --> Repo : 9. Calendar rows
+  DB --> Repo : 15. Calendar rows
   deactivate DB
 
-  Repo --> Service : 10. Repository result
+  Repo --> Service : 16. Repository result
   deactivate Repo
 
-  Service -> Service : 11. Merge booking into each slot; sort by field/time
+  Service -> Service : 17. Merge booking into each slot; sort by field/time
   activate Service
   deactivate Service
 else Validation, authorization, or state rule fails
@@ -64,21 +78,21 @@ else Validation, authorization, or state rule fails
   end note
 end
 
-Service --> Controller : 12. Domain result or propagated error
+Service --> Controller : 18. Domain result or propagated error
 deactivate Service
 
-Controller -> Controller : 13. Serialize response
+Controller -> Controller : 19. Serialize response
 activate Controller
 deactivate Controller
 
-Controller --> UI : 14. HTTP 200 or mapped 4xx\nresponse body or error payload
+Controller --> UI : 20. HTTP 200 or mapped 4xx\nresponse body or error payload
 deactivate Controller
 
-UI -> UI : 15. setCalendarRows(response.data)
+UI -> UI : 21. setCalendarRows(response.data)
 activate UI
 deactivate UI
 
-UI --> User : 16. Display operational statuses
+UI --> User : 22. Display operational statuses
 
 deactivate UI
 deactivate User

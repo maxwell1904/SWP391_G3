@@ -1,6 +1,7 @@
 @startuml
 skinparam monochrome true
 skinparam shadowing false
+skinparam linetype ortho
 skinparam packageStyle folder
 skinparam defaultFontName "Times New Roman"
 skinparam defaultFontSize 15
@@ -17,28 +18,21 @@ package "repository" as repository
 package "entity" as entity
 package "enums" as enums
 
-root -[hidden]down- controller
-config -[hidden]right- controller
+root -[hidden]right- controller
+config -[hidden]right- service
 controller -[hidden]right- dto
-security -[hidden]right- service
-service -[hidden]right- repository
+security -[hidden]right- repository
+repository -[hidden]down- entity
 entity -[hidden]right- enums
-config -[hidden]down- security
-controller -[hidden]down- service
-dto -[hidden]down- repository
-service -[hidden]down- entity
 
+root ..> config : <<Bootstrap>>
+config ..> security : <<Configure>>
 controller ..> security : <<Use>>
 controller ..> service : <<Use>>
 controller ..> dto : <<Use>>
 service ..> repository : <<Use>>
-service ..> entity : <<Use>>
 service ..> dto : <<Use>>
+security ..> repository : <<Use>>
 repository ..> entity : <<Use>>
 entity ..> enums : <<Use>>
-security ..> repository : <<Use>>
-security ..> entity : <<Use>>
-config ..> security : <<Configure>>
-config ..> service : <<Configure>>
-root ..> config : <<Bootstrap>>
 @enduml

@@ -37,7 +37,7 @@ interface IssueRepository <<repository>> {
 class AppUser <<entity>> {
     -userId : Long
     -fullName : String
-    -accountLocked : boolean
+    -status : AccountStatus
     -lockReason : String
 }
 

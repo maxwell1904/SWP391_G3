@@ -16,7 +16,7 @@ public class AvailabilityAssistantController {
         this.availabilityAssistantService = availabilityAssistantService;
     }
 
-    /** UC-63: Gemini understands the question; UC-64 remains the source of truth for slots. */
+    /** UC-62: Gemini understands the question; UC-63 remains the source of truth for slots. */
     @PostMapping("/availability")
     public Object askForAvailability(@RequestBody ApiRequests.AssistantAvailability request) {
         return availabilityAssistantService.answerAvailabilityQuestion(request);

@@ -3,6 +3,7 @@ package com.swp391.backend.config;
 import com.swp391.backend.entity.*;
 import com.swp391.backend.enums.*;
 import com.swp391.backend.repository.*;
+import com.swp391.backend.service.SlotGenerationService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -41,7 +42,6 @@ public class DataSeeder {
             FieldTypeRepository fieldTypeRepository,
             FootballFieldRepository fieldRepository,
             FieldPriceRepository fieldPriceRepository,
-            SlotRepository slotRepository,
             ExtraServiceRepository extraServiceRepository,
             PromotionRepository promotionRepository,
             SystemSettingRepository systemSettingRepository,
@@ -88,8 +88,6 @@ public class DataSeeder {
                     price(fieldC, "all", "06:00", "22:00", "14.40")
             ));
 
-            seedSlots(slotRepository, fieldA, fieldB, fieldC, staff);
-
             ExtraService ball = extraService("Ball rental", ServiceType.rental, "ball", "2.00", 30, 2);
             ExtraService bibs = extraService("Bibs set", ServiceType.rental, "set", "2.80", 12, 2);
             ExtraService water = extraService("Water box", ServiceType.sale, "box", "3.60", 50, 5);
@@ -105,8 +103,18 @@ public class DataSeeder {
             systemSettingRepository.save(setting("refund.before_24h_percent", "100", "refund", "Refund percent when cancellation is before 24 hours", admin));
             systemSettingRepository.save(setting("refund.same_day_percent", "80", "refund", "Refund percent for same-day cancellation before check-in", admin));
             systemSettingRepository.save(setting("notification.booking_reminder_hours", "24", "notification", "Hours before a booking to send one reminder", admin));
+            systemSettingRepository.save(setting("slot.opening_time", "06:00", "slot_generation", "Daily opening time used to generate bookable slots (HH:mm)", admin));
+            systemSettingRepository.save(setting("slot.closing_time", "22:00", "slot_generation", "Daily closing time used to generate bookable slots (HH:mm)", admin));
+            systemSettingRepository.save(setting("slot.duration_minutes", "120", "slot_generation", "Length of each automatically generated slot in minutes", admin));
+            systemSettingRepository.save(setting("slot.generation_horizon_days", "30", "slot_generation", "Number of days in advance for automatic slot generation", admin));
 
         };
+    }
+
+    @Bean
+    @Order(3)
+    CommandLineRunner materializeRollingSlotCalendar(SlotGenerationService slotGenerationService) {
+        return args -> slotGenerationService.generateRollingWindow();
     }
 
     private AppUser user(String fullName, String email, String phone, Role role, BCryptPasswordEncoder passwordEncoder) {
@@ -168,31 +176,6 @@ public class DataSeeder {
         price.setPrice(new BigDecimal(amount));
         price.setEffectiveFrom(LocalDate.now().minusMonths(1));
         return price;
-    }
-
-    private void seedSlots(SlotRepository slotRepository, FootballField fieldA, FootballField fieldB, FootballField fieldC, AppUser staff) {
-        List<FootballField> fields = List.of(fieldA, fieldB, fieldC);
-        List<String> starts = List.of("06:00", "08:00", "17:00", "19:00");
-        for (int day = 1; day <= 5; day++) {
-            LocalDate date = LocalDate.now().plusDays(day);
-            for (FootballField field : fields) {
-                for (String start : starts) {
-                    LocalTime startTime = LocalTime.parse(start);
-                    Slot slot = new Slot();
-                    slot.setField(field);
-                    slot.setSlotDate(date);
-                    slot.setStartTime(startTime);
-                    slot.setEndTime(startTime.plusHours(2));
-                    slot.setCreatedBy(staff);
-                    if (day == 2 && field == fieldB && start.equals("17:00")) {
-                        slot.setStatus(SlotStatus.blocked);
-                        slot.setBlockReason("maintenance");
-                        slot.setBlockNote("Lighting maintenance");
-                    }
-                    slotRepository.save(slot);
-                }
-            }
-        }
     }
 
     private ExtraService extraService(String name, ServiceType type, String unit, String price, int stock, int maxPerBooking) {

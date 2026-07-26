@@ -28,9 +28,10 @@ class DomainSupportService <<service>> {
     +getExtraService(serviceId : Long) : ExtraService
     +parseEnum(enumType : Class<T>, value : String, fallback : T) : T
     +calculateFieldPrice(slot : Slot) : BigDecimal
-    +calculateServiceTotal(selections : List<ApiRequests.ServiceSelection>) : BigDecimal
+    +calculateServiceTotal(selections : List<ApiRequests.ServiceSelection>, slot : Slot, excludedBookingId : Long) : BigDecimal
     +validateServiceQuantity(service : ExtraService, quantity : Integer) : int
     +calculatePromotionDiscount(code : String, slot : Slot, amount : BigDecimal, services : List<ApiRequests.ServiceSelection>) : BigDecimal
+    +promotionAllowsMembershipStacking(code : String) : boolean
     +calculateMembershipDiscount(customer : AppUser, amount : BigDecimal, source : BookingSource) : BigDecimal
     +calculateDeposit(total : BigDecimal) : BigDecimal
     +userSummary(customer : AppUser) : Map<String, Object>
@@ -90,7 +91,6 @@ class AppUser <<entity>> {
     -dateOfBirth : LocalDate
     -address : String
     -status : AccountStatus
-    -accountLocked : boolean
     -lockReason : String
     -lastLoginAt : LocalDateTime
     -emailVerified : boolean

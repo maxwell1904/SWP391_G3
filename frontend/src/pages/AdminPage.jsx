@@ -95,6 +95,15 @@ export function AdminPage({
   useEffect(() => {
     setPolicyValues(Object.fromEntries(settings.map(setting => [setting.settingKey, setting.settingValue])))
   }, [settings])
+  const slotGenerationSettings = settings.filter(setting => setting.settingKey.startsWith('slot.'))
+  const bookingPolicySettings = settings.filter(setting => !setting.settingKey.startsWith('slot.'))
+
+  function settingInputProps(key) {
+    if (key === 'slot.opening_time' || key === 'slot.closing_time') return { type: 'time' }
+    if (key === 'slot.duration_minutes') return { type: 'number', min: 30, max: 360, step: 30 }
+    if (key === 'slot.generation_horizon_days') return { type: 'number', min: 1, max: 90, step: 1 }
+    return { type: 'number', min: 0 }
+  }
 
   const selectedField = useMemo(() => (
     selectedFieldId === 'new' ? null : adminFields.find(field => Number(field.fieldId) === Number(selectedFieldId))
@@ -834,23 +843,38 @@ export function AdminPage({
         </InfoPanel>
 
         <InfoPanel title="Booking, cancellation and notification policies" className={`adminWidePanel ${panelClass('policies')}`}>
-          <DataList items={settings.map(setting => ({
-            title: setting.settingKey,
-            meta: setting.description,
-            value: setting.settingValue
-          }))} />
           <div className="buttonRow">
             <Button variant="light" onClick={() => updateDepositSetting(30)}>Set 30%</Button>
             <Button variant="light" onClick={() => updateDepositSetting(50)}>Set 50%</Button>
           </div>
-          <div className="profileForm">
-            {settings.map(setting => (
-              <FieldControl key={setting.settingKey} label={setting.description || setting.settingKey}>
-                <div className="buttonRow noMargin">
-                  <input type="number" min="0" value={policyValues[setting.settingKey] ?? ''} onChange={event => setPolicyValues(values => ({ ...values, [setting.settingKey]: event.target.value }))} />
-                  <Button size="xs" onClick={() => updatePolicySetting(setting.settingKey, policyValues[setting.settingKey])}>Save</Button>
-                </div>
-              </FieldControl>
+          <div className="policyFormGrid">
+            {bookingPolicySettings.map(setting => (
+              <div className="policyEditor" key={setting.settingKey}>
+                <strong>{setting.settingKey}</strong>
+                <FieldControl label={setting.description || setting.settingKey}>
+                  <div className="policyInputRow">
+                    <input {...settingInputProps(setting.settingKey)} value={policyValues[setting.settingKey] ?? ''} onChange={event => setPolicyValues(values => ({ ...values, [setting.settingKey]: event.target.value }))} />
+                    <Button size="xs" onClick={() => updatePolicySetting(setting.settingKey, policyValues[setting.settingKey])}>Save</Button>
+                  </div>
+                </FieldControl>
+              </div>
+            ))}
+          </div>
+        </InfoPanel>
+
+        <InfoPanel title="Automatic slot generation" className={`adminWidePanel ${panelClass('policies')}`}>
+          <p className="panelHint">GoalZone materializes a rolling booking calendar from these rules. Staff Block/Unblock remains available for maintenance, private events, and other exceptions.</p>
+          <div className="policyFormGrid">
+            {slotGenerationSettings.map(setting => (
+              <div className="policyEditor" key={setting.settingKey}>
+                <strong>{setting.settingKey}</strong>
+                <FieldControl label={setting.description || setting.settingKey}>
+                  <div className="policyInputRow">
+                    <input {...settingInputProps(setting.settingKey)} value={policyValues[setting.settingKey] ?? ''} onChange={event => setPolicyValues(values => ({ ...values, [setting.settingKey]: event.target.value }))} />
+                    <Button size="xs" onClick={() => updatePolicySetting(setting.settingKey, policyValues[setting.settingKey])}>Save</Button>
+                  </div>
+                </FieldControl>
+              </div>
             ))}
           </div>
         </InfoPanel>

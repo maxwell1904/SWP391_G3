@@ -36,7 +36,6 @@ interface AppUserRepository <<repository>> {
 class AppUser <<entity>> {
     -userId : Long
     -status : AccountStatus
-    -accountLocked : boolean
     -lockReason : String
     -authVersion : long
 }

@@ -10,7 +10,9 @@ backend/data/
 *.class
 *.jar
 docs/generated/
+docs/tmp/
 output/playwright/
+tmp/
 *.log
 
 # Python

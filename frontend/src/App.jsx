@@ -1121,7 +1121,7 @@ function App() {
           <button className={currentPage === 'fields' ? 'active' : ''} onClick={() => navigatePage('fields')}>Fields</button>
           {!isAdmin && <button className={currentPage === 'booking' ? 'active' : ''} onClick={() => navigatePage('booking')}>{isStaff ? 'Walk-in booking' : 'Book'}</button>}
           <button className={currentPage === 'promotions' ? 'active' : ''} onClick={() => navigatePage('promotions')}>Offers</button>
-          <button className={currentPage === 'assistant' ? 'active' : ''} onClick={() => navigatePage('assistant')}>Find a field</button>
+          {!isStaff && !isAdmin && <button className={currentPage === 'assistant' ? 'active' : ''} onClick={() => navigatePage('assistant')}>Find a field</button>}
           <button
             className={(currentPage === 'membership-benefits' || currentPage === 'membership-rules') ? 'active' : ''}
             onClick={() => navigatePage(isAdmin ? 'membership-rules' : 'membership-benefits')}
@@ -1332,11 +1332,19 @@ function App() {
           />
         )}
 
-        {currentPage === 'assistant' && (
+        {currentPage === 'assistant' && !isStaff && !isAdmin && (
           <AvailabilityAssistantPage
             fieldTypes={fieldTypes}
             currentUser={currentUser}
             navigatePage={navigatePage}
+          />
+        )}
+
+        {currentPage === 'assistant' && (isStaff || isAdmin) && (
+          <AccessPanel
+            title="Customer availability assistant"
+            text="Use the Staff workspace for walk-in bookings or the Admin console for venue management."
+            onLogin={() => navigatePage(isStaff ? 'staff' : 'admin')}
           />
         )}
 
@@ -1367,9 +1375,11 @@ function App() {
             setSelectedBookingId={setSelectedBookingId}
             selectedBooking={selectedBooking}
             selectedBookingDetail={selectedBookingDetail}
+            cancellationPreview={cancellationPreview}
             billingLoading={billingLoading}
             billingError={billingError}
             updateBooking={updateBooking}
+            previewCancellation={previewCancellation}
             rescheduleBooking={rescheduleBooking}
             availableSlots={slots.filter(slot => slot.available)}
             capturePayment={capturePayment}
