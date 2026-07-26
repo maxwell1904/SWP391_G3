@@ -15,7 +15,7 @@ RDS, SDS, Final Release, and automated tests.
 | Payments | Customer online checkout uses PayPal Sandbox. Staff venue operations record cash payments. PayPal receives the exact final booking/deposit balance; processor fee and merchant net are captured from the provider response and are not added as customer tax. |
 | Refunds | The booking owner requests a refund; Staff/Admin process it. `paidAmount` remains gross collected value, completed refunds are recorded separately, and pending requests reserve refundable capacity once. Provider `COMPLETED` is authoritative for PayPal refunds. |
 | Slot calendar | Admin configures opening time, closing time, slot duration, and a 1–90 day rolling horizon. The backend materializes availability automatically; Staff Block/Unblock records exceptional closures or reserved periods. There is no ordinary manual Add Slot workflow. |
-| Availability assistant | UC-62 uses Gemini only to interpret and phrase the Customer's natural-language request; it remains configuration-pending until `GEMINI_API_KEY` is supplied. UC-63 deterministically ranks live field, slot, price, and promotion data and is the authoritative source for every displayed suggestion. |
+| Availability assistant | UC-62 is Done and shippable: Gemini interprets and phrases the Customer's natural-language request, while GoalZone data remains authoritative. `GEMINI_API_KEY` and `GEMINI_MODEL` are runtime deployment configuration rather than unfinished backlog scope. UC-63 deterministically ranks live field, slot, price, membership, and promotion data and remains independently usable without Gemini. |
 
 ## Final numbering
 

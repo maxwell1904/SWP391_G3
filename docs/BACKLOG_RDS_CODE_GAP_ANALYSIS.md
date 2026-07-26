@@ -30,6 +30,8 @@ Audit date: 2026-07-26
 - Run one PayPal Sandbox buyer approval during the presentation environment
   smoke check.
 - Keep `.env.local` and all credentials out of the submitted Git history.
-- Configure `GEMINI_API_KEY` and run one UC-62 question before changing its
-  backlog status from Deferred. UC-63 is already Done and does not depend on
-  the external model.
+- UC-62 is Done: its authenticated configured-environment Gemini smoke test
+  passed with live GoalZone availability as the authoritative source. Keep
+  `GEMINI_API_KEY` and `GEMINI_MODEL` configured in the presentation
+  environment. UC-63 remains independently testable without the external
+  model.

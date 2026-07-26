@@ -18,9 +18,11 @@ Member-to-use-case ownership is documented in project docs only. Do not render o
 - No review table or review UI. The backlog mention in field detail should be removed unless the team adds review use cases.
 - Customer online payments and approved refunds use real PayPal Sandbox Orders/Payments APIs. Staff walk-ins use recorded cash transactions.
 - Email verification uses Spring Boot Mail SMTP and sends verification links to the registered email address. SMTP credentials stay in `.env.local`.
-- UC-62 has a grounded Gemini integration but still needs an API key in the
-  deployment environment. UC-63 independently ranks live slot, price,
-  membership, and promotion data and feeds the ordinary booking flow.
+- UC-62 is implemented, externally verified, and shippable. Its Gemini path
+  requires the deployment environment to provide `GEMINI_API_KEY` and
+  `GEMINI_MODEL`, just like other runtime credentials. UC-63 independently
+  ranks live slot, price, membership, and promotion data and feeds the ordinary
+  booking flow.
 - No inventory transaction ledger. Extra-service availability is kept at service-level stock and maximum quantity per booking.
 
 ## Run

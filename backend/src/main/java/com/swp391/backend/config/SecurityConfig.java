@@ -125,7 +125,9 @@ public class SecurityConfig {
                                 "/api/operations/calendar",
                                 "/api/payments/capture"
                         ).hasAnyRole("Staff", "Admin")
-                        .requestMatchers(HttpMethod.GET, "/api/refunds").hasAnyRole("Staff", "Admin")
+                        // Customers see only their own rows (enforced by PaymentWorkflowService);
+                        // operators receive the complete review queue.
+                        .requestMatchers(HttpMethod.GET, "/api/refunds").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/refunds/**").hasAnyRole("Staff", "Admin")
                         .requestMatchers(HttpMethod.GET, "/api/settings").hasRole("Admin")
                         .requestMatchers(HttpMethod.POST, "/api/promotions").hasRole("Admin")
