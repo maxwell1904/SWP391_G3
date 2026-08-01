@@ -48,12 +48,10 @@ export function MembershipRulesPage({ membershipLevels, currentUser, createMembe
       displayOrder: Number(editForm.displayOrder),
       requiredConsecutivePeriods: Number(editForm.requiredConsecutivePeriods)
     }
-    if (editForm.membershipLevelId) {
-      await updateMembershipLevel(editForm.membershipLevelId, payload)
-    } else {
-      await createMembershipLevel(payload)
-    }
-    setIsEditing(false)
+    const result = editForm.membershipLevelId
+      ? await updateMembershipLevel(editForm.membershipLevelId, payload)
+      : await createMembershipLevel(payload)
+    if (result) setIsEditing(false)
   }
 
   return (
@@ -79,7 +77,7 @@ export function MembershipRulesPage({ membershipLevels, currentUser, createMembe
               <FieldControl label="Default Discount (%)">
                 <input type="number" step="0.5" value={editForm.discountPercent} onChange={e => updateField('discountPercent', e.target.value)} min="0" max="100" />
               </FieldControl>
-              <FieldControl label="Display Order">
+              <FieldControl label="Tier position">
                 <input type="number" value={editForm.displayOrder} onChange={e => updateField('displayOrder', e.target.value)} />
               </FieldControl>
               <FieldControl label="Qualification Period">
@@ -118,9 +116,9 @@ export function MembershipRulesPage({ membershipLevels, currentUser, createMembe
         )}
 
         <div className="tierAdminList">
-          {[...membershipLevels].sort((a, b) => a.displayOrder - b.displayOrder).map(level => (
+          {[...membershipLevels].sort((a, b) => a.displayOrder - b.displayOrder).map((level, index) => (
             <article key={level.membershipLevelId} className={`tierAdminItem ${level.status === 'inactive' ? 'inactive' : ''}`}>
-              <div className="tierAdminRank" aria-hidden="true">{Number(level.displayOrder) + 1}</div>
+              <div className="tierAdminRank" aria-hidden="true">{index + 1}</div>
               <div className="tierAdminIdentity">
                 <div className="tierAdminNameRow">
                   <h3>{level.levelName}</h3>

@@ -1,0 +1,48 @@
+@startuml
+title GoalZone - Staff support and billing use cases
+left to right direction
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor #F8FAFC
+  BorderColor #7C3AED
+  ArrowColor #475569
+}
+
+actor "Venue Staff" as Staff
+
+rectangle GoalZone {
+  package "Issue support" #FEF2F2 {
+    usecase "UC-21\nReport issue" as UC21
+    usecase "UC-22\nResolve issue" as UC22
+  }
+  package "Counter billing" #EFF6FF {
+    usecase "UC-41\nConfirm remaining payment" as UC41
+    usecase "UC-43\nView payment history" as UC43
+    usecase "UC-44\nGenerate/update invoice" as UC44
+    usecase "UC-45\nView invoice status" as UC45
+  }
+  package "Refund review" #FFF7ED {
+    usecase "UC-46\nProcess online refund" as UC46
+    usecase "UC-47\nManage refund requests" as UC47
+  }
+}
+
+Staff --> UC21
+Staff --> UC22
+Staff --> UC41
+Staff --> UC43
+Staff --> UC44
+Staff --> UC45
+Staff --> UC46
+Staff --> UC47
+
+note bottom
+Staff identity comes from JWT. Issue and refund actions are shown inside the exact case,
+so an operator cannot confuse a detached button or note with another record.
+end note
+@enduml

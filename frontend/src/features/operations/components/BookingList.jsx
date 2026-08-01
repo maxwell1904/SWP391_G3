@@ -1,4 +1,5 @@
 import { Badge } from '@mantine/core'
+import { formatDate, formatTime } from '../../../utils/format'
 
 export function BookingList({ bookings, selectedBookingId, onSelect }) {
   if (!bookings.length) return <p className="emptyText">No bookings yet.</p>
@@ -6,13 +7,16 @@ export function BookingList({ bookings, selectedBookingId, onSelect }) {
     <div className="bookingList">
       {bookings.map(booking => (
         <button
+          type="button"
           key={booking.bookingId}
           className={Number(selectedBookingId) === booking.bookingId ? 'bookingItem selected' : 'bookingItem'}
           onClick={() => onSelect(booking.bookingId)}
+          aria-pressed={Number(selectedBookingId) === booking.bookingId}
         >
           <span>
             <strong>{booking.bookingCode}</strong>
-            <small>{booking.customer} · {booking.fieldName} · {booking.startTime}</small>
+            <small>{formatDate(booking.slotDate)} · {formatTime(booking.startTime)} · {booking.fieldName}</small>
+            {booking.customer && <em>{booking.customer}</em>}
           </span>
           <Badge className="listBadge" variant="light" color={statusColor(booking.status)}>{booking.status}</Badge>
         </button>

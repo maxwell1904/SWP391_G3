@@ -111,7 +111,6 @@ class PaymentWorkflowServiceTest {
 
         return bookingWorkflowService.createBooking(new ApiRequests.BookingCreate(
                 customer.getUserId(),
-                null,
                 slot.getSlotId(),
                 "online",
                 null,
@@ -125,7 +124,6 @@ class PaymentWorkflowServiceTest {
         authenticate(staff);
         return paymentWorkflowService.capturePayment(new ApiRequests.PaymentCapture(
                 ((Number) booking.get("bookingId")).longValue(),
-                staff.getUserId(),
                 paymentOption,
                 "cash",
                 null,

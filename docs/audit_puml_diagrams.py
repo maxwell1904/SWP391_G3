@@ -77,8 +77,8 @@ def audit_class(path: Path) -> list[str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--expected-class", type=int, default=64)
-    parser.add_argument("--expected-sequence", type=int, default=64)
+    parser.add_argument("--expected-class", type=int, default=56)
+    parser.add_argument("--expected-sequence", type=int, default=56)
     args = parser.parse_args()
 
     class_files = sorted(CLASS_DIR.glob("*.puml"))

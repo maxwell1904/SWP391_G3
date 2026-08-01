@@ -36,6 +36,10 @@ public class BookingPromotion {
     @Column(name = "discount_amount", nullable = false, precision = 12, scale = 2)
     private BigDecimal discountAmount;
 
+    /** Reserves campaign capacity while pending and remains counted after confirmation. */
+    @Column(name = "usage_counted", nullable = false)
+    private boolean usageCounted;
+
     @Column(name = "applied_at")
     private LocalDateTime appliedAt = LocalDateTime.now();
 }

@@ -31,7 +31,6 @@ class DomainSupportService <<service>> {
 
 class "ApiRequests.BookingStatusUpdate" as BookingStatusUpdateDTO <<dto>> {
     -status : String
-    -staffId : Long
     -note : String
 }
 

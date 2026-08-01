@@ -18,7 +18,7 @@ participant "FieldOperationService" as Service
 participant "FieldPriceRepository" as Repo
 database "Database" as DB
 
-== UC-15: Manage Field Pricing by Time Range ==
+== UC-15: Manage field pricing by time range ==
 
 User -> UI : 1. Add or edit a pricing rule
 activate User

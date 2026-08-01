@@ -29,7 +29,6 @@ class DomainSupportService <<service>> {
 
 class "ApiRequests.SettingUpdate" as SettingUpdateDTO <<dto>> {
     -settingValue : String
-    -updatedById : Long
 }
 
 interface SystemSettingRepository <<repository>> {

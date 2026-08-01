@@ -19,7 +19,7 @@ participant "BookingWorkflowService" as Service
 participant "BookingRepository / PaymentRepository / InvoiceRepository" as Repo
 database "Database" as DB
 
-== UC-26: View Booking Detail ==
+== UC-26: View booking detail ==
 
 User -> UI : 1. Select a booking
 activate User

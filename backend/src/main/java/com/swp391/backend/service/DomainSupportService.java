@@ -94,10 +94,10 @@ public class DomainSupportService {
         if (slot.getStatus() == SlotStatus.blocked) {
             throw badRequest("Slot is blocked: " + nvl(slot.getBlockReason(), "unavailable"));
         }
-        if (slot.getSlotDate().isBefore(LocalDate.now())) {
+        if (!isSlotStartInFuture(slot) && slot.getSlotDate().isBefore(LocalDate.now())) {
             throw badRequest("Past slots cannot be booked");
         }
-        if (slot.getSlotDate().isEqual(LocalDate.now()) && !slot.getStartTime().isAfter(LocalTime.now())) {
+        if (!isSlotStartInFuture(slot)) {
             throw badRequest("A slot that has already started cannot be booked");
         }
         if (bookingRepository.existsBySlotAndStatusIn(slot, ACTIVE_BOOKING_STATUSES)) {
@@ -105,7 +105,11 @@ public class DomainSupportService {
         }
     }
 
-    BigDecimal calculateFieldPrice(Slot slot) {
+    boolean isSlotStartInFuture(Slot slot) {
+        return slot.getSlotDate().atTime(slot.getStartTime()).isAfter(LocalDateTime.now());
+    }
+
+    Optional<BigDecimal> findFieldPrice(Slot slot) {
         String dayType = slot.getSlotDate().getDayOfWeek() == DayOfWeek.SATURDAY || slot.getSlotDate().getDayOfWeek() == DayOfWeek.SUNDAY
                 ? "weekend"
                 : "weekday";
@@ -116,8 +120,13 @@ public class DomainSupportService {
                 .filter(price -> price.getDayType().equalsIgnoreCase(dayType) || price.getDayType().equalsIgnoreCase("all"))
                 .filter(price -> !slot.getStartTime().isBefore(price.getStartTime()) && !slot.getEndTime().isAfter(price.getEndTime()))
                 .findFirst()
-                .map(FieldPrice::getPrice)
-                .orElse(BigDecimal.valueOf(12));
+                .map(FieldPrice::getPrice);
+    }
+
+    BigDecimal calculateFieldPrice(Slot slot) {
+        return findFieldPrice(slot)
+                .orElseThrow(() -> badRequest("No active price is configured for "
+                        + slot.getField().getFieldName() + " at this date and time"));
     }
 
     BigDecimal calculateServiceTotal(List<ApiRequests.ServiceSelection> selections, Slot slot, Long excludedBookingId) {
@@ -125,7 +134,14 @@ public class DomainSupportService {
             return BigDecimal.ZERO;
         }
         BigDecimal total = BigDecimal.ZERO;
+        Set<Long> selectedServiceIds = new HashSet<>();
         for (ApiRequests.ServiceSelection selection : selections) {
+            if (selection == null || selection.serviceId() == null) {
+                throw badRequest("Each selected service must be valid");
+            }
+            if (!selectedServiceIds.add(selection.serviceId())) {
+                throw badRequest("The same extra service cannot be selected more than once");
+            }
             ExtraService service = getExtraService(selection.serviceId());
             int quantity = validateServiceQuantity(service, selection.quantity());
             if (service.getStockQuantity() != null) {
@@ -243,7 +259,10 @@ public class DomainSupportService {
         if (service.getStatus() != CommonStatus.active) {
             throw badRequest("Service is not active: " + service.getServiceName());
         }
-        int quantity = Math.max(1, nvl(requestedQuantity, 1));
+        if (requestedQuantity == null || requestedQuantity < 1) {
+            throw badRequest("Service quantity must be at least one for " + service.getServiceName());
+        }
+        int quantity = requestedQuantity;
         if (service.getMaxQuantityPerBooking() != null && quantity > service.getMaxQuantityPerBooking()) {
             throw badRequest("Quantity exceeds max per booking for " + service.getServiceName());
         }
@@ -257,14 +276,39 @@ public class DomainSupportService {
         if (isBlank(promotionCode) || promotionDiscount.compareTo(BigDecimal.ZERO) <= 0) {
             return;
         }
-        Promotion promotion = promotionRepository.findByPromotionCodeIgnoreCase(promotionCode).orElseThrow();
-        promotion.setUsedCount(promotion.getUsedCount() + 1);
+        Promotion promotion = promotionRepository.findByPromotionCodeForUpdate(promotionCode)
+                .orElseThrow(() -> badRequest("Promotion not found"));
+        if (promotion.getUsageLimit() != null && promotion.getUsedCount() >= promotion.getUsageLimit()) {
+            throw badRequest("Promotion usage limit reached");
+        }
         BookingPromotion bookingPromotion = new BookingPromotion();
         bookingPromotion.setBooking(booking);
         bookingPromotion.setPromotion(promotion);
         bookingPromotion.setPromotionCodeSnapshot(promotion.getPromotionCode());
         bookingPromotion.setDiscountAmount(promotionDiscount);
         bookingPromotionRepository.save(bookingPromotion);
+        reconcilePromotionUsage(booking);
+    }
+
+    void reconcilePromotionUsage(Booking booking) {
+        boolean qualifyingStatus = List.of(
+                BookingStatus.pending,
+                BookingStatus.confirmed,
+                BookingStatus.checked_in,
+                BookingStatus.completed,
+                BookingStatus.no_show
+        ).contains(booking.getStatus());
+        for (BookingPromotion applied : bookingPromotionRepository.findByBooking_BookingId(booking.getBookingId())) {
+            boolean shouldCount = qualifyingStatus && applied.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0;
+            if (shouldCount == applied.isUsageCounted()) {
+                continue;
+            }
+            Promotion promotion = applied.getPromotion();
+            promotion.setUsedCount(shouldCount
+                    ? promotion.getUsedCount() + 1
+                    : Math.max(0, promotion.getUsedCount() - 1));
+            applied.setUsageCounted(shouldCount);
+        }
     }
 
     void generateInvoice(Booking booking) {
@@ -350,6 +394,7 @@ public class DomainSupportService {
     }
 
     void updateMembershipProgress(AppUser customer) {
+        if (customer == null) return;
         CustomerMembership membership = customerMembershipRepository.findByCustomer_UserId(customer.getUserId())
                 .orElseGet(() -> attachDefaultMembership(customer));
         long completedCount = bookingRepository.findByCustomer_UserIdOrderByBookingIdDesc(customer.getUserId()).stream()
@@ -433,6 +478,7 @@ public class DomainSupportService {
     }
 
     void notifyUser(AppUser user, Booking booking, NotificationType type, String title, String message) {
+        if (user == null) return;
         Notification notification = new Notification();
         notification.setUser(user);
         notification.setBooking(booking);
@@ -514,6 +560,7 @@ public class DomainSupportService {
         map.put("extraServiceName", issue.getExtraService() == null ? null : issue.getExtraService().getServiceName());
         map.put("assignedStaff", issue.getAssignedStaff() == null ? null : issue.getAssignedStaff().getFullName());
         map.put("resolutionNote", issue.getResolutionNote());
+        map.put("createdAt", issue.getCreatedAt());
         map.put("resolvedAt", issue.getResolvedAt());
         return map;
     }
@@ -522,8 +569,12 @@ public class DomainSupportService {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("bookingId", booking.getBookingId());
         map.put("bookingCode", booking.getBookingCode());
-        map.put("customer", booking.getCustomer().getFullName());
-        map.put("customerId", booking.getCustomer().getUserId());
+        boolean walkInGuest = booking.getCustomer() == null;
+        map.put("customer", walkInGuest ? booking.getGuestName() : booking.getCustomer().getFullName());
+        map.put("customerId", walkInGuest ? null : booking.getCustomer().getUserId());
+        map.put("customerPhone", walkInGuest ? booking.getGuestPhone() : booking.getCustomer().getPhone());
+        map.put("customerEmail", walkInGuest ? booking.getGuestEmail() : booking.getCustomer().getEmail());
+        map.put("walkInGuest", walkInGuest);
         map.put("staff", booking.getStaff() == null ? null : booking.getStaff().getFullName());
         map.put("fieldName", booking.getSlot().getField().getFieldName());
         map.put("slotId", booking.getSlot().getSlotId());
@@ -585,6 +636,9 @@ public class DomainSupportService {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("paymentId", payment.getPaymentId());
         map.put("bookingCode", payment.getBooking().getBookingCode());
+        map.put("fieldName", payment.getBooking().getSlot().getField().getFieldName());
+        map.put("slotDate", payment.getBooking().getSlot().getSlotDate().toString());
+        map.put("startTime", payment.getBooking().getSlot().getStartTime().toString());
         map.put("paymentCode", payment.getPaymentCode());
         map.put("paymentOption", payment.getPaymentOption().name());
         map.put("paymentMethod", payment.getPaymentMethod().name());
@@ -620,7 +674,9 @@ public class DomainSupportService {
         map.put("refundId", refund.getRefundId());
         map.put("bookingId", refund.getBooking().getBookingId());
         map.put("bookingCode", refund.getBooking().getBookingCode());
-        map.put("customer", refund.getBooking().getCustomer().getFullName());
+        map.put("customer", refund.getBooking().getCustomer() == null
+                ? refund.getBooking().getGuestName()
+                : refund.getBooking().getCustomer().getFullName());
         map.put("refundCode", refund.getRefundCode());
         map.put("refundAmount", refund.getRefundAmount());
         map.put("refundReason", refund.getRefundReason());

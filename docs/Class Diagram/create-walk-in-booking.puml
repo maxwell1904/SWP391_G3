@@ -9,12 +9,25 @@ class BookingController <<controller>> {
     +createBooking(request : ApiRequests.BookingCreate) : Object
 }
 
+class PaymentController <<controller>> {
+    -paymentWorkflowService : PaymentWorkflowService
+
+    +createWalkInAndCapture(request : ApiRequests.WalkInCheckout) : Object
+}
+
 class BookingWorkflowService <<service>> {
     -support : DomainSupportService
 
     +createBooking(request : ApiRequests.BookingCreate) : Map<String, Object>
     -createBookingInternal(request : ApiRequests.BookingCreate) : Map<String, Object>
-    -resolveOperatingStaff(requestedStaffId : Long) : AppUser
+    -requireCurrentStaff() : AppUser
+}
+
+class PaymentWorkflowService <<service>> {
+    -bookingWorkflowService : BookingWorkflowService
+
+    +createWalkInAndCapture(request : ApiRequests.WalkInCheckout) : Map<String, Object>
+    +capturePayment(request : ApiRequests.PaymentCapture) : Map<String, Object>
 }
 
 class AccountService <<service>> {
@@ -35,7 +48,9 @@ class DomainSupportService <<service>> {
 
 class "ApiRequests.BookingCreate" as BookingCreateDTO <<dto>> {
     -customerId : Long
-    -staffId : Long
+    -guestName : String
+    -guestPhone : String
+    -guestEmail : String
     -slotId : Long
     -bookingSource : String
     -promotionCode : String
@@ -51,6 +66,9 @@ interface BookingRepository <<repository>> {
 class Booking <<entity>> {
     -bookingId : Long
     -customer : AppUser
+    -guestName : String
+    -guestPhone : String
+    -guestEmail : String
     -staff : AppUser
     -slot : Slot
     -bookingCode : String
@@ -75,6 +93,8 @@ class Slot <<entity>> {
 
 BookingController ..> BookingWorkflowService
 BookingController ..> BookingCreateDTO
+PaymentController ..> PaymentWorkflowService
+PaymentWorkflowService ..> BookingWorkflowService
 BookingWorkflowService ..> BookingCreateDTO
 BookingWorkflowService ..> DomainSupportService
 AccountService ..> DomainSupportService

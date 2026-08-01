@@ -1,0 +1,86 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Staff" as User
+participant "StaffPage" as UI
+participant "FieldOperationController" as Controller
+participant "FieldOperationService" as Service
+participant "BookingRepository / SlotRepository" as Repo
+database "Database" as DB
+
+== UC-27: View Booking Calendar ==
+
+User -> UI : 1. Select booking calendar date
+activate User
+activate UI
+
+UI -> UI : 2. useEffect([calendarDate])
+activate UI
+deactivate UI
+
+UI -> UI : 3. Validate form/filter state
+activate UI
+deactivate UI
+
+UI -> Controller : 4. GET /api/operations/calendar?date
+activate Controller
+
+Controller -> Service : 5. operationCalendar(date)
+activate Service
+
+Service -> Service : 6. requireOperator(); merge booking by slot
+activate Service
+deactivate Service
+
+alt Request is valid and authorized
+  Service -> Repo : 7. findBySlot_SlotDate...; findBySlotDate
+  activate Repo
+
+  Repo -> DB : 8. SELECT bookings and slots by date
+  activate DB
+  DB --> Repo : 9. Daily booking calendar
+  deactivate DB
+
+  Repo --> Service : 10. Repository result
+  deactivate Repo
+
+  Service -> Service : 11. Derive operationalStatus and chronological order
+  activate Service
+  deactivate Service
+else Validation, authorization, or state rule fails
+  note over Service,Controller
+    Unauthorized staff context -> HTTP 403
+    The service propagates ApiException to ApiExceptionHandler.
+  end note
+end
+
+Service --> Controller : 12. Domain result or propagated error
+deactivate Service
+
+Controller -> Controller : 13. Serialize response
+activate Controller
+deactivate Controller
+
+Controller --> UI : 14. HTTP 200 or mapped 4xx\nresponse body or error payload
+deactivate Controller
+
+UI -> UI : 15. setCalendarRows(response.data)
+activate UI
+deactivate UI
+
+UI --> User : 16. Display booking/availability calendar
+
+deactivate UI
+deactivate User
+
+@enduml

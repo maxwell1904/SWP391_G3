@@ -55,7 +55,6 @@ export function PayPalCheckout({
               const booking = bookingRef.current || await callbacksRef.current.onPrepareBooking()
               bookingRef.current = booking
               const response = await api.post(`/bookings/${booking.bookingId}/paypal/orders`, {
-                createdById: booking.customerId,
                 paymentOption
               })
               setStatus('ready')
@@ -70,9 +69,7 @@ export function PayPalCheckout({
           onApprove: async data => {
             setStatus('processing')
             const booking = bookingRef.current
-            const response = await api.post(`/bookings/${booking.bookingId}/paypal/orders/${data.orderID}/capture`, {
-              createdById: booking.customerId
-            })
+            const response = await api.post(`/bookings/${booking.bookingId}/paypal/orders/${data.orderID}/capture`, {})
             await callbacksRef.current.onPaymentComplete(response.data)
             setStatus('complete')
           },

@@ -1,0 +1,74 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Customer" as Actor
+participant "BookingPage" as UI
+participant "App.jsx" as App
+participant "BookingController" as Controller
+participant "BookingWorkflowService" as Service
+participant "PromotionRepository" as Repo
+database "Database" as DB
+
+== UC-47: Apply promotion to booking ==
+
+Actor -> UI : 1. Enter code and preview checkout
+activate Actor
+activate UI
+
+UI -> App : 2. Checkout preview useEffect
+activate App
+
+App -> Controller : 3. POST /api/bookings/checkout-preview
+activate Controller
+
+Controller -> Service : 4. previewCheckout(request)
+activate Service
+
+Service -> Repo : 5. findByPromotionCodeIgnoreCase(code)
+activate Repo
+
+Repo -> DB : 6. SELECT active promotion and eligibility fields
+activate DB
+
+alt Code exists and remains eligible
+  DB --> Repo : 7. Matching rows
+else Code missing, expired, exhausted or ineligible
+  DB --> Repo : 7. Empty result
+end
+deactivate DB
+
+Repo --> Service : 8. Optional<Promotion>
+deactivate Repo
+
+Service -> Service : 9. Cap promotion at non-negative subtotal\nif stackable then apply membership to remainder\ncalculate deposit from final USD total
+activate Service
+deactivate Service
+
+alt Request is permitted
+  Service --> Controller : 10. discounted checkout or validation error
+else Access or data validation fails
+  Service --> Controller : 10. ApiException
+end
+deactivate Service
+
+Controller --> App : 11. HTTP response
+deactivate Controller
+
+App --> UI : 12. Update checkout totals
+deactivate App
+
+UI --> Actor : 13. Show applied discount or reason
+deactivate UI
+deactivate Actor
+
+@enduml

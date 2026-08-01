@@ -1,0 +1,56 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class FieldOperationController <<controller>> {
+  -fieldOperationService : FieldOperationService
+  +blockSlot(request : ApiRequests.SlotBlock) : Object
+  +unblockSlot(slotId : Long) : Object
+}
+
+class FieldOperationService <<service>> {
+  -support : DomainSupportService
+  +blockSlot(request : ApiRequests.SlotBlock) : Map<String, Object>
+  +unblockSlot(slotId : Long) : Map<String, Object>
+  -requireOperator() : void
+}
+
+class "ApiRequests.SlotBlock" as SlotBlockDTO <<dto>> {
+  -fieldId : Long
+  -slotDate : LocalDate
+  -startTime : String
+  -endTime : String
+  -blockReason : String
+  -blockNote : String
+}
+
+interface SlotRepository <<repository>> {
+  +findByField_FieldIdAndSlotDate(fieldId : Long, slotDate : LocalDate) : List<Slot>
+  +findById(slotId : Long) : Optional<Slot>
+  +saveAll(slots : Iterable<Slot>) : List<Slot>
+}
+
+interface BookingRepository <<repository>> {
+  +existsBySlotAndStatusIn(slot : Slot, statuses : Collection<BookingStatus>) : boolean
+}
+
+class Slot <<entity>> {
+  -slotId : Long
+  -slotDate : LocalDate
+  -startTime : LocalTime
+  -endTime : LocalTime
+  -status : SlotStatus
+  -blockReason : String
+  -blockNote : String
+  -createdBy : AppUser
+}
+
+FieldOperationController ..> FieldOperationService
+FieldOperationController ..> SlotBlockDTO
+FieldOperationService ..> SlotBlockDTO
+FieldOperationService ..> SlotRepository
+FieldOperationService ..> BookingRepository
+SlotRepository --> Slot
+
+@enduml

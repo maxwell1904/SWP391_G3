@@ -1,0 +1,86 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Admin" as User
+participant "AdminPage" as UI
+participant "FieldOperationController" as Controller
+participant "FieldOperationService" as Service
+participant "FootballFieldRepository / FieldTypeRepository" as Repo
+database "Database" as DB
+
+== UC-13: Manage Football Fields ==
+
+User -> UI : 1. Create, edit, enable or disable a field
+activate User
+activate UI
+
+UI -> UI : 2. saveField() / toggleFieldStatus()
+activate UI
+deactivate UI
+
+UI -> UI : 3. Validate form/filter state
+activate UI
+deactivate UI
+
+UI -> Controller : 4. POST /api/admin/fields\nPUT /api/admin/fields/{fieldId}
+activate Controller
+
+Controller -> Service : 5. createField(request) / updateField(id, request)
+activate Service
+
+Service -> Service : 6. Validate name, location, surface and type
+activate Service
+deactivate Service
+
+alt Request is valid and authorized
+  Service -> Repo : 7. findById(fieldTypeId); save(field)
+  activate Repo
+
+  Repo -> DB : 8. SELECT field_type; INSERT/UPDATE field
+  activate DB
+  DB --> Repo : 9. Saved FootballField
+  deactivate DB
+
+  Repo --> Service : 10. Repository result
+  deactivate Repo
+
+  Service -> Service : 11. Apply request including imageUrl and status
+  activate Service
+  deactivate Service
+else Validation, authorization, or state rule fails
+  note over Service,Controller
+    Missing data or field type -> 400/404
+    The service propagates ApiException to ApiExceptionHandler.
+  end note
+end
+
+Service --> Controller : 12. Domain result or propagated error
+deactivate Service
+
+Controller -> Controller : 13. Serialize response
+activate Controller
+deactivate Controller
+
+Controller --> UI : 14. HTTP 200 or mapped 4xx\nresponse body or error payload
+deactivate Controller
+
+UI -> UI : 15. loadAdminFields(); refreshAll()
+activate UI
+deactivate UI
+
+UI --> User : 16. Show field saved and refreshed list
+
+deactivate UI
+deactivate User
+
+@enduml

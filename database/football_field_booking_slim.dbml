@@ -10,7 +10,7 @@
 // - booking.status is stored directly in booking.
 // - A small system_setting table stores runtime deposit/refund rule values.
 // - No separate promotion_condition table is used; practical conditions stay in promotion.
-// - UC-63/UC-64 smart assistant/suggested slots are optional and not modeled as core tables.
+// - The retired assistant/ranked-suggestion journey had no persistent tables; UC-13 availability search derives results from field, slot, pricing, promotion, and membership data.
 
 Project football_field_booking_system {
   database_type: "PostgreSQL"
@@ -229,7 +229,10 @@ Table slot {
 
 Table booking {
   booking_id bigint [pk, increment]
-  customer_id bigint [not null]
+  customer_id bigint
+  guest_name varchar(120)
+  guest_phone varchar(30)
+  guest_email varchar(160)
   staff_id bigint
   slot_id bigint [not null]
   booking_code varchar(30) [not null, unique]
@@ -259,7 +262,7 @@ Table booking {
     (slot_id, status)
   }
 
-  Note: "Do not create another valid booking for a slot with pending, confirmed, or checked_in status. paid_amount is gross collected value; refunds are separate. Financial checks cap total discounts at field plus service subtotal, deposit at total, remaining at total, and refundable at gross paid."
+  Note: "Exactly one booking identity is used: a registered customer_id, or for booking_source=walk_in a guest_name and guest_phone snapshot (guest_email optional). A guest snapshot does not create an account or membership. Do not create another valid booking for a slot with pending, confirmed, or checked_in status. paid_amount is gross collected value; refunds are separate. Financial checks cap total discounts at field plus service subtotal, deposit at total, remaining at total, and refundable at gross paid."
 }
 
 Table extra_service {
@@ -347,6 +350,7 @@ Table booking_promotion {
   promotion_id bigint [not null]
   promotion_code_snapshot varchar(50) [not null]
   discount_amount decimal(12,2) [not null]
+  usage_counted boolean [not null, default: false, note: 'Reserves campaign capacity for pending/active bookings; released on cancellation, rejection, or expiry.']
   applied_at timestamp
 
   indexes {

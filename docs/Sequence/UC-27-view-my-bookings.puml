@@ -19,7 +19,7 @@ participant "BookingWorkflowService" as Service
 participant "BookingRepository" as Repo
 database "Database" as DB
 
-== UC-27: View My Bookings ==
+== UC-27: View my bookings ==
 
 User -> UI : 1. Open My bookings
 activate User

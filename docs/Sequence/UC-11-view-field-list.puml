@@ -19,7 +19,7 @@ participant "FieldOperationService" as Service
 participant "FootballFieldRepository" as Repo
 database "Database" as DB
 
-== UC-11: View Field List ==
+== UC-11: View field list ==
 
 User -> UI : 1. Open Fields
 activate User

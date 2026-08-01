@@ -26,6 +26,11 @@ public class PaymentController {
         return paymentWorkflowService.capturePayment(request);
     }
 
+    @PostMapping("/payments/walk-in-checkout")
+    public Object createWalkInAndCapture(@RequestBody ApiRequests.WalkInCheckout request) {
+        return paymentWorkflowService.createWalkInAndCapture(request);
+    }
+
     @GetMapping("/payments/paypal/config")
     public Object payPalConfig() {
         return payPalCheckoutService.config();
@@ -39,10 +44,9 @@ public class PaymentController {
     @PostMapping("/bookings/{bookingId}/paypal/orders/{orderId}/capture")
     public Object capturePayPalOrder(
             @PathVariable Long bookingId,
-            @PathVariable String orderId,
-            @RequestBody ApiRequests.PayPalOrderCapture request
+            @PathVariable String orderId
     ) {
-        return payPalCheckoutService.captureOrder(bookingId, orderId, request);
+        return payPalCheckoutService.captureOrder(bookingId, orderId);
     }
 
     @PostMapping("/bookings/{bookingId}/paypal/orders/{orderId}/cancel")

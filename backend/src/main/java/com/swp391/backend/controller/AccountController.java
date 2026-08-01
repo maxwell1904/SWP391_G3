@@ -35,8 +35,8 @@ public class AccountController {
     }
 
     @PostMapping("/email/resend")
-    public Object resendEmailVerification(@RequestBody ApiRequests.EmailVerificationResend request) {
-        return accountService.resendEmailVerification(request);
+    public Object resendEmailVerification() {
+        return accountService.resendEmailVerification();
     }
 
     @GetMapping("/users")

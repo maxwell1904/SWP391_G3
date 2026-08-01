@@ -1,42 +1,28 @@
-# Implementation Scope
+# Implementation scope
 
-> Archived scope snapshot. Use `BACKLOG_CODE_FIRST_DELIVERY.md` for the
-> current code-first decisions.
+GoalZone is a classroom football-field booking system with 56 canonical use cases. The source-of-truth scope is defined by `LEAN_SCOPE_PROPOSAL_2026-08-01.md`, the aligned backlog, and `IMPLEMENTED_USE_CASES.md`.
 
-This repo is the runnable classroom release of the Football Field Booking System.
+## Included
 
-## Backlog Coverage
+- Account registration/verification, access, recovery, profile, Customer lock/unlock, Staff administration, and Customer activity.
+- Field catalogue, deterministic priced availability, field/pricing/slot rules, Staff block exceptions, add-ons, and issues.
+- Online and walk-in booking, reschedule, cancellation, check-in, completion, and no-show.
+- PayPal Sandbox customer payment/refund, Staff cash payment, invoice/payment visibility, and configurable deposit/refund rules.
+- Promotions, membership, notifications/reminders, and Admin revenue/booking/customer reports.
 
-The implemented classroom scope covers account access, SMTP email verification/invitations, field/slot search, service add-ons, booking lifecycle, checkout/payment records, real PayPal Sandbox refund processing, promotions, membership progress, notifications, and operational reports.
+## Intentional exclusions and boundaries
 
-Use `docs/BACKLOG_CODE_FIRST_DELIVERY.md`, `docs/END_TO_END_QA_MATRIX.md`, and `docs/RDS_SDS_ALIGNMENT_AUDIT.md` for current status. `IMPLEMENTED_USE_CASES.md` and `BACKLOG_RDS_CODE_GAP_ANALYSIS.md` are archived snapshots from before completion.
-
-Member-to-use-case ownership is documented in project docs only. Do not render owner names in the application UI.
-
-## Intentional Exclusions
-
-- No review table or review UI. The backlog mention in field detail should be removed unless the team adds review use cases.
-- Customer online payments and approved refunds use real PayPal Sandbox Orders/Payments APIs. Staff walk-ins use recorded cash transactions.
-- Email verification uses Spring Boot Mail SMTP and sends verification links to the registered email address. SMTP credentials stay in `.env.local`.
-- UC-62 is implemented, externally verified, and shippable. Its Gemini path
-  requires the deployment environment to provide `GEMINI_API_KEY` and
-  `GEMINI_MODEL`, just like other runtime credentials. UC-63 independently
-  ranks live slot, price, membership, and promotion data and feeds the ordinary
-  booking flow.
-- No inventory transaction ledger. Extra-service availability is kept at service-level stock and maximum quantity per booking.
+- No availability assistant, LLM integration, ranked-suggestion page, or duplicate suggestion API. UC-13 is the single availability-search journey.
+- No manual booking approval queue. Required payment automatically confirms an online booking; invalid/unavailable requests fail during create/pay.
+- No reviews/ratings.
+- No ordinary manual Add Slot action. Admin configures automatic generation rules; Staff records exceptional blocks.
+- No separate inventory ledger. Add-on activity, limits, and overlapping stock are validated transactionally.
+- PayPal is Sandbox only; no live-money certification is claimed.
 
 ## Run
 
-Backend:
+Backend: `scripts/run-backend.sh`
 
-```bash
-scripts/run-backend.sh
-```
-
-Frontend:
-
-```bash
-scripts/run-frontend.sh
-```
+Frontend: `scripts/run-frontend.sh`
 
 Open `http://localhost:5173`.

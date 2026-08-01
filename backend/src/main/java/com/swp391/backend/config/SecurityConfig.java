@@ -84,7 +84,6 @@ public class SecurityConfig {
                                 "/api/fields/{fieldId}",
                                 "/api/field-types",
                                 "/api/slots/search",
-                                "/api/slots/suggestions",
                                 "/api/services",
                                 "/api/promotions",
                                 "/api/membership/levels",
@@ -101,7 +100,6 @@ public class SecurityConfig {
                                 "/api/account/login",
                                 "/api/account/register",
                                 "/api/account/email/verify",
-                                "/api/account/email/resend",
                                 "/api/account/forgot-password",
                                 "/api/account/reset-password",
                                 "/api/account/validate-reset-token",
@@ -118,24 +116,25 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/settings/**").hasRole("Admin")
                         .requestMatchers(HttpMethod.POST, "/api/settings/**").hasRole("Admin")
                         .requestMatchers(HttpMethod.DELETE, "/api/settings/**").hasRole("Admin")
-                        // Staff & Admin endpoints
+                        // Venue Staff operational endpoints
                         .requestMatchers(
                                 "/api/slots/block",
                                 "/api/slots/*/unblock",
                                 "/api/operations/calendar",
-                                "/api/payments/capture"
-                        ).hasAnyRole("Staff", "Admin")
+                                "/api/payments/capture",
+                                "/api/payments/walk-in-checkout"
+                        ).hasRole("Staff")
                         // Customers see only their own rows (enforced by PaymentWorkflowService);
                         // operators receive the complete review queue.
                         .requestMatchers(HttpMethod.GET, "/api/refunds").authenticated()
-                        .requestMatchers(HttpMethod.PUT, "/api/refunds/**").hasAnyRole("Staff", "Admin")
+                        .requestMatchers(HttpMethod.PUT, "/api/refunds/**").hasRole("Staff")
                         .requestMatchers(HttpMethod.GET, "/api/settings").hasRole("Admin")
                         .requestMatchers(HttpMethod.POST, "/api/promotions").hasRole("Admin")
                         .requestMatchers(HttpMethod.PUT, "/api/promotions/**").hasRole("Admin")
                         // The workflow service enforces that a customer may only cancel
-                        // their own booking; Staff/Admin retain the other lifecycle actions.
+                        // their own booking; Venue Staff perform the other lifecycle actions.
                         .requestMatchers(HttpMethod.PUT, "/api/bookings/*/services").authenticated()
-                        .requestMatchers(HttpMethod.PUT, "/api/issues/*/status").hasAnyRole("Staff", "Admin")
+                        .requestMatchers(HttpMethod.PUT, "/api/issues/*/status").hasRole("Staff")
                         .requestMatchers("/api/account/users/*/activity").hasRole("Admin")
                         .requestMatchers(HttpMethod.GET, "/api/account/customers").hasAnyRole("Staff", "Admin")
                         .requestMatchers(HttpMethod.POST, "/api/membership/levels").hasRole("Admin")
@@ -149,7 +148,6 @@ public class SecurityConfig {
                         // Authenticated endpoints (Customers, Staff, Admin)
                         .requestMatchers(
                                 "/api/bookings/**",
-                                "/api/assistant/**",
                                 "/api/account/users/*/profile",
                                 "/api/account/users/*/password",
                                 "/api/membership/*/progress",

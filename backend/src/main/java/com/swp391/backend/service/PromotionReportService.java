@@ -15,11 +15,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @Transactional
@@ -56,7 +58,7 @@ public class PromotionReportService {
                 .toList();
     }
 
-    // Backlog owner: AnPTT - UC-52 Manage promotion campaigns.
+    // Backlog owner: AnPTT - UC-46 Manage promotion campaigns.
     public Map<String, Object> createPromotion(ApiRequests.PromotionUpsert request) {
         Promotion promotion = new Promotion();
         applyPromotionFields(promotion, request, null);
@@ -64,7 +66,7 @@ public class PromotionReportService {
         return support.promotionSummary(support.promotionRepository.save(promotion));
     }
 
-    // Backlog owner: AnPTT - UC-52 Manage promotion campaigns.
+    // Backlog owner: AnPTT - UC-46 Manage promotion campaigns.
     public Map<String, Object> updatePromotion(Long promotionId, ApiRequests.PromotionUpsert request) {
         Promotion promotion = support.promotionRepository.findById(promotionId)
                 .orElseThrow(() -> support.notFound("Promotion not found"));
@@ -74,6 +76,10 @@ public class PromotionReportService {
 
     public Map<String, Object> applyPromotionPreview(ApiRequests.PromotionApply request) {
         return bookingWorkflowService.previewCheckout(request);
+    }
+
+    public void reconcileMembershipAssignments() {
+        support.refreshAllMembershipAssignments();
     }
 
     @Transactional(readOnly = true)
@@ -97,7 +103,7 @@ public class PromotionReportService {
         response.put("customer", support.userSummary(customer));
         response.put("currentLevel", current.getLevelName());
         response.put("membershipLevel", support.membershipLevelSummary(current));
-        response.put("completedBookingCount", membership.getCompletedBookingCount());
+        response.put("completedBookingCount", support.completedBookingsInRange(customer, null, null));
         response.put("discountPercent", current.getDiscountPercent());
         response.put("nextLevel", next == null ? null : next.getLevelName());
         response.put("bookingsToNextLevel", next == null ? 0 : Math.max(0, target - progress));
@@ -178,12 +184,14 @@ public class PromotionReportService {
                 .filter(booking -> from == null || !booking.getSlot().getSlotDate().isBefore(from))
                 .filter(booking -> to == null || !booking.getSlot().getSlotDate().isAfter(to))
                 .toList();
-        java.util.Set<Long> bookingIds = bookings.stream().map(Booking::getBookingId).collect(java.util.stream.Collectors.toSet());
+        // Booking/occupancy metrics use the playing date. Revenue uses the
+        // actual collection/refund date so a July payment for an August match
+        // is reported in July, not August.
         List<Payment> payments = support.paymentRepository.findAll().stream()
-                .filter(payment -> bookingIds.contains(payment.getBooking().getBookingId()))
+                .filter(payment -> isWithinDateRange(payment.getPaidAt(), from, to))
                 .toList();
         List<Refund> refunds = support.refundRepository.findAll().stream()
-                .filter(refund -> bookingIds.contains(refund.getBooking().getBookingId()))
+                .filter(refund -> isWithinDateRange(refund.getProcessedAt(), from, to))
                 .toList();
         BigDecimal grossRevenue = payments.stream()
                 .filter(this::isCollectedPayment)
@@ -211,15 +219,28 @@ public class PromotionReportService {
         Map<String, BigDecimal> bookedRevenueByField = new LinkedHashMap<>();
         Map<String, Long> peakSlots = new LinkedHashMap<>();
         Map<String, Long> bookingStatusCounts = new LinkedHashMap<>();
+        Set<BookingStatus> occupancyStatuses = Set.of(
+                BookingStatus.confirmed,
+                BookingStatus.checked_in,
+                BookingStatus.completed,
+                BookingStatus.no_show
+        );
+        Set<BookingStatus> excludedCommercialStatuses = Set.of(
+                BookingStatus.rejected,
+                BookingStatus.expired,
+                BookingStatus.cancelled
+        );
         BigDecimal fieldValue = BigDecimal.ZERO;
         BigDecimal serviceValue = BigDecimal.ZERO;
         BigDecimal promotionDiscount = BigDecimal.ZERO;
         BigDecimal membershipDiscount = BigDecimal.ZERO;
         for (Booking booking : bookings) {
-            byField.merge(booking.getSlot().getField().getFieldName(), 1L, Long::sum);
-            peakSlots.merge(booking.getSlot().getStartTime().toString(), 1L, Long::sum);
             bookingStatusCounts.merge(booking.getStatus().name(), 1L, Long::sum);
-            if (booking.getStatus() != BookingStatus.rejected && booking.getStatus() != BookingStatus.expired) {
+            if (occupancyStatuses.contains(booking.getStatus())) {
+                byField.merge(booking.getSlot().getField().getFieldName(), 1L, Long::sum);
+                peakSlots.merge(booking.getSlot().getStartTime().toString(), 1L, Long::sum);
+            }
+            if (!excludedCommercialStatuses.contains(booking.getStatus())) {
                 fieldValue = fieldValue.add(booking.getFieldPriceAmount());
                 serviceValue = serviceValue.add(booking.getServiceTotalAmount());
                 promotionDiscount = promotionDiscount.add(booking.getPromotionDiscountAmount());
@@ -228,13 +249,21 @@ public class PromotionReportService {
             }
         }
 
+        Map<Long, Long> bookingCountByCustomer = bookings.stream()
+                .filter(booking -> !excludedCommercialStatuses.contains(booking.getStatus()))
+                .filter(booking -> booking.getCustomer() != null)
+                .collect(java.util.stream.Collectors.groupingBy(
+                        booking -> booking.getCustomer().getUserId(),
+                        java.util.stream.Collectors.counting()
+                ));
         List<Map<String, Object>> topCustomers = support.userRepository.findAll().stream()
                 .filter(user -> "Customer".equals(user.getRole().getRoleName()))
                 .map(user -> Map.<String, Object>of(
                         "customerId", user.getUserId(),
                         "fullName", user.getFullName(),
-                        "bookingCount", support.bookingRepository.findByCustomer_UserIdOrderByBookingIdDesc(user.getUserId()).size()
+                        "bookingCount", bookingCountByCustomer.getOrDefault(user.getUserId(), 0L)
                 ))
+                .filter(item -> ((Number) item.get("bookingCount")).longValue() > 0)
                 .sorted(Comparator.<Map<String, Object>>comparingLong(item -> ((Number) item.get("bookingCount")).longValue()).reversed())
                 .toList();
         long returningCustomers = topCustomers.stream()
@@ -267,8 +296,15 @@ public class PromotionReportService {
         response.put("membershipDistribution", membershipDistribution);
         response.put("from", from == null ? null : from.toString());
         response.put("to", to == null ? null : to.toString());
-        response.put("dateBasis", "slotDate");
+        response.put("bookingDateBasis", "slotDate");
+        response.put("revenueDateBasis", "paymentPaidAt/refundProcessedAt");
         return response;
+    }
+
+    private boolean isWithinDateRange(LocalDateTime timestamp, LocalDate from, LocalDate to) {
+        if (timestamp == null) return from == null && to == null;
+        LocalDate date = timestamp.toLocalDate();
+        return (from == null || !date.isBefore(from)) && (to == null || !date.isAfter(to));
     }
 
     private boolean isCollectedPayment(Payment payment) {
@@ -298,9 +334,8 @@ public class PromotionReportService {
             slotGenerationService.validateRuleChange(key, value);
         }
         setting.setSettingValue(value);
-        if (request.updatedById() != null) {
-            setting.setUpdatedBy(support.getUser(request.updatedById()));
-        }
+        // The security context, not a request-body id, owns audit attribution.
+        setting.setUpdatedBy(currentUser());
         Map<String, Object> response = new LinkedHashMap<>(support.settingSummary(setting));
         if (key.startsWith("slot.")) {
             SlotGenerationService.GenerationResult generated = slotGenerationService.rebuildRollingWindow();
@@ -334,7 +369,7 @@ public class PromotionReportService {
                 .toList();
     }
 
-    // Backlog owner: AnPTT - UC-57/58/59 Notification read/unread toggle.
+    // Supporting notification inbox behavior for UC-51/52/53.
     public Map<String, Object> toggleNotificationRead(Long notificationId) {
         com.swp391.backend.entity.Notification notification = support.notificationRepository.findById(notificationId)
                 .orElseThrow(() -> support.notFound("Notification not found"));
@@ -343,7 +378,7 @@ public class PromotionReportService {
         return support.notificationSummary(support.notificationRepository.save(notification));
     }
 
-    // Backlog owner: AnPTT - UC-57/58/59 Mark all notifications as read.
+    // Supporting notification inbox behavior for UC-51/52/53.
     public Map<String, Object> markAllNotificationsRead(Long userId) {
         requireSelfOrAdmin(userId);
         List<com.swp391.backend.entity.Notification> unread =

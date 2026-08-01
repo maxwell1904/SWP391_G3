@@ -41,7 +41,6 @@ class DomainSupportService <<service>> {
 
 class "ApiRequests.PaymentCapture" as PaymentCaptureDTO <<dto>> {
     -bookingId : Long
-    -createdById : Long
     -paymentOption : String
     -paymentMethod : String
     -amount : BigDecimal

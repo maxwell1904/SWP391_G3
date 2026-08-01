@@ -4,11 +4,12 @@ import { formatDate, formatMoney, resolveAssetUrl, tomorrow } from '../utils/for
 
 const PAGE_SIZE = 5
 
-export function PromotionsPage({ promotions, currentUser, createPromotion, updatePromotion, fieldTypes = [], services = [], membershipLevels = [] }) {
+export function PromotionsPage({ promotions, currentUser, createPromotion, updatePromotion, fieldTypes = [], services = [], membershipLevels = [], onUsePromotion }) {
   const isAdmin = currentUser?.role === 'Admin'
   const [isEditing, setIsEditing] = useState(false)
   const [editForm, setEditForm] = useState(emptyForm())
   const [page, setPage] = useState(1)
+  const [saving, setSaving] = useState(false)
 
   const visiblePromotions = isAdmin ? promotions : promotions.filter(p => p.status === 'active')
   const totalPages = Math.max(1, Math.ceil(visiblePromotions.length / PAGE_SIZE))
@@ -62,12 +63,12 @@ export function PromotionsPage({ promotions, currentUser, createPromotion, updat
       applicableExtraServiceId: editForm.applicableExtraServiceId ? Number(editForm.applicableExtraServiceId) : null,
       applicableMembershipLevelId: editForm.applicableMembershipLevelId ? Number(editForm.applicableMembershipLevelId) : null
     }
-    if (editForm.promotionId) {
-      await updatePromotion(editForm.promotionId, payload)
-    } else {
-      await createPromotion(payload)
-    }
-    setIsEditing(false)
+    setSaving(true)
+    const result = editForm.promotionId
+      ? await updatePromotion(editForm.promotionId, payload)
+      : await createPromotion(payload)
+    setSaving(false)
+    if (result) setIsEditing(false)
   }
 
   const updateField = (field, value) => setEditForm(prev => ({ ...prev, [field]: value }))
@@ -83,7 +84,7 @@ export function PromotionsPage({ promotions, currentUser, createPromotion, updat
       <SectionIntro
         kicker="Promotions"
         title={isAdmin ? 'Promotion catalogue' : 'Available offers'}
-        text={isAdmin ? 'Create, schedule, and limit offers customers can use at checkout.' : 'Offers are applied automatically when your booking meets their conditions.'}
+        text={isAdmin ? 'Create, schedule, and limit offers customers can use at checkout.' : 'Choose an offer, then use its code during booking. Eligibility is checked at checkout.'}
       />
 
       {isAdmin && (
@@ -176,6 +177,10 @@ export function PromotionsPage({ promotions, currentUser, createPromotion, updat
                   <input type="time" value={editForm.applicableEndTime} onChange={e => updateField('applicableEndTime', e.target.value)} />
                 </FieldControl>
                 <ImageUploadField label="Promotion banner" value={editForm.bannerUrl} onChange={value => updateField('bannerUrl', value)} />
+                <label className="checkboxField">
+                  <input type="checkbox" checked={editForm.stackable} onChange={e => updateField('stackable', e.target.checked)} />
+                  <span><strong>Stack with membership discount</strong><small>When off, this promotion replaces the membership discount.</small></span>
+                </label>
                 <div className="fullWidth">
                   <FieldControl label="Description">
                     <textarea value={editForm.description} onChange={e => updateField('description', e.target.value)} placeholder="Short description for customers" />
@@ -183,8 +188,8 @@ export function PromotionsPage({ promotions, currentUser, createPromotion, updat
                 </div>
               </div>
               <div className="buttonRow">
-                <button type="button" className="primaryButton" onClick={handleSave}>Save promotion</button>
-                <button type="button" className="secondaryButton" onClick={() => setIsEditing(false)}>Cancel</button>
+                <button type="button" className="primaryButton" disabled={saving} onClick={handleSave}>{saving ? 'Saving...' : 'Save promotion'}</button>
+                <button type="button" className="secondaryButton" disabled={saving} onClick={() => setIsEditing(false)}>Cancel</button>
               </div>
             </div>
           )}
@@ -265,6 +270,13 @@ export function PromotionsPage({ promotions, currentUser, createPromotion, updat
               <div className="promoCardActions">
                 <button type="button" className="ghostDarkButton" onClick={() => handleEdit(promotion)}>
                   Edit
+                </button>
+              </div>
+            )}
+            {!isAdmin && onUsePromotion && (
+              <div className="promoCardActions">
+                <button type="button" className="primaryButton" onClick={() => onUsePromotion(promotion.promotionCode)}>
+                  Use this code
                 </button>
               </div>
             )}

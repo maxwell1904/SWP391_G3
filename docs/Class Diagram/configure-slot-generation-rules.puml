@@ -1,0 +1,52 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class PromotionReportController <<controller>> {
+  -promotionReportService : PromotionReportService
+  +updateSetting(key : String, request : SettingUpdate) : Object
+}
+
+class PromotionReportService <<service>> {
+  -slotGenerationService : SlotGenerationService
+  +updateSetting(key : String, request : SettingUpdate) : Map<String, Object>
+}
+
+class SlotGenerationService <<service>> {
+  +validateRuleChange(key : String, value : String) : SlotRules
+  +rebuildRollingWindow() : GenerationResult
+  +ensureDate(date : LocalDate) : int
+}
+
+interface SystemSettingRepository <<repository>> {
+  +findBySettingKey(settingKey : String) : Optional<SystemSetting>
+  +save(setting : SystemSetting) : SystemSetting
+}
+
+interface SlotRepository <<repository>> {
+  +findBySlotDateBetween(from : LocalDate, to : LocalDate) : List<Slot>
+  +saveAll(slots : Iterable<Slot>) : List<Slot>
+}
+
+class SystemSetting <<entity>> {
+  -settingKey : String
+  -settingValue : String
+}
+
+class Slot <<entity>> {
+  -slotDate : LocalDate
+  -startTime : LocalTime
+  -endTime : LocalTime
+  -status : SlotStatus
+}
+
+PromotionReportController ..> PromotionReportService
+PromotionReportService ..> SlotGenerationService
+PromotionReportService ..> SystemSettingRepository
+SlotGenerationService ..> SystemSettingRepository
+SlotGenerationService ..> SlotRepository
+SystemSettingRepository --> SystemSetting
+SlotRepository --> Slot
+
+@enduml

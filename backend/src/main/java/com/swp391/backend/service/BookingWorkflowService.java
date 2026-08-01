@@ -29,9 +29,10 @@ public class BookingWorkflowService {
     }
 
     public Map<String, Object> previewCheckout(ApiRequests.PromotionApply request) {
-        AppUser customer = request.customerId() == null ? null : support.getUser(request.customerId());
+        AppUser customer = previewCustomer(request.customerId());
         BookingSource source = support.parseEnum(BookingSource.class, request.bookingSource(), BookingSource.online);
         Slot slot = support.getSlot(request.slotId());
+        support.validateSlotBookable(slot);
         BigDecimal fieldPrice = support.calculateFieldPrice(slot);
         BigDecimal serviceTotal = support.calculateServiceTotal(request.services(), slot, null);
         BigDecimal promotionDiscount = support.calculatePromotionDiscount(request.promotionCode(), slot, serviceTotal.add(fieldPrice), request.services(), customer);
@@ -74,26 +75,42 @@ public class BookingWorkflowService {
     }
 
     private Map<String, Object> createBookingInternal(ApiRequests.BookingCreate request) {
-        AppUser customer = support.getUser(request.customerId());
-        if (customer.getStatus() == AccountStatus.locked) {
+        BookingSource source = support.parseEnum(BookingSource.class, request.bookingSource(), BookingSource.online);
+        AppUser customer = request.customerId() == null ? null : support.getUser(request.customerId());
+        if (customer != null && !"Customer".equalsIgnoreCase(customer.getRole().getRoleName())) {
+            throw support.badRequest("Booking customer must be a customer account");
+        }
+        if (customer != null && customer.getStatus() == AccountStatus.locked) {
             throw new ApiException(HttpStatus.FORBIDDEN, "Customer account is locked");
         }
-        BookingSource source = support.parseEnum(BookingSource.class, request.bookingSource(), BookingSource.online);
+        if (source == BookingSource.online && customer == null) {
+            throw support.badRequest("A customer account is required for online booking");
+        }
         if (source == BookingSource.online && !customer.isEmailVerified()) {
             throw new ApiException(HttpStatus.FORBIDDEN, "Verify customer email before online booking");
+        }
+        boolean guestWalkIn = source == BookingSource.walk_in && customer == null;
+        if (guestWalkIn) {
+            support.requireText(request.guestName(), "Walk-in guest name is required");
+            support.requireText(request.guestPhone(), "Walk-in guest phone is required");
         }
         Slot slot = support.getSlot(request.slotId());
         support.validateSlotBookable(slot);
 
         Booking booking = new Booking();
         booking.setCustomer(customer);
+        booking.setGuestName(guestWalkIn ? support.clean(request.guestName()) : null);
+        booking.setGuestPhone(guestWalkIn ? support.clean(request.guestPhone()) : null);
+        booking.setGuestEmail(guestWalkIn && !support.isBlank(request.guestEmail()) ? support.clean(request.guestEmail()) : null);
         if (source == BookingSource.walk_in) {
-            booking.setStaff(resolveOperatingStaff(request.staffId()));
+            booking.setStaff(requireCurrentStaff());
         }
         booking.setSlot(slot);
         booking.setBookingCode("BK" + System.currentTimeMillis());
         booking.setBookingSource(source);
-        booking.setStatus(source == BookingSource.walk_in ? BookingStatus.confirmed : BookingStatus.pending);
+        // A walk-in is not proof of payment. It stays pending until Staff
+        // records at least the required deposit through the counter-payment flow.
+        booking.setStatus(BookingStatus.pending);
         booking.setNote(request.note());
 
         BigDecimal fieldPrice = support.calculateFieldPrice(slot);
@@ -115,13 +132,9 @@ public class BookingWorkflowService {
         booking.setTotalAmount(total);
         booking.setDepositAmount(deposit);
         booking.setRemainingAmount(total);
-        if (booking.getStatus() == BookingStatus.confirmed) {
-            booking.setConfirmedAt(LocalDateTime.now());
-        }
         booking = support.bookingRepository.save(booking);
         support.saveBookingServices(booking, request.services());
         support.saveBookingPromotion(booking, request.promotionCode(), promotionDiscount);
-        support.notifyUser(customer, booking, NotificationType.booking_confirmation, "Booking created", "Your booking " + booking.getBookingCode() + " has been created.");
         return bookingDetail(booking.getBookingId());
     }
 
@@ -161,7 +174,7 @@ public class BookingWorkflowService {
         return detail;
     }
 
-    // Backlog owner: NgocPA - UC-32 Preview cancellation fee/refund.
+    // Included flow of NgocPA UC-30 Cancel booking.
     @Transactional(readOnly = true)
     public Map<String, Object> previewCancellation(Long bookingId) {
         Booking booking = support.getBooking(bookingId);
@@ -170,23 +183,41 @@ public class BookingWorkflowService {
     }
 
     public Map<String, Object> updateBookingStatus(Long bookingId, ApiRequests.BookingStatusUpdate request) {
-        AppUser requester = optionalCurrentUser();
+        AppUser requester = currentUser();
         Booking booking = support.getBooking(bookingId);
         BookingStatus nextStatus = support.parseEnum(BookingStatus.class, request.status(), booking.getStatus());
-        boolean operator = requester == null || isOperator(requester);
-        if (!operator) {
+        boolean staff = isStaff(requester);
+        if (isCustomer(requester)) {
             requireBookingVisible(booking);
             if (nextStatus != BookingStatus.cancelled) {
                 throw new ApiException(HttpStatus.FORBIDDEN, "Customers can only cancel their own bookings");
             }
+        } else if (!staff) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Only the booking customer or venue staff can change booking status");
         }
         requireValidTransition(booking.getStatus(), nextStatus);
         LocalDateTime now = LocalDateTime.now();
+        LocalDateTime slotStart = booking.getSlot().getSlotDate().atTime(booking.getSlot().getStartTime());
+        if (nextStatus == BookingStatus.checked_in && now.isBefore(slotStart.minusMinutes(30))) {
+            throw support.badRequest("Check-in opens 30 minutes before the booked start time");
+        }
+        if (nextStatus == BookingStatus.checked_in
+                && booking.getPaidAmount().compareTo(booking.getDepositAmount()) < 0) {
+            throw support.badRequest("The required deposit must be paid before check-in");
+        }
+        if (nextStatus == BookingStatus.completed && now.isBefore(slotStart)) {
+            throw support.badRequest("A booking cannot be completed before its start time");
+        }
+        if (nextStatus == BookingStatus.completed && booking.getRemainingAmount().compareTo(BigDecimal.ZERO) > 0) {
+            throw support.badRequest("The remaining balance must be paid before completion");
+        }
+        if (nextStatus == BookingStatus.no_show && now.isBefore(slotStart.plusMinutes(15))) {
+            throw support.badRequest("No-show can be recorded 15 minutes after the booked start time");
+        }
+        if (nextStatus == BookingStatus.cancelled && !now.isBefore(slotStart)) {
+            throw support.badRequest("A started booking cannot be cancelled; use check-in or no-show instead");
+        }
         switch (nextStatus) {
-            case confirmed -> {
-                booking.setConfirmedAt(now);
-                support.notifyUser(booking.getCustomer(), booking, NotificationType.booking_confirmation, "Booking confirmed", "Booking " + booking.getBookingCode() + " is confirmed.");
-            }
             case checked_in -> booking.setCheckedInAt(now);
             case completed -> {
                 booking.setCompletedAt(now);
@@ -198,33 +229,34 @@ public class BookingWorkflowService {
                 support.previewAndStoreCancellation(booking);
                 support.notifyUser(booking.getCustomer(), booking, NotificationType.cancellation, "Booking cancelled", "Booking " + booking.getBookingCode() + " has been cancelled.");
             }
-            case rejected -> {
-                support.notifyUser(booking.getCustomer(), booking, NotificationType.booking_confirmation, "Booking rejected", "Booking " + booking.getBookingCode() + " was rejected by staff.");
-            }
             case no_show -> { }
-            case expired -> booking.setExpiredAt(now);
             default -> {
             }
         }
-        if (operator && requester != null) {
-            booking.setStaff(resolveOperatingStaff(request.staffId()));
+        if (staff) {
+            booking.setStaff(requester);
         }
         if (!support.isBlank(request.note())) {
             booking.setNote(request.note());
         }
         booking.setStatus(nextStatus);
+        support.reconcilePromotionUsage(booking);
         return bookingDetail(bookingId);
     }
 
-    // UC-31: rescheduling keeps the original booking/payment history while releasing its old slot.
+    // UC-29: rescheduling keeps the original booking/payment history while releasing its old slot.
     public Map<String, Object> reschedule(Long bookingId, ApiRequests.BookingReschedule request) {
         Booking booking = support.getBooking(bookingId);
         AppUser requester = currentUser();
         requireBookingVisible(booking);
-        boolean operator = isOperator(requester);
+        boolean staff = isStaff(requester);
+        if (!staff && !isCustomer(requester)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Only the booking customer or venue staff can reschedule a booking");
+        }
         if (booking.getStatus() != BookingStatus.pending && booking.getStatus() != BookingStatus.confirmed) {
             throw support.badRequest("Only pending or confirmed bookings can be rescheduled");
         }
+        requireBeforeSlotStart(booking, "A started booking cannot be rescheduled");
         Slot newSlot = support.getSlot(request.newSlotId());
         if (booking.getSlot().getSlotId().equals(newSlot.getSlotId())) {
             throw support.badRequest("Please choose a different slot to reschedule");
@@ -256,8 +288,9 @@ public class BookingWorkflowService {
         booking.setDepositAmount(support.calculateDeposit(newTotal));
         booking.setRemainingAmount(remainingAmount);
         booking.setRefundableAmount(refundableAmount);
-        if (operator) {
-            booking.setStaff(resolveOperatingStaff(request.staffId()));
+        support.reconcilePromotionUsage(booking);
+        if (staff) {
+            booking.setStaff(requester);
         }
         if (!support.isBlank(request.note())) {
             booking.setNote(request.note());
@@ -299,8 +332,9 @@ public class BookingWorkflowService {
             Promotion promotion = applied.getPromotion();
             String slotDayType = newSlotDayType(slot);
             boolean membershipEligible = promotion.getApplicableMembershipLevel() == null
-                    || Objects.equals(support.resolveEligibleMembershipLevel(booking.getCustomer(), slot.getSlotDate()).getMembershipLevelId(),
-                    promotion.getApplicableMembershipLevel().getMembershipLevelId());
+                    || (booking.getCustomer() != null
+                    && Objects.equals(support.resolveEligibleMembershipLevel(booking.getCustomer(), slot.getSlotDate()).getMembershipLevelId(),
+                    promotion.getApplicableMembershipLevel().getMembershipLevelId()));
             boolean remainsApplicable = promotion.getStatus() == CommonStatus.active
                     && !slot.getSlotDate().isBefore(promotion.getStartDate())
                     && !slot.getSlotDate().isAfter(promotion.getEndDate())
@@ -351,9 +385,13 @@ public class BookingWorkflowService {
         AppUser requester = currentUser();
         Booking booking = support.getBooking(bookingId);
         requireBookingVisible(booking);
+        if (!isStaff(requester) && !isCustomer(requester)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Only the booking customer or venue staff can update add-ons");
+        }
         if (booking.getStatus() != BookingStatus.pending && booking.getStatus() != BookingStatus.confirmed) {
             throw support.badRequest("Services can only be changed before check-in");
         }
+        requireBeforeSlotStart(booking, "Services cannot be changed after the booked start time");
 
         List<ApiRequests.ServiceSelection> selections = request.services() == null ? List.of() : request.services();
         BigDecimal serviceTotal = support.calculateServiceTotal(selections, booking.getSlot(), bookingId);
@@ -378,7 +416,8 @@ public class BookingWorkflowService {
         booking.setDepositAmount(support.calculateDeposit(total));
         booking.setRemainingAmount(remaining);
         booking.setRefundableAmount(refundable);
-        if (isOperator(requester)) booking.setStaff(resolveOperatingStaff(null));
+        support.reconcilePromotionUsage(booking);
+        if (isStaff(requester)) booking.setStaff(requester);
         support.generateInvoice(booking);
         support.notifyUser(booking.getCustomer(), booking, NotificationType.booking_confirmation,
                 "Booking services updated", "Services for booking " + booking.getBookingCode() + " were updated before check-in."
@@ -392,7 +431,7 @@ public class BookingWorkflowService {
 
     private void requireValidTransition(BookingStatus current, BookingStatus next) {
         boolean valid = switch (current) {
-            case pending -> List.of(BookingStatus.confirmed, BookingStatus.rejected, BookingStatus.cancelled, BookingStatus.expired).contains(next);
+            case pending -> next == BookingStatus.cancelled;
             case confirmed -> List.of(BookingStatus.checked_in, BookingStatus.cancelled, BookingStatus.no_show).contains(next);
             case checked_in -> next == BookingStatus.completed;
             default -> false;
@@ -416,20 +455,56 @@ public class BookingWorkflowService {
         return user.getAppUser();
     }
 
+    /**
+     * Anonymous visitors receive an anonymous quote. Personalized membership
+     * pricing is available only to the signed-in customer or to Venue Staff
+     * preparing a walk-in quote for a selected customer.
+     */
+    private AppUser previewCustomer(Long customerId) {
+        if (customerId == null) return null;
+        AppUser requester = optionalCurrentUser();
+        if (requester == null) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Sign in to use customer-specific pricing");
+        }
+        AppUser customer = support.getUser(customerId);
+        if (!"Customer".equalsIgnoreCase(customer.getRole().getRoleName())) {
+            throw support.badRequest("Checkout customer must be a customer account");
+        }
+        if (!isStaff(requester) && !Objects.equals(requester.getUserId(), customerId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "You can only preview your own membership pricing");
+        }
+        return customer;
+    }
+
     private boolean isOperator(AppUser user) {
         String role = user.getRole().getRoleName();
         return "Staff".equalsIgnoreCase(role) || "Admin".equalsIgnoreCase(role);
     }
 
+    private boolean isStaff(AppUser user) {
+        return "Staff".equalsIgnoreCase(user.getRole().getRoleName());
+    }
+
+    private boolean isCustomer(AppUser user) {
+        return "Customer".equalsIgnoreCase(user.getRole().getRoleName());
+    }
+
+    private void requireBeforeSlotStart(Booking booking, String message) {
+        LocalDateTime slotStart = booking.getSlot().getSlotDate().atTime(booking.getSlot().getStartTime());
+        if (!LocalDateTime.now().isBefore(slotStart)) {
+            throw support.badRequest(message);
+        }
+    }
+
     /**
      * Customer bookings and counter bookings are intentionally separate flows:
-     * a customer creates only their own online booking, while operators create
-     * only walk-ins.  This prevents a staff/admin token from starting PayPal
+     * a customer creates only their own online booking, while venue staff create
+     * only walk-ins. This prevents an operational token from starting PayPal
      * checkout on behalf of a customer.
      */
     private void requireBookingCreationRole(AppUser requester, Long customerId, BookingSource source) {
-        if (customerId == null) throw support.badRequest("Customer is required");
-        if (!isOperator(requester)) {
+        if (isCustomer(requester)) {
+            if (customerId == null) throw support.badRequest("Customer is required for online booking");
             if (!Objects.equals(requester.getUserId(), customerId)) {
                 throw new ApiException(HttpStatus.FORBIDDEN, "You can only create bookings for your own account");
             }
@@ -438,26 +513,27 @@ public class BookingWorkflowService {
             }
             return;
         }
+        if (!isStaff(requester)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Only customers or venue staff can create bookings");
+        }
         if (source != BookingSource.walk_in) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "Staff and administrators can only create walk-in bookings");
+            throw new ApiException(HttpStatus.FORBIDDEN, "Venue staff can only create walk-in bookings");
         }
     }
 
     private void requireBookingVisible(Booking booking) {
         AppUser requester = currentUser();
-        if (!isOperator(requester) && !Objects.equals(booking.getCustomer().getUserId(), requester.getUserId())) {
+        Long ownerId = booking.getCustomer() == null ? null : booking.getCustomer().getUserId();
+        if (!isOperator(requester) && !Objects.equals(ownerId, requester.getUserId())) {
             throw new ApiException(HttpStatus.FORBIDDEN, "You can only view your own bookings");
         }
     }
 
-    private AppUser resolveOperatingStaff(Long requestedStaffId) {
+    private AppUser requireCurrentStaff() {
         AppUser requester = currentUser();
-        if ("Staff".equalsIgnoreCase(requester.getRole().getRoleName())) return requester;
-        if (requestedStaffId == null) return requester;
-        AppUser staff = support.getUser(requestedStaffId);
-        if (!"Staff".equalsIgnoreCase(staff.getRole().getRoleName())) {
-            throw support.badRequest("The selected operator is not a staff account");
+        if (!isStaff(requester)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Venue staff access is required");
         }
-        return staff;
+        return requester;
     }
 }

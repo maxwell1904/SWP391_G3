@@ -88,17 +88,17 @@ insert into field (
 select ft.field_type_id, seed.field_name, seed.description, seed.image_url,
        seed.location, seed.surface_type, seed.status, now(), now()
 from (values
-    ('5-a-side', 'Emerald Five', 'Well-lit artificial-turf pitch close to reception and changing rooms.',
-     'https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&w=1600&q=85',
+    ('5-a-side', 'Field 5A', 'Well-lit artificial-turf field close to reception and changing rooms.',
+     'https://images.unsplash.com/photo-1759210720456-c9814f721479?auto=format&fit=crop&w=1600&q=85',
      'Zone A · Main entrance', 'FIFA-quality artificial turf', 'active'),
-    ('7-a-side', 'Riverside Seven', 'Spacious hybrid-grass pitch suited to evening leagues and company matches.',
-     'https://images.unsplash.com/photo-1575361204480-aadea25e6e68?auto=format&fit=crop&w=1600&q=85',
+    ('7-a-side', 'Field 7A', 'Spacious hybrid-grass field suited to evening leagues and company matches.',
+     'https://images.unsplash.com/photo-1712168539418-0aa66404ee0d?auto=format&fit=crop&w=1600&q=85',
      'Zone B · Riverside', 'Hybrid grass', 'active'),
-    ('11-a-side', 'Championship Arena', 'Full-size natural-grass field with covered benches and spectator seating.',
-     'https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?auto=format&fit=crop&w=1600&q=85',
+    ('11-a-side', 'Main Field 11A', 'Full-size natural-grass field with covered benches and spectator seating.',
+     'https://images.unsplash.com/photo-1758227231013-8cff978f1dae?auto=format&fit=crop&w=1600&q=85',
      'Zone C · Grandstand', 'Natural grass', 'active'),
-    ('5-a-side', 'Training Court', 'Secondary training pitch retained as an inactive record for the administration flow.',
-     'https://images.unsplash.com/photo-1556056504-5c7696c4c28d?auto=format&fit=crop&w=1600&q=85',
+    ('5-a-side', 'Training Field', 'Secondary training field retained as an inactive record for the administration flow.',
+     'https://images.unsplash.com/photo-1690892738385-515d0c045ec0?auto=format&fit=crop&w=1600&q=85',
      'Zone D · Training block', 'Artificial turf', 'inactive')
 ) as seed(type_name, field_name, description, image_url, location, surface_type, status)
 join field_type ft on ft.type_name = seed.type_name;
@@ -110,16 +110,16 @@ insert into field_price (
 select f.field_id, seed.day_type, seed.start_time::time, seed.end_time::time,
        seed.price, dc.demo_date - 90, 'active', now(), now()
 from (values
-    ('Emerald Five', 'weekday', '06:00', '17:00', 16.00::numeric),
-    ('Emerald Five', 'weekday', '17:00', '22:00', 22.00::numeric),
-    ('Emerald Five', 'weekend', '06:00', '22:00', 24.00::numeric),
-    ('Riverside Seven', 'weekday', '06:00', '17:00', 20.00::numeric),
-    ('Riverside Seven', 'weekday', '17:00', '22:00', 28.00::numeric),
-    ('Riverside Seven', 'weekend', '06:00', '22:00', 30.00::numeric),
-    ('Championship Arena', 'weekday', '06:00', '17:00', 38.00::numeric),
-    ('Championship Arena', 'weekday', '17:00', '22:00', 48.00::numeric),
-    ('Championship Arena', 'weekend', '06:00', '22:00', 54.00::numeric),
-    ('Training Court', 'all', '06:00', '22:00', 14.00::numeric)
+    ('Field 5A', 'weekday', '06:00', '17:00', 16.00::numeric),
+    ('Field 5A', 'weekday', '17:00', '22:00', 22.00::numeric),
+    ('Field 5A', 'weekend', '06:00', '22:00', 24.00::numeric),
+    ('Field 7A', 'weekday', '06:00', '17:00', 20.00::numeric),
+    ('Field 7A', 'weekday', '17:00', '22:00', 28.00::numeric),
+    ('Field 7A', 'weekend', '06:00', '22:00', 30.00::numeric),
+    ('Main Field 11A', 'weekday', '06:00', '17:00', 38.00::numeric),
+    ('Main Field 11A', 'weekday', '17:00', '22:00', 48.00::numeric),
+    ('Main Field 11A', 'weekend', '06:00', '22:00', 54.00::numeric),
+    ('Training Field', 'all', '06:00', '22:00', 14.00::numeric)
 ) as seed(field_name, day_type, start_time, end_time, price)
 join field f on f.field_name = seed.field_name
 cross join demo_context dc;
@@ -204,8 +204,8 @@ set status = 'blocked',
     block_note = seed.note,
     updated_at = now()
 from (values
-    ('Emerald Five', '18:00'::time, 'Pitch maintenance', 'Routine turf inspection after the evening league'),
-    ('Riverside Seven', '20:00'::time, 'Private event', 'Reserved for a pre-approved community event')
+    ('Field 5A', '18:00'::time, 'Field maintenance', 'Routine turf inspection after the evening league'),
+    ('Field 7A', '20:00'::time, 'Private event', 'Reserved for a pre-approved community event')
 ) as seed(field_name, start_time, reason, note)
 join field f on f.field_name = seed.field_name
 cross join demo_context dc
@@ -238,40 +238,40 @@ create temp table seed_booking (
 -- Completed bookings establish genuine membership history and populate reports.
 insert into seed_booking
 select 'BK-CUST-' || to_char(n, 'FM00'), 'customer@goalzone.local', 'staff@goalzone.local',
-       'Emerald Five', -14, '10:00', 'completed', 'walk_in',
+       'Field 5A', -14, '10:00', 'completed', 'walk_in',
        16.00, 0.00, 1.60, 0.00, 14.40, 4.32, 14.40, 0.00, 0.00, 0.00,
        'Completed walk-in booking with WELCOME10'
 from generate_series(1, 1) n;
 
 insert into seed_booking
 select 'BK-SILVER-' || to_char(n, 'FM00'), 'member@goalzone.local', 'staff@goalzone.local',
-       'Riverside Seven', -(n * 7), '08:00', 'completed', 'walk_in',
+       'Field 7A', -(n * 7), '08:00', 'completed', 'walk_in',
        20.00, 0.00, 0.00, 0.00, 20.00, 6.00, 20.00, 0.00, 0.00, 0.00,
        'Completed booking contributing to Silver membership'
 from generate_series(1, 4) n;
 
 insert into seed_booking
 select 'BK-GOLD-' || to_char(n, 'FM00'), 'gold@goalzone.local', 'staff@goalzone.local',
-       'Championship Arena', -(n * 7), '08:00', 'completed', 'walk_in',
+       'Main Field 11A', -(n * 7), '08:00', 'completed', 'walk_in',
        38.00, 0.00, 0.00, 0.00, 38.00, 11.40, 38.00, 0.00, 0.00, 0.00,
        'Completed booking contributing to Gold membership'
 from generate_series(1, 8) n;
 
 -- Operational records for the live Staff and Customer walkthrough.
 insert into seed_booking values
-    ('BK-GZ-2701', 'customer@goalzone.local', 'staff@goalzone.local', 'Emerald Five', 0, '08:00',
+    ('BK-GZ-2701', 'customer@goalzone.local', 'staff@goalzone.local', 'Field 5A', 0, '08:00',
      'confirmed', 'walk_in', 16.00, 3.00, 0.00, 0.00, 19.00, 5.70, 19.00, 0.00, 0.00, 19.00,
      'Morning five-a-side match; match ball prepared'),
-    ('BK-GZ-2702', 'member@goalzone.local', 'staff@goalzone.local', 'Riverside Seven', 0, '10:00',
+    ('BK-GZ-2702', 'member@goalzone.local', 'staff@goalzone.local', 'Field 7A', 0, '10:00',
      'confirmed', 'walk_in', 20.00, 6.00, 0.00, 0.00, 26.00, 7.80, 7.80, 18.20, 0.00, 7.80,
      'Deposit collected at the counter; remaining balance due at check-in'),
-    ('BK-GZ-2703', 'gold@goalzone.local', 'staff@goalzone.local', 'Championship Arena', 0, '14:00',
+    ('BK-GZ-2703', 'gold@goalzone.local', 'staff@goalzone.local', 'Main Field 11A', 0, '14:00',
      'confirmed', 'walk_in', 38.00, 15.00, 0.00, 0.00, 53.00, 15.90, 53.00, 0.00, 0.00, 53.00,
      'Full-size match with venue referee'),
-    ('BK-RF-2901', 'customer@goalzone.local', 'staff@goalzone.local', 'Emerald Five', 2, '12:00',
+    ('BK-RF-2901', 'customer@goalzone.local', 'staff@goalzone.local', 'Field 5A', 2, '12:00',
      'cancelled', 'walk_in', 16.00, 0.00, 0.00, 0.00, 16.00, 4.80, 16.00, 0.00, 0.00, 16.00,
      'Cancelled more than 24 hours before start; refund awaiting staff review'),
-    ('BK-RF-2501', 'member@goalzone.local', 'staff@goalzone.local', 'Riverside Seven', -2, '14:00',
+    ('BK-RF-2501', 'member@goalzone.local', 'staff@goalzone.local', 'Field 7A', -2, '14:00',
      'cancelled', 'walk_in', 20.00, 0.00, 0.00, 0.00, 20.00, 6.00, 20.00, 0.00, 0.00, 0.00,
      'Historical cash refund completed correctly');
 
@@ -314,9 +314,9 @@ join booking b on b.booking_code = seed.booking_code
 join extra_service es on es.service_name = seed.service_name;
 
 insert into booking_promotion (
-    booking_id, promotion_id, promotion_code_snapshot, discount_amount, applied_at
+    booking_id, promotion_id, promotion_code_snapshot, discount_amount, usage_counted, applied_at
 )
-select b.booking_id, p.promotion_id, p.promotion_code, 1.60, b.created_at
+select b.booking_id, p.promotion_id, p.promotion_code, 1.60, true, b.created_at
 from booking b
 join promotion p on p.promotion_code = 'WELCOME10'
 where b.booking_code = 'BK-CUST-01';
@@ -394,10 +394,10 @@ select reporter.user_id, b.booking_id, f.field_id, es.extra_service_id, staff.us
        case when seed.status = 'resolved' then dc.demo_date - interval '3 days' + time '18:30' end,
        dc.demo_date + seed.day_offset + time '16:00', now()
 from (values
-    ('customer@goalzone.local', 'BK-GZ-2701', 'Emerald Five', null,
+    ('customer@goalzone.local', 'BK-GZ-2701', 'Field 5A', null,
      'Floodlight check requested', 'One floodlight was flickering during warm-up; please inspect before the next match.',
      'open', null, 0),
-    ('member@goalzone.local', 'BK-SILVER-01', 'Riverside Seven', 'Training bib set',
+    ('member@goalzone.local', 'BK-SILVER-01', 'Field 7A', 'Training bib set',
      'Missing training bibs', 'The prepared set had two bibs missing.',
      'resolved', 'Staff supplied replacement bibs and corrected the inventory count.', -4)
 ) as seed(

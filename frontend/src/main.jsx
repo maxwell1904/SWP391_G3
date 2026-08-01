@@ -6,11 +6,11 @@ import App from './App'
 
 const theme = createTheme({
   primaryColor: 'green',
-  fontFamily: "'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+  fontFamily: "'Segoe UI', Arial, sans-serif",
   headings: {
-    fontFamily: "'Outfit', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif"
+    fontFamily: "'Segoe UI', Arial, sans-serif"
   },
-  defaultRadius: 'md',
+  defaultRadius: 'xs',
   colors: {
     green: [
       '#eef9f0',

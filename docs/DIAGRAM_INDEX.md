@@ -1,36 +1,30 @@
 # GoalZone diagram index
 
-Updated: 2026-07-25
+Updated: 2026-08-01
 
-The final requirements contain UC-01 through UC-63. Source filenames created
-before the final renumbering may retain their historical numeric prefix; the
-use-case title inside the final RDS/SDS is authoritative.
+The canonical design set contains 56 class diagrams and 56 sequence diagrams, one pair for each UC-01–UC-56. `python3 docs/audit_puml_diagrams.py` verifies the count, PlantUML structure, and sequence activation balance.
 
-## Account diagrams
+| Range | Area | Count |
+| --- | --- | ---: |
+| UC-01–UC-10 | Account and access | 10 pairs |
+| UC-11–UC-23 | Fields, slots, services, and issues | 13 pairs |
+| UC-24–UC-33 | Booking and venue operations | 10 pairs |
+| UC-34–UC-44 | Checkout, payments, refunds, and policy | 11 pairs |
+| UC-45–UC-56 | Promotions, membership, notifications, and reports | 12 pairs |
 
-| Final UC | Use case | Class diagram | Sequence diagram |
-| --- | --- | --- | --- |
-| UC-01 | Register account | `Class Diagram/register.puml` | `Sequence/Register-and-Verify-Email.puml` |
-| UC-02 | Login | `Class Diagram/login.puml` | `Sequence/Login.puml` |
-| UC-03 | Logout | `Class Diagram/logout.puml` | `Sequence/UC-03-logout.puml` |
-| UC-04 | Manage personal profile | `Class Diagram/manage-personal-profile.puml` | `Sequence/UC-04-manage-personal-profile.puml` |
-| UC-05 | Change password | `Class Diagram/change-password.puml` | `Sequence/UC-05-change-password.puml` |
-| UC-06 | Forgot/reset password | `Class Diagram/forgot-reset-password.puml` | `Sequence/UC-06-forgot-reset-password.puml` |
-| UC-07 | Manage Customer accounts | `Class Diagram/manage-customer-accounts.puml` | `Sequence/UC-07-manage-customer-accounts.puml` |
-| UC-07 supplemental | Lock/Unlock design | `Class Diagram/lock-unlock-customer-account.puml` | `Sequence/Lock-Unlock-Customer-Account.puml` |
-| UC-08 | Manage Staff accounts | `Class Diagram/manage-staff-accounts.puml` | `Sequence/UC-08-manage-staff-accounts.puml` |
-| UC-09 | View Customer activity status | `Class Diagram/view-customer-activity-status.puml` | `Sequence/UC-09-view-customer-activity-status.puml` |
+## Split designs
 
-## Remaining ranges
-
-| Final range | Area | Source folders |
+| UC | Class source | Sequence source |
 | --- | --- | --- |
-| UC-10 - UC-22 | Field, Slot, Service, and Issue Management | `Class Diagram/`, `Sequence/` |
-| UC-23 - UC-36 | Booking Lifecycle | `Class Diagram/`, `Sequence/` |
-| UC-37 - UC-49 | Payment Gateway, Refund, and Invoice | `Class Diagram/`, `Sequence/` |
-| UC-50 - UC-61 | Promotion, Membership, Notification, and Report | `Class Diagram/`, `Sequence/` |
-| UC-62 - UC-63 | Availability assistant and suggestions | `Class Diagram/`, `Sequence/` |
+| UC-07 View customer accounts | `Class Diagram/manage-customer-accounts.puml` | `Sequence/UC-07-view-customer-accounts.puml` |
+| UC-08 Lock/unlock customer account | `Class Diagram/lock-unlock-customer-account.puml` | `Sequence/UC-08-lock-unlock-customer-account.puml` |
+| UC-16 Configure slot generation rules | `Class Diagram/configure-slot-generation-rules.puml` | `Sequence/UC-16-configure-slot-generation-rules.puml` |
+| UC-17 Block/unblock field slots | `Class Diagram/block-unblock-field-slots.puml` | `Sequence/UC-17-block-unblock-field-slots.puml` |
 
-There are 64 class and 64 sequence source diagrams because UC-07 intentionally
-has one supplemental Lock/Unlock design pair. The obsolete booking-restriction
-diagram is not part of the repository.
+All other source filenames use the final UC number in `docs/Sequence/` and a matching behavior name in `docs/Class Diagram/`.
+
+## Deferred external diagrams
+
+Use Case Diagram and Screen Flow are intentionally not embedded in the retake RDS/SDS yet. The final versions will be created only after the team supplies its draw.io and eraser.io templates. Earlier provisional sources are retained under `docs/archive/` and are not canonical.
+
+Retired standalone diagrams for included/internal or removed items are preserved under `docs/archive/retired-uc-diagrams-2026-08-01/` for audit history only.

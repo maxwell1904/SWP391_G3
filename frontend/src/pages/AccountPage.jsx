@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react'
 import { FieldControl, InfoPanel, PasswordField, WorkspaceHeader, WorkspaceTabs } from '../components/common'
 import { DataList, MetricGrid } from '../components/data'
 import { EmailVerificationPanel } from '../features/account/components'
-import { BookingList } from '../features/operations/components'
-import { BillingDetails } from '../features/payments/components'
+import { CustomerBookingWorkspace } from '../features/operations/components/CustomerBookingWorkspace'
+import { IssueCaseList } from '../features/support/components'
 import { passwordIssues } from '../features/auth/authRules'
-import { formatMoney } from '../utils/format'
+import { formatDate, formatDateTime, formatMoney, formatTime, humanizeStatus, paymentMethodLabel } from '../utils/format'
+import { useWorkspaceTab } from '../hooks/useWorkspaceTab'
+
+const accountTabs = ['bookings', 'payments', 'membership', 'profile', 'messages']
 
 export function AccountPage({
   currentUser,
@@ -13,6 +16,7 @@ export function AccountPage({
   payments,
   membership,
   notifications,
+  issues,
   selectedBookingId,
   setSelectedBookingId,
   selectedBookingDetail,
@@ -26,7 +30,6 @@ export function AccountPage({
   onCancelBooking,
   onRequestRefund,
   onReschedule,
-  availableSlots,
   services,
   fields,
   onUpdateBookingServices,
@@ -34,7 +37,7 @@ export function AccountPage({
   onStartBooking
 }) {
   const [profileForm, setProfileForm] = useState(() => profileFromUser(currentUser))
-  const [activePanel, setActivePanel] = useState('bookings')
+  const [activePanel, setActivePanel] = useWorkspaceTab('bookings', accountTabs)
 
   useEffect(() => {
     setProfileForm(profileFromUser(currentUser))
@@ -100,6 +103,24 @@ export function AccountPage({
               { value: 'messages', label: 'Messages' }
             ]}
           />
+          {activePanel === 'bookings' && (
+            <CustomerBookingWorkspace
+              bookings={userBookings}
+              selectedBookingId={selectedBookingId}
+              onSelectBooking={setSelectedBookingId}
+              selectedBooking={selectedBookingDetail}
+              billingLoading={billingLoading}
+              billingError={billingError}
+              cancellationPreview={cancellationPreview}
+              services={services}
+              onPreviewCancellation={onPreviewCancellation}
+              onCancelBooking={onCancelBooking}
+              onRequestRefund={onRequestRefund}
+              onReschedule={onReschedule}
+              onUpdateBookingServices={onUpdateBookingServices}
+              onStartBooking={onStartBooking}
+            />
+          )}
           <div className="roleGrid accountGrid">
             <InfoPanel title="Personal profile" className={activePanel === 'profile' ? '' : 'workspacePanelHidden'}>
               <div className="profileForm">
@@ -150,36 +171,19 @@ export function AccountPage({
                 </div>
               </div>
             </InfoPanel>
-            {!userBookings.length ? (
-              <InfoPanel title="No bookings yet" className={activePanel === 'bookings' ? 'accountEmptyState' : 'workspacePanelHidden'}>
-                <p className="emptyText">Choose a field and available time to create your first booking.</p>
-                <button className="primaryButton" onClick={onStartBooking}>Book a field</button>
-              </InfoPanel>
-            ) : (
-              <>
-                <InfoPanel title="My bookings" className={activePanel === 'bookings' ? '' : 'workspacePanelHidden'}>
-                  <BookingList bookings={userBookings} selectedBookingId={selectedBookingId} onSelect={setSelectedBookingId} />
-                </InfoPanel>
-                <InfoPanel title="Invoice and payment status" className={activePanel === 'bookings' ? '' : 'workspacePanelHidden'}>
-                  <BillingDetails detail={selectedBookingDetail} loading={billingLoading} error={billingError} />
-                  <BookingChangeActions
-                    booking={selectedBookingDetail}
-                    preview={cancellationPreview}
-                    availableSlots={availableSlots}
-                    onPreview={onPreviewCancellation}
-                    onCancel={onCancelBooking}
-                    onRefund={onRequestRefund}
-                    onReschedule={onReschedule}
-                  />
-                </InfoPanel>
-              </>
-            )}
             <InfoPanel title="Payment history" className={activePanel === 'payments' ? '' : 'workspacePanelHidden'}>
               <DataList items={accountPayments
                 .map(payment => ({
                   title: payment.paymentCode,
-                  meta: `${payment.bookingCode} · ${payment.paymentMethod}`,
-                  value: `${payment.status} · ${formatMoney(payment.amount)}`
+                  meta: [
+                    payment.bookingCode,
+                    payment.fieldName,
+                    payment.slotDate ? `${formatDate(payment.slotDate)} ${formatTime(payment.startTime)}` : null,
+                    paymentMethodLabel(payment.paymentMethod),
+                    payment.paidAt ? `Paid ${formatDateTime(payment.paidAt)}` : null
+                  ].filter(Boolean).join(' · '),
+                  value: `${humanizeStatus(payment.status)} · ${formatMoney(payment.amount)}`,
+                  wrapMeta: true
                 }))}
               />
             </InfoPanel>
@@ -199,13 +203,11 @@ export function AccountPage({
                 meta: item.message,
                 value: item.type
               }))} />
+              <hr className="sectionDivider" />
+              <h4 className="sectionSubtitle">My reported issues</h4>
+              <IssueCaseList issues={issues} />
               <CustomerIssueForm bookings={userBookings} fields={fields} onSubmit={onReportIssue} />
             </InfoPanel>
-            {userBookings.length > 0 && (
-              <InfoPanel title="Booking add-ons" className={activePanel === 'bookings' ? '' : 'workspacePanelHidden'}>
-                <BookingServiceEditor booking={selectedBookingDetail} services={services} onSave={onUpdateBookingServices} />
-              </InfoPanel>
-            )}
           </div>
         </>
       ) : (
@@ -278,47 +280,17 @@ export function AccountPage({
   )
 }
 
-function BookingServiceEditor({ booking, services = [], onSave }) {
-  const [quantities, setQuantities] = useState({})
-  useEffect(() => {
-    setQuantities(Object.fromEntries((booking?.services || []).map(item => [item.serviceId, item.quantity])))
-  }, [booking?.bookingId, booking?.services])
-  if (!booking || !['pending', 'confirmed'].includes(booking.status)) {
-    return <p className="emptyText">Add-ons can be changed only before check-in.</p>
-  }
-  return (
-    <div className="profileForm">
-      <p className="hintText">Prices, discounts, remaining balance, and invoice are recalculated when you save.</p>
-      {services.filter(service => service.status === 'active').map(service => (
-        <FieldControl key={service.extraServiceId} label={`${service.serviceName} · ${formatMoney(service.unitPrice)}`}>
-          <input
-            type="number"
-            min="0"
-            max={service.maxQuantityPerBooking || service.stockQuantity || 99}
-            value={quantities[service.extraServiceId] || 0}
-            onChange={event => setQuantities(current => ({ ...current, [service.extraServiceId]: Number(event.target.value) }))}
-          />
-        </FieldControl>
-      ))}
-      <button className="primaryButton" onClick={() => onSave(
-        Object.entries(quantities).filter(([, quantity]) => Number(quantity) > 0)
-          .map(([serviceId, quantity]) => ({ serviceId: Number(serviceId), quantity: Number(quantity) })),
-        booking.bookingId
-      )}>Save add-ons</button>
-    </div>
-  )
-}
-
 function CustomerIssueForm({ bookings = [], fields = [], onSubmit }) {
   const [form, setForm] = useState({ bookingId: '', fieldId: '', title: '', description: '' })
   async function submit() {
     if (!form.title.trim() || !form.description.trim()) return
-    await onSubmit({
+    const saved = await onSubmit({
       bookingId: form.bookingId ? Number(form.bookingId) : null,
       fieldId: !form.bookingId && form.fieldId ? Number(form.fieldId) : null,
       title: form.title.trim(),
       description: form.description.trim()
     })
+    if (!saved) return
     setForm({ bookingId: '', fieldId: '', title: '', description: '' })
   }
   return (
@@ -346,54 +318,6 @@ function CustomerIssueForm({ bookings = [], fields = [], onSubmit }) {
   )
 }
 
-function BookingChangeActions({ booking, preview, availableSlots, onPreview, onCancel, onRefund, onReschedule }) {
-  const [slotId, setSlotId] = useState('')
-  if (!booking || !['pending', 'confirmed', 'cancelled'].includes(booking.status)) return null
-  const cancellable = booking.status === 'pending' || booking.status === 'confirmed'
-  const cancellationReviewed = preview?.bookingId === booking.bookingId
-  const existingRefund = (booking.refunds || []).find(refund => !['rejected', 'failed'].includes(refund.status))
-  return (
-    <div className="profileForm" style={{ marginTop: '1rem' }}>
-      {cancellable && (
-        <>
-          {!cancellationReviewed && (
-            <button className="secondaryButton" onClick={onPreview}>Review cancellation terms</button>
-          )}
-          {cancellationReviewed && (
-            <div className="cancellationReview">
-              <strong>Cancellation terms</strong>
-              <p className="hintText">{preview.policy}: refund {formatMoney(preview.refundableAmount)}, fee {formatMoney(preview.cancellationFeeAmount)}.</p>
-              <div className="buttonRow noMargin">
-                <button className="ghostDarkButton" onClick={onPreview}>Refresh terms</button>
-                <button className="dangerButton" onClick={onCancel}>Cancel booking</button>
-              </div>
-            </div>
-          )}
-          <FieldControl label="Reschedule to available slot">
-            <select value={slotId} onChange={event => setSlotId(event.target.value)}>
-              <option value="">Choose a new slot</option>
-              {availableSlots.map(slot => <option key={slot.slotId} value={slot.slotId}>{slot.fieldName} · {slot.slotDate} · {slot.startTime}</option>)}
-            </select>
-          </FieldControl>
-          <button className="secondaryButton" disabled={!slotId} onClick={() => onReschedule(slotId)}>Reschedule booking</button>
-        </>
-      )}
-      {Number(booking.refundableAmount) > 0 && !existingRefund && (
-        <button className="primaryButton" onClick={onRefund}>
-          {booking.status === 'cancelled' ? 'Request cancellation refund' : 'Request reschedule refund'} ({formatMoney(booking.refundableAmount)})
-        </button>
-      )}
-      {existingRefund && (
-        <div className="refundRequestState" aria-live="polite">
-          <strong>{existingRefund.refundCode}</strong>
-          <span>Refund {String(existingRefund.status).replaceAll('_', ' ')} · {formatMoney(existingRefund.refundAmount)}</span>
-          {existingRefund.gatewayMessage && <small>{existingRefund.gatewayMessage}</small>}
-        </div>
-      )}
-    </div>
-  )
-}
-
 function ChangePasswordForm({ onChangePassword }) {
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -401,7 +325,7 @@ function ChangePasswordForm({ onChangePassword }) {
   const [showPasswords, setShowPasswords] = useState(false)
   const [errors, setErrors] = useState({})
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const issues = {}
     if (!currentPassword) issues.currentPassword = 'Current password is required.'
     const newIssues = passwordIssues(newPassword)
@@ -411,7 +335,8 @@ function ChangePasswordForm({ onChangePassword }) {
       setErrors(issues)
       return
     }
-    onChangePassword(currentPassword, newPassword, confirmPassword)
+    const result = await onChangePassword(currentPassword, newPassword, confirmPassword)
+    if (!result) return
     setCurrentPassword('')
     setNewPassword('')
     setConfirmPassword('')

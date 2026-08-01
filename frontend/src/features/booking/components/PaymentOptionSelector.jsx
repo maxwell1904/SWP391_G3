@@ -1,6 +1,6 @@
 import { formatMoney } from '../../../utils/format'
 
-export function PaymentOptionSelector({ checkout, value, onChange }) {
+export function PaymentOptionSelector({ checkout, value, onChange, allowPayLater = false }) {
   if (!checkout) return null
 
   const options = [
@@ -15,7 +15,13 @@ export function PaymentOptionSelector({ checkout, value, onChange }) {
       title: 'Pay in full',
       amount: checkout.totalAmount,
       detail: 'No remaining balance after this payment'
-    }
+    },
+    ...(allowPayLater ? [{
+      value: 'pay_later',
+      title: 'Pay later at venue',
+      amount: 0,
+      detail: `${formatMoney(checkout.totalAmount)} remains unpaid; booking stays pending`
+    }] : [])
   ]
 
   return (

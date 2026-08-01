@@ -20,7 +20,7 @@ participant "SlotGenerationService" as Generator
 participant "SystemSetting / Field / Slot Repositories" as Repo
 database "Database" as DB
 
-== UC-13: Search Available Fields by Date and Type ==
+== UC-13: Search available fields by date/time ==
 
 User -> UI : 1. Choose date and field type
 activate User

@@ -27,7 +27,6 @@ class DomainSupportService <<service>> {
 
 class "ApiRequests.BookingCreate" as BookingCreateDTO <<dto>> {
     -customerId : Long
-    -staffId : Long
     -slotId : Long
     -bookingSource : String
     -promotionCode : String

@@ -19,7 +19,7 @@ participant "AccountService" as Service
 participant "AppUserRepository" as Repo
 database "Database" as DB
 
-== UC-04: Manage Personal Profile ==
+== UC-04: Manage personal profile ==
 
 User -> UI : 1. Edit profile and click "Save profile"
 activate User

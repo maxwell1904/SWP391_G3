@@ -1,0 +1,64 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Scheduler" as Clock
+participant "BookingMaintenanceScheduler" as Scheduler
+participant "DomainSupportService" as Support
+participant "BookingRepository" as BookingRepo
+participant "NotificationRepository" as NotificationRepo
+database "Database" as DB
+
+== Handle expired unpaid payment ==
+
+Clock -> Scheduler : 1. maintainBookings() on fixed delay
+activate Clock
+activate Scheduler
+Scheduler -> Scheduler : 2. expireUnpaidPendingBookings()
+activate Scheduler
+Scheduler -> Support : 3. settingDecimal(payment.pending_timeout_minutes)
+activate Support
+Support --> Scheduler : 4. timeout minutes
+deactivate Support
+Scheduler -> BookingRepo : 5. findByStatusIn([pending])
+activate BookingRepo
+BookingRepo -> DB : 6. SELECT pending bookings
+activate DB
+DB --> BookingRepo : 7. candidates
+deactivate DB
+BookingRepo --> Scheduler : 8. List<Booking>
+deactivate BookingRepo
+loop Each pending hold
+  Scheduler -> Scheduler : 9. Check paidAmount and createdAt cutoff
+  activate Scheduler
+  deactivate Scheduler
+  alt Unpaid hold is older than cutoff
+    Scheduler -> NotificationRepo : 10. save expiration notification
+    activate NotificationRepo
+    NotificationRepo -> DB : 11. UPDATE booking expired; release promotion reservation;\nINSERT notification
+    activate DB
+    DB --> NotificationRepo : 12. committed
+    deactivate DB
+    NotificationRepo --> Scheduler : 13. Notification
+    deactivate NotificationRepo
+  else Paid or still within timeout
+    Scheduler -> Scheduler : 10. Keep current status
+    activate Scheduler
+    deactivate Scheduler
+  end
+end
+deactivate Scheduler
+Scheduler --> Clock : 14. maintenance complete
+deactivate Scheduler
+deactivate Clock
+
+@enduml

@@ -29,11 +29,6 @@ public final class ApiRequests {
     ) {
     }
 
-    public record EmailVerificationResend(
-            Long userId
-    ) {
-    }
-
     public record ForgotPassword(
             String email
     ) {
@@ -80,7 +75,6 @@ public final class ApiRequests {
             String fullName,
             String email,
             String phone,
-            String password,
             String status
     ) {
     }
@@ -93,18 +87,23 @@ public final class ApiRequests {
 
     public record BookingCreate(
             Long customerId,
-            Long staffId,
+            String guestName,
+            String guestPhone,
+            String guestEmail,
             Long slotId,
             String bookingSource,
             String promotionCode,
             List<ServiceSelection> services,
             String note
     ) {
+        public BookingCreate(Long customerId, Long slotId, String bookingSource, String promotionCode,
+                             List<ServiceSelection> services, String note) {
+            this(customerId, null, null, null, slotId, bookingSource, promotionCode, services, note);
+        }
     }
 
     public record BookingStatusUpdate(
             String status,
-            Long staffId,
             String note
     ) {
     }
@@ -112,17 +111,14 @@ public final class ApiRequests {
     /** Moves an unstarted booking to another available slot. */
     public record BookingReschedule(
             Long newSlotId,
-            Long staffId,
             String note
     ) {
     }
 
     public record IssueCreate(
-            Long reporterId,
             Long bookingId,
             Long fieldId,
             Long extraServiceId,
-            Long assignedStaffId,
             String title,
             String description
     ) {
@@ -130,14 +126,12 @@ public final class ApiRequests {
 
     public record IssueStatusUpdate(
             String status,
-            String resolutionNote,
-            Long assignedStaffId
+            String resolutionNote
     ) {
     }
 
     public record PaymentCapture(
             Long bookingId,
-            Long createdById,
             String paymentOption,
             String paymentMethod,
             BigDecimal amount,
@@ -145,32 +139,40 @@ public final class ApiRequests {
     ) {
     }
 
-    public record PayPalOrderCreate(
-            Long createdById,
+    /**
+     * Creates a Staff-owned walk-in booking and records its initial cash payment
+     * inside one backend transaction. Pay-later remains the ordinary
+     * BookingCreate flow and deliberately skips this request.
+     */
+    public record WalkInCheckout(
+            Long customerId,
+            String guestName,
+            String guestPhone,
+            String guestEmail,
+            Long slotId,
+            String promotionCode,
+            List<ServiceSelection> services,
+            String note,
             String paymentOption
     ) {
     }
 
-    public record PayPalOrderCapture(
-            Long createdById
+    public record PayPalOrderCreate(
+            String paymentOption
     ) {
     }
 
     public record RefundCreate(
             Long bookingId,
             Long paymentId,
-            Long requestedById,
-            Long processedById,
             BigDecimal refundAmount,
-            String refundReason,
-            boolean approveNow
+            String refundReason
     ) {
     }
 
     /** Staff-only lifecycle action for a customer refund request. */
     public record RefundStatusUpdate(
             String status,
-            Long processedById,
             String note
     ) {
     }
@@ -208,8 +210,7 @@ public final class ApiRequests {
     }
 
     public record SettingUpdate(
-            String settingValue,
-            Long updatedById
+            String settingValue
     ) {
     }
 
@@ -253,8 +254,7 @@ public final class ApiRequests {
             String startTime,
             String endTime,
             String blockReason,
-            String blockNote,
-            Long createdById
+            String blockNote
     ) {
     }
 
@@ -273,7 +273,4 @@ public final class ApiRequests {
     ) {
     }
 
-    /** Natural-language request for UC-62. Availability is still resolved by UC-63. */
-    public record AssistantAvailability(String question) {
-    }
 }

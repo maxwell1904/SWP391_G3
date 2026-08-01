@@ -32,7 +32,6 @@ class "ApiRequests.StaffUpsert" as StaffUpsertDTO <<dto>> {
     -fullName : String
     -email : String
     -phone : String
-    -password : String
     -status : String
 }
 

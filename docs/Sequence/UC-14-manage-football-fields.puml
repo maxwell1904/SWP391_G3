@@ -18,7 +18,7 @@ participant "FieldOperationService" as Service
 participant "FootballFieldRepository / FieldTypeRepository" as Repo
 database "Database" as DB
 
-== UC-14: Manage Football Fields ==
+== UC-14: Manage football fields ==
 
 User -> UI : 1. Create, edit, enable or disable a field
 activate User

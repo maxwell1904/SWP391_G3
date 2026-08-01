@@ -84,9 +84,9 @@ public class PayPalCheckoutService {
         return response;
     }
 
-    // Backlog owner: AnNP - UC-40 Pay deposit/full amount via online payment sandbox.
+    // Backlog owner: AnNP - UC-36 Pay online via PayPal Sandbox.
     public Map<String, Object> createOrder(Long bookingId, ApiRequests.PayPalOrderCreate request) {
-        Booking booking = onlineBookingOwnedByCustomer(bookingId, request.createdById());
+        Booking booking = onlineBookingOwnedByCustomer(bookingId);
         PaymentOption option = support.parseEnum(PaymentOption.class, request.paymentOption(), PaymentOption.deposit);
         BigDecimal bookingAmount = payableAmount(booking, option);
         BigDecimal settlementAmount = toSettlementAmount(bookingAmount);
@@ -115,10 +115,10 @@ public class PayPalCheckoutService {
         }
     }
 
-    // Backlog owner: AnNP - UC-40 Pay deposit/full amount via online payment sandbox.
+    // Backlog owner: AnNP - UC-36 Pay online via PayPal Sandbox.
     @Transactional(noRollbackFor = ApiException.class)
-    public Map<String, Object> captureOrder(Long bookingId, String orderId, ApiRequests.PayPalOrderCapture request) {
-        Booking booking = onlineBookingOwnedByCustomer(bookingId, request.createdById());
+    public Map<String, Object> captureOrder(Long bookingId, String orderId) {
+        Booking booking = onlineBookingOwnedByCustomer(bookingId);
         Payment payment = support.paymentRepository.findByProviderOrderId(orderId)
                 .orElseThrow(() -> support.notFound("PayPal order not found"));
         if (!payment.getBooking().getBookingId().equals(bookingId)) {
@@ -185,13 +185,14 @@ public class PayPalCheckoutService {
             booking.setStatus(BookingStatus.confirmed);
             booking.setConfirmedAt(LocalDateTime.now());
         }
+        support.reconcilePromotionUsage(booking);
         support.notifyUser(booking.getCustomer(), booking, NotificationType.payment, "PayPal payment captured", "PayPal payment was captured for " + booking.getBookingCode() + ".");
         support.generateInvoice(booking);
         return bookingWorkflowService.bookingDetail(bookingId);
     }
 
     public Map<String, Object> cancelOrder(Long bookingId, String orderId) {
-        Booking booking = onlineBookingOwnedByCustomer(bookingId, null);
+        Booking booking = onlineBookingOwnedByCustomer(bookingId);
         Payment payment = support.paymentRepository.findByProviderOrderId(orderId)
                 .orElseThrow(() -> support.notFound("PayPal order not found"));
         if (!payment.getBooking().getBookingId().equals(bookingId)) {
@@ -330,7 +331,7 @@ public class PayPalCheckoutService {
         return amount;
     }
 
-    private Booking onlineBookingOwnedByCustomer(Long bookingId, Long requestedActorId) {
+    private Booking onlineBookingOwnedByCustomer(Long bookingId) {
         Booking booking = support.getBooking(bookingId);
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !(authentication.getPrincipal() instanceof SecurityUser principal)) {
@@ -340,11 +341,11 @@ public class PayPalCheckoutService {
         if (!"Customer".equalsIgnoreCase(requester.getRole().getRoleName())) {
             throw new ApiException(HttpStatus.FORBIDDEN, "Online payment is available only to customers");
         }
+        if (booking.getCustomer() == null) {
+            throw support.badRequest("PayPal checkout is not available for a walk-in guest booking");
+        }
         if (!booking.getCustomer().getUserId().equals(requester.getUserId())) {
             throw new ApiException(HttpStatus.FORBIDDEN, "You can only pay for your own booking");
-        }
-        if (requestedActorId != null && !requestedActorId.equals(requester.getUserId())) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "Online payment actor does not match the signed-in customer");
         }
         if (booking.getBookingSource() != BookingSource.online) {
             throw support.badRequest("PayPal checkout is available only for online bookings");

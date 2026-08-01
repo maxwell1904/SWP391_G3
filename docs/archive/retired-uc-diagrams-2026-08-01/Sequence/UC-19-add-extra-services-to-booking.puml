@@ -1,0 +1,89 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Customer / Staff" as User
+participant "AccountPage / StaffPage" as UI
+participant "App.jsx" as App
+participant "BookingController" as Controller
+participant "BookingWorkflowService" as Service
+participant "BookingServiceItemRepository / ExtraServiceRepository" as Repo
+database "Database" as DB
+
+== UC-19: Add Extra Services to Booking ==
+
+User -> UI : 1. Select services for a pending booking
+activate User
+activate UI
+
+UI -> App : 2. updateBookingServices(services, bookingId)
+activate App
+
+App -> App : 3. Validate UI state and build request
+activate App
+deactivate App
+
+App -> Controller : 4. PUT /api/bookings/{bookingId}/services
+activate Controller
+
+Controller -> Service : 5. updateBookingServices(bookingId, request)
+activate Service
+
+Service -> Service : 6. Owner/operator; pending or confirmed; validate inventory
+activate Service
+deactivate Service
+
+alt Request is valid and authorized
+  Service -> Repo : 7. deleteByBooking...; findById; save
+  activate Repo
+
+  Repo -> DB : 8. DELETE/INSERT booking_service; SELECT extra_service
+  activate DB
+  DB --> Repo : 9. Replaced booking service items
+  deactivate DB
+
+  Repo --> Service : 10. Repository result
+  deactivate Repo
+
+  Service -> Service : 11. Reprice booking and regenerate invoice
+  activate Service
+  deactivate Service
+else Validation, authorization, or state rule fails
+  note over Service,Controller
+    After check-in or unavailable quantity -> HTTP 400
+    The service propagates ApiException to ApiExceptionHandler.
+  end note
+end
+
+Service --> Controller : 12. Domain result or propagated error
+deactivate Service
+
+Controller -> Controller : 13. Serialize response
+activate Controller
+deactivate Controller
+
+Controller --> App : 14. HTTP 200 or mapped 4xx\nresponse body or error payload
+deactivate Controller
+
+App -> App : 15. setSelectedBookingDetail(response.data)
+activate App
+deactivate App
+
+App --> UI : 16. Show updated services and totals
+deactivate App
+
+UI --> User : 17. Updated screen or error feedback
+
+deactivate UI
+deactivate User
+
+@enduml

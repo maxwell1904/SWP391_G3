@@ -1,0 +1,154 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class BookingController <<controller>> {
+    -bookingWorkflowService : BookingWorkflowService
+
+    +updateStatus(@PathVariable Long bookingId, @RequestBody ApiRequests.BookingStatusUpdate request) : Object
+}
+
+class BookingWorkflowService <<service>> {
+    -support : DomainSupportService
+
+    +updateBookingStatus(bookingId : Long, request : ApiRequests.BookingStatusUpdate) : Map<String, Object>
+}
+
+class DomainSupportService <<service>> {
+    -bookingRepository : BookingRepository
+    -userRepository : AppUserRepository
+    -notificationRepository : NotificationRepository
+
+    +getBooking(bookingId : Long) : Booking
+    +getUser(userId : Long) : AppUser
+    +parseEnum(enumType : Class<T>, value : String, fallback : T) : T
+    +requireCurrentStatus(booking : Booking, status : BookingStatus) : void
+    +notifyUser(user : AppUser, booking : Booking, type : NotificationType, title : String, message : String) : void
+    +isBlank(value : String) : boolean
+}
+
+class "ApiRequests.BookingStatusUpdate" as BookingStatusUpdateDTO <<dto>> {
+    -status : String
+    -note : String
+}
+
+interface BookingRepository <<repository>> {
+    +findById(id : Long) : Optional<Booking>
+}
+
+interface AppUserRepository <<repository>> {
+    +findById(id : Long) : Optional<AppUser>
+}
+
+interface NotificationRepository <<repository>> {
+    +save(entity : Notification) : Notification
+}
+
+class AuditEntity <<entity>> {
+    -createdAt : LocalDateTime
+    -updatedAt : LocalDateTime
+}
+
+class Booking <<entity>> {
+    -bookingId : Long
+    -customer : AppUser
+    -staff : AppUser
+    -slot : Slot
+    -bookingCode : String
+    -status : BookingStatus
+    -bookingSource : BookingSource
+    -fieldPriceAmount : BigDecimal
+    -serviceTotalAmount : BigDecimal
+    -promotionDiscountAmount : BigDecimal
+    -membershipDiscountAmount : BigDecimal
+    -totalAmount : BigDecimal
+    -depositAmount : BigDecimal
+    -paidAmount : BigDecimal
+    -remainingAmount : BigDecimal
+    -cancellationFeeAmount : BigDecimal
+    -refundableAmount : BigDecimal
+    -note : String
+    -confirmedAt : LocalDateTime
+    -checkedInAt : LocalDateTime
+    -completedAt : LocalDateTime
+    -cancelledAt : LocalDateTime
+    -expiredAt : LocalDateTime
+}
+
+class AppUser <<entity>> {
+    -userId : Long
+    -role : Role
+    -fullName : String
+    -email : String
+    -phone : String
+    -passwordHash : String
+    -dateOfBirth : LocalDate
+    -address : String
+    -status : AccountStatus
+    -lockReason : String
+    -lastLoginAt : LocalDateTime
+    -emailVerified : boolean
+    -emailVerificationToken : String
+    -emailVerificationSentAt : LocalDateTime
+    -passwordResetToken : String
+    -passwordResetSentAt : LocalDateTime
+}
+
+class Notification <<entity>> {
+    -notificationId : Long
+    -user : AppUser
+    -booking : Booking
+    -payment : Payment
+    -refund : Refund
+    -notificationType : NotificationType
+    -title : String
+    -message : String
+    -read : boolean
+    -sentAt : LocalDateTime
+    -createdAt : LocalDateTime
+}
+
+enum BookingStatus {
+    + pending
+    + confirmed
+    + checked_in
+    + completed
+    + cancelled
+    + no_show
+    + expired
+    + rejected
+}
+
+enum NotificationType {
+    + booking_confirmation
+    + booking_reminder
+    + cancellation
+    + refund
+    + payment
+    + issue
+    + system
+}
+
+' Relationships
+BookingController ..> BookingWorkflowService
+BookingController ..> BookingStatusUpdateDTO
+BookingWorkflowService ..> DomainSupportService
+BookingWorkflowService ..> BookingStatusUpdateDTO
+DomainSupportService ..> BookingRepository
+DomainSupportService ..> AppUserRepository
+DomainSupportService ..> NotificationRepository
+DomainSupportService ..> Booking
+DomainSupportService ..> Notification
+DomainSupportService ..> AppUser
+BookingRepository --> Booking
+AppUserRepository --> AppUser
+NotificationRepository --> Notification
+Notification --> Booking
+Notification --> AppUser
+Booking -|> AuditEntity
+AppUser -|> AuditEntity
+Booking --> BookingStatus
+Notification --> NotificationType
+
+@enduml

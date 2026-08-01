@@ -12,7 +12,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** Background maintenance for UC-43 (unpaid holds) and UC-58 (booking reminders). */
+/** Background maintenance for UC-38 (unpaid holds) and UC-52 (booking reminders). */
 @Service
 public class BookingMaintenanceScheduler {
     private final DomainSupportService support;
@@ -37,6 +37,7 @@ public class BookingMaintenanceScheduler {
             if (booking.getPaidAmount().compareTo(BigDecimal.ZERO) > 0 || booking.getCreatedAt() == null || booking.getCreatedAt().isAfter(cutoff)) continue;
             booking.setStatus(BookingStatus.expired);
             booking.setExpiredAt(LocalDateTime.now());
+            support.reconcilePromotionUsage(booking);
             support.notifyUser(booking.getCustomer(), booking, NotificationType.payment, "Booking hold expired",
                     "Booking " + booking.getBookingCode() + " was released because payment was not completed in time.");
             expired++;

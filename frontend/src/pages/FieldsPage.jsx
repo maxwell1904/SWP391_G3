@@ -9,6 +9,7 @@ const labelize = value => String(value || '').replace(/_/g, ' ').toLowerCase()
 
 export function FieldsPage({
   fields,
+  currentUser,
   setFieldTypeFilter,
   setFieldFilter,
   setSelectedSlotId,
@@ -65,6 +66,11 @@ export function FieldsPage({
   const detailServices = fieldDetail?.services || []
 
   function openBooking() {
+    if (currentUser?.role === 'Admin') {
+      setDetailOpen(false)
+      navigatePage?.('admin')
+      return
+    }
     setFieldTypeFilter?.(String(selectedField?.fieldTypeId || ''))
     setFieldFilter?.(String(selectedField?.fieldId || ''))
     setSelectedSlotId?.(null)
@@ -232,9 +238,11 @@ export function FieldsPage({
 
               <div className="fieldDetailActions">
                 <Button color="green" leftSection={<CalendarDays size={18} />} onClick={openBooking}>
-                  Check availability
+                  {currentUser?.role === 'Admin' ? 'Manage field' : 'Check availability'}
                 </Button>
-                <Text size="sm" c="dimmed">Choose a date and time on the booking page.</Text>
+                <Text size="sm" c="dimmed">
+                  {currentUser?.role === 'Admin' ? 'Open field setup and pricing.' : 'Choose a date and time on the booking page.'}
+                </Text>
               </div>
             </div>
           </Paper>

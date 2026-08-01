@@ -28,11 +28,9 @@ class DomainSupportService <<service>> {
 }
 
 class "ApiRequests.IssueCreate" as IssueCreateDTO <<dto>> {
-    -reporterId : Long
     -bookingId : Long
     -fieldId : Long
     -extraServiceId : Long
-    -assignedStaffId : Long
     -title : String
     -description : String
 }

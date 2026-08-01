@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Badge, Button, Group, Modal, Stack, Text } from '@mantine/core'
 import { Plus } from 'lucide-react'
-import { FieldControl, ImageUploadField, InfoPanel, WorkspaceHeader, WorkspaceTabs } from '../components/common'
+import { ActionPanel, FieldControl, ImageUploadField, InfoPanel, WorkspaceHeader, WorkspaceTabs } from '../components/common'
 import { DataList, MetricGrid } from '../components/data'
 import { BillingDetails } from '../features/payments/components'
+import { IssueCaseList } from '../features/support/components'
 import api from '../services/api'
-import { formatMoney, formatTimeRange } from '../utils/format'
+import { formatMoney, formatTimeRange, humanizeStatus } from '../utils/format'
+import { useWorkspaceTab } from '../hooks/useWorkspaceTab'
+
+const adminTabs = ['overview', 'venues', 'services', 'access', 'operations', 'support', 'policies']
 
 const emptyFieldForm = {
   fieldTypeId: '',
@@ -47,6 +51,26 @@ const emptyStaffForm = {
 
 const statusColor = status => status === 'active' ? 'green' : status === 'locked' ? 'red' : 'gray'
 
+const dateRangesOverlap = (startA, endA, startB, endB) => {
+  const lowerA = startA || '0000-01-01'
+  const upperA = endA || '9999-12-31'
+  const lowerB = startB || '0000-01-01'
+  const upperB = endB || '9999-12-31'
+  return lowerA <= upperB && lowerB <= upperA
+}
+
+const policyLabels = {
+  'deposit.default_percent': 'Online booking deposit',
+  'notification.booking_reminder_hours': 'Booking reminder lead time',
+  'payment.pending_timeout_minutes': 'Unpaid booking hold',
+  'refund.before_24h_percent': 'Refund when cancelled 24+ hours early',
+  'refund.same_day_percent': 'Refund for same-day cancellation',
+  'slot.opening_time': 'Daily opening time',
+  'slot.closing_time': 'Daily closing time',
+  'slot.duration_minutes': 'Booking slot length',
+  'slot.generation_horizon_days': 'Advance booking window'
+}
+
 export function AdminPage({
   reports,
   bookings = [],
@@ -55,7 +79,6 @@ export function AdminPage({
   issues = [],
   settings,
   fieldTypes,
-  updateDepositSetting,
   updatePolicySetting,
   customers,
   updateCustomerLock,
@@ -74,8 +97,9 @@ export function AdminPage({
   const [selectedServiceId, setSelectedServiceId] = useState(null)
   const [serviceForm, setServiceForm] = useState(emptyServiceForm)
   const [fieldNotice, setFieldNotice] = useState('')
-  const [feedbackModal, setFeedbackModal] = useState({ opened: false, title: '', message: '' })
+  const [feedbackPanel, setFeedbackPanel] = useState(null)
   const [lockModal, setLockModal] = useState({ opened: false, customer: null, reason: '' })
+  const [statusConfirmation, setStatusConfirmation] = useState({ opened: false, kind: '', item: null })
   const [staffAccounts, setStaffAccounts] = useState([])
   const [selectedStaffId, setSelectedStaffId] = useState('new')
   const [staffForm, setStaffForm] = useState(emptyStaffForm)
@@ -83,7 +107,7 @@ export function AdminPage({
   const [staffSaving, setStaffSaving] = useState(false)
   const [customerActivity, setCustomerActivity] = useState(null)
   const [policyValues, setPolicyValues] = useState({})
-  const [activePanel, setActivePanel] = useState('overview')
+  const [activePanel, setActivePanel] = useWorkspaceTab('overview', adminTabs)
   const [reportRange, setReportRange] = useState({ from: '', to: '' })
   const [selectedAuditBookingId, setSelectedAuditBookingId] = useState(null)
   const [auditBookingDetail, setAuditBookingDetail] = useState(null)
@@ -241,12 +265,12 @@ export function AdminPage({
     setServiceForm(form => ({ ...form, [name]: value }))
   }
 
-  function openFeedbackModal(title, message) {
-    setFeedbackModal({ opened: true, title, message })
+  function openFeedbackPanel(title, message, kind = 'success') {
+    setFeedbackPanel({ title, message, kind })
   }
 
-  function closeFeedbackModal() {
-    setFeedbackModal({ opened: false, title: '', message: '' })
+  function closeFeedbackPanel() {
+    setFeedbackPanel(null)
   }
 
   function openLockModal(customer) {
@@ -267,8 +291,8 @@ export function AdminPage({
       setFieldNotice('Lock reason is required.')
       return
     }
-    await updateCustomerLock(lockModal.customer, true, reason)
-    closeLockModal()
+    const result = await updateCustomerLock(lockModal.customer, true, reason)
+    if (result) closeLockModal()
   }
 
   function startNewPriceRule() {
@@ -296,12 +320,12 @@ export function AdminPage({
       if (selectedField?.fieldId) {
         await api.put(`/admin/fields/${selectedField.fieldId}`, payload)
         setFieldNotice('Field updated.')
-        openFeedbackModal('Field saved', 'Field details were saved successfully.')
+        openFeedbackPanel('Field saved', 'Field details were saved successfully.')
       } else {
         const response = await api.post('/admin/fields', payload)
         setSelectedFieldId(response.data.fieldId)
         setFieldNotice('Field created.')
-        openFeedbackModal('Field created', 'The new field was added successfully.')
+        openFeedbackPanel('Field created', 'The new field was added successfully.')
       }
       await loadAdminFields()
       await refreshAll?.()
@@ -327,6 +351,7 @@ export function AdminPage({
       status: nextStatus
     })
     setFieldNotice(nextStatus === 'active' ? 'Field activated.' : 'Field deactivated.')
+    openFeedbackPanel(nextStatus === 'active' ? 'Field activated' : 'Field deactivated', `${field.fieldName} is now ${nextStatus}.`)
     await loadAdminFields()
     await refreshAll?.()
   }
@@ -357,9 +382,10 @@ export function AdminPage({
     }
 
     // Client-side overlap validation
-    const hasOverlap = fieldPrices.some(existing => {
+    const hasOverlap = payload.status === 'active' && fieldPrices.some(existing => {
       // Skip the one we are currently editing
       if (editingPriceId && Number(existing.fieldPriceId) === Number(editingPriceId)) return false
+      if (existing.status !== 'active') return false
       
       // Check dayType compatibility (all overlaps with everything, weekday/weekend must match)
       const dayMismatch = (payload.dayType !== 'all' && existing.dayType !== 'all' && payload.dayType !== existing.dayType)
@@ -372,11 +398,12 @@ export function AdminPage({
       const endB = String(existing.endTime).slice(0, 5)
 
       return (startA < endB) && (endA > startB)
+        && dateRangesOverlap(payload.effectiveFrom, payload.effectiveTo, existing.effectiveFrom, existing.effectiveTo)
     })
 
     if (hasOverlap) {
       setFieldNotice('Conflict: This time slot overlaps with an existing rule.')
-      openFeedbackModal('Conflict detected', 'The selected time and day type overlap with an existing pricing rule. Please adjust the hours.')
+      openFeedbackPanel('Conflict detected', 'The selected time and day type overlap with an existing pricing rule. Please adjust the hours.', 'error')
       return
     }
 
@@ -384,11 +411,11 @@ export function AdminPage({
       if (editingPriceId) {
         await api.put(`/admin/field-prices/${editingPriceId}`, payload)
         setFieldNotice('Price rule updated.')
-        openFeedbackModal('Price rule saved', 'The pricing rule was updated successfully.')
+        openFeedbackPanel('Price rule saved', 'The pricing rule was updated successfully.')
       } else {
         await api.post(`/admin/fields/${selectedField.fieldId}/prices`, payload)
         setFieldNotice('Price rule created.')
-        openFeedbackModal('Price rule created', 'The new pricing rule was added successfully.')
+        openFeedbackPanel('Price rule created', 'The new pricing rule was added successfully.')
       }
       setEditingPriceId(null)
       setPriceForm(emptyPriceForm)
@@ -419,11 +446,11 @@ export function AdminPage({
     try {
       if (selectedService?.extraServiceId) {
         await api.put(`/admin/services/${selectedService.extraServiceId}`, payload)
-        openFeedbackModal('Service saved', 'Extra service details were saved successfully.')
+        openFeedbackPanel('Service saved', 'Extra service details were saved successfully.')
       } else {
         const response = await api.post('/admin/services', payload)
         setSelectedServiceId(response.data.extraServiceId)
-        openFeedbackModal('Service created', 'The new extra service was added successfully.')
+        openFeedbackPanel('Service created', 'The new extra service was added successfully.')
       }
       await loadAdminServices()
       await refreshAll?.()
@@ -440,6 +467,7 @@ export function AdminPage({
       status: nextStatus
     })
     setFieldNotice(nextStatus === 'active' ? 'Extra service activated.' : 'Extra service deactivated.')
+    openFeedbackPanel(nextStatus === 'active' ? 'Service activated' : 'Service deactivated', `${service.serviceName} is now ${nextStatus}.`)
     await loadAdminServices()
     await refreshAll?.()
   }
@@ -487,8 +515,25 @@ export function AdminPage({
       const response = await api.get(`/account/users/${customer.userId}/activity`)
       setCustomerActivity(response.data)
     } catch (error) {
-      openFeedbackModal('Could not load customer', error.response?.data?.error || 'Could not load customer activity.')
+      openFeedbackPanel('Could not load customer', error.response?.data?.error || 'Could not load customer activity.', 'error')
     }
+  }
+
+  function requestStatusChange(kind, item) {
+    if (item.status !== 'active') {
+      if (kind === 'field') toggleFieldStatus(item)
+      else toggleServiceStatus(item)
+      return
+    }
+    setStatusConfirmation({ opened: true, kind, item })
+  }
+
+  async function confirmStatusChange() {
+    const { kind, item } = statusConfirmation
+    if (!item) return
+    if (kind === 'field') await toggleFieldStatus(item)
+    else await toggleServiceStatus(item)
+    setStatusConfirmation({ opened: false, kind: '', item: null })
   }
 
   return (
@@ -499,7 +544,7 @@ export function AdminPage({
         text="Review revenue, booking utilization, field setup, pricing, customer access, and booking/refund policies."
         status={{
           label: 'Scope',
-          value: 'Operations',
+          value: 'Management',
           tone: 'success'
         }}
         metrics={[
@@ -516,6 +561,7 @@ export function AdminPage({
       </Group>
 
       <InfoPanel title="Report date range" className={`adminWidePanel ${panelClass('overview')}`}>
+        <p className="panelHint">Booking metrics use the booked slot date. Revenue and refunds use the actual payment or refund processing date.</p>
         <div className="buttonRow reportRangeControls">
           <FieldControl label="From"><input type="date" value={reportRange.from} onChange={e => setReportRange(range => ({ ...range, from: e.target.value }))} /></FieldControl>
           <FieldControl label="To"><input type="date" value={reportRange.to} onChange={e => setReportRange(range => ({ ...range, to: e.target.value }))} /></FieldControl>
@@ -540,7 +586,7 @@ export function AdminPage({
       />
 
       <div className="roleGrid adminGrid">
-        <InfoPanel title="Football fields" className={`adminWidePanel ${panelClass('venues')}`}>
+        <InfoPanel title="Football fields" className={`adminVenuePanel ${panelClass('venues')}`}>
           <div className="adminPanelHeader">
             <span>{fieldNotice || 'Create, edit, activate, or retire fields.'}</span>
             {selectedFieldId === 'new' && (
@@ -599,14 +645,14 @@ export function AdminPage({
           <div className="buttonRow noMargin">
             <Button color="green" onClick={saveField}>{selectedField?.fieldId ? 'Save field' : 'Create field'}</Button>
             {selectedField?.fieldId && (
-              <Button variant="light" color={selectedField.status === 'active' ? 'red' : 'green'} onClick={() => toggleFieldStatus(selectedField)}>
+              <Button variant="light" color={selectedField.status === 'active' ? 'red' : 'green'} onClick={() => requestStatusChange('field', selectedField)}>
                 {selectedField.status === 'active' ? 'Deactivate' : 'Activate'}
               </Button>
             )}
           </div>
         </InfoPanel>
 
-        <InfoPanel title="Field pricing" className={`adminWidePanel ${panelClass('venues')}`}>
+        <InfoPanel title="Field pricing" className={`adminVenuePanel ${panelClass('venues')}`}>
           <div className="adminPanelHeader">
             <span>{selectedField ? `Pricing rules for ${selectedField.fieldName}` : 'Select a field first.'}</span>
             {editingPriceId && <Button variant="subtle" onClick={startNewPriceRule}>Cancel edit</Button>}
@@ -724,7 +770,7 @@ export function AdminPage({
               <div className="buttonRow noMargin">
                 <Button color="green" onClick={saveService}>{selectedService?.extraServiceId ? 'Save service' : 'Create service'}</Button>
                 {selectedService?.extraServiceId && (
-                  <Button variant="light" color={selectedService.status === 'active' ? 'red' : 'green'} onClick={() => toggleServiceStatus(selectedService)}>
+              <Button variant="light" color={selectedService.status === 'active' ? 'red' : 'green'} onClick={() => requestStatusChange('service', selectedService)}>
                     {selectedService.status === 'active' ? 'Deactivate' : 'Activate'}
                   </Button>
                 )}
@@ -744,11 +790,11 @@ export function AdminPage({
             ['Cancelled', reports?.cancelledCount || 0]
           ]} />
           <DataList items={[
-            ['Field value', formatMoney(reports?.fieldRevenue)],
-            ['Service value', formatMoney(reports?.serviceRevenue)],
+            ['Booked field charges', formatMoney(reports?.fieldRevenue)],
+            ['Booked add-on charges', formatMoney(reports?.serviceRevenue)],
             ['Promotion discounts', formatMoney(reports?.promotionDiscountTotal)],
             ['Membership discounts', formatMoney(reports?.membershipDiscountTotal)]
-          ].map(([title, value]) => ({ title, meta: 'Booking portfolio', value }))} />
+          ].map(([title, value]) => ({ title, meta: 'Non-cancelled bookings in the selected period', value }))} />
           {Number(reports?.providerFeeUntrackedCount || 0) > 0 && (
             <p className="panelHint">{reports.providerFeeUntrackedCount} legacy PayPal payment(s) do not have an exact processor-fee breakdown yet.</p>
           )}
@@ -778,10 +824,11 @@ export function AdminPage({
         </InfoPanel>
 
         <InfoPanel title="Selected invoice & transactions" className={`adminWidePanel ${panelClass('operations')}`}>
-          <BillingDetails detail={auditBookingDetail} loading={auditBookingLoading} error={auditBookingError} />
+          <BillingDetails detail={auditBookingDetail} loading={auditBookingLoading} error={auditBookingError} showProcessorDetails />
         </InfoPanel>
 
-        <InfoPanel title="Payment & refund control totals" className={`adminWidePanel ${panelClass('operations')}`}>
+        <InfoPanel title="Payment & refund audit" className={`adminWidePanel ${panelClass('operations')}`}>
+          <p className="panelHint">Admin reviews the audit trail. Venue Staff approve, reject, and complete refund cases.</p>
           <MetricGrid metrics={[
             ['Payment records', payments.length],
             ['Refund cases', refunds.length],
@@ -797,24 +844,20 @@ export function AdminPage({
 
         <InfoPanel title="Issue history" className={`adminWidePanel ${panelClass('support')}`}>
           <p className="panelHint">This is the complete audit trail, including issues already resolved by staff.</p>
-          <DataList items={issues.map(issue => ({
-            title: issue.title,
-            meta: `${issue.reporter} · ${issue.bookingCode || issue.fieldName || issue.extraServiceName || 'General'}${issue.assignedStaff ? ` · ${issue.assignedStaff}` : ''}${issue.resolutionNote ? ` · ${issue.resolutionNote}` : ''}`,
-            value: issue.status
-          }))} />
+          <IssueCaseList issues={issues} />
         </InfoPanel>
 
         <InfoPanel title="Field utilization" className={`adminOverviewSecondary ${panelClass('overview')}`}>
           <DataList items={Object.entries(reports?.fieldUtilization || {}).map(([field, count]) => ({
             title: field,
-            meta: 'Bookings',
+            meta: 'Confirmed or fulfilled bookings',
             value: count
           }))} />
         </InfoPanel>
 
         <InfoPanel title="Booking trends" className={`adminOverviewSecondary ${panelClass('overview')}`}>
           <DataList items={Object.entries(reports?.bookingStatusCounts || {}).map(([status, count]) => ({
-            title: status.replace(/_/g, ' '),
+            title: humanizeStatus(status),
             meta: 'Bookings by lifecycle status',
             value: count
           }))} />
@@ -828,11 +871,11 @@ export function AdminPage({
         <InfoPanel title="Customer activity" className={`adminWidePanel ${panelClass('overview')}`}>
           <MetricGrid metrics={[
             ['Returning customers', reports?.returningCustomerCount || 0],
-            ['Tracked customers', (reports?.topCustomers || []).length]
+            ['Customers with bookings', (reports?.topCustomers || []).length]
           ]} />
           <DataList items={(reports?.topCustomers || []).slice(0, 5).map(customer => ({
             title: customer.fullName,
-            meta: 'Bookings made',
+            meta: 'Qualifying bookings in the selected period',
             value: customer.bookingCount
           }))} />
           <DataList items={Object.entries(reports?.membershipDistribution || {}).map(([level, count]) => ({
@@ -843,15 +886,11 @@ export function AdminPage({
         </InfoPanel>
 
         <InfoPanel title="Booking, cancellation and notification policies" className={`adminWidePanel ${panelClass('policies')}`}>
-          <div className="buttonRow">
-            <Button variant="light" onClick={() => updateDepositSetting(30)}>Set 30%</Button>
-            <Button variant="light" onClick={() => updateDepositSetting(50)}>Set 50%</Button>
-          </div>
           <div className="policyFormGrid">
             {bookingPolicySettings.map(setting => (
               <div className="policyEditor" key={setting.settingKey}>
-                <strong>{setting.settingKey}</strong>
-                <FieldControl label={setting.description || setting.settingKey}>
+                <strong>{policyLabels[setting.settingKey] || setting.description || 'Booking policy'}</strong>
+                <FieldControl label={setting.description || policyLabels[setting.settingKey] || 'Policy value'}>
                   <div className="policyInputRow">
                     <input {...settingInputProps(setting.settingKey)} value={policyValues[setting.settingKey] ?? ''} onChange={event => setPolicyValues(values => ({ ...values, [setting.settingKey]: event.target.value }))} />
                     <Button size="xs" onClick={() => updatePolicySetting(setting.settingKey, policyValues[setting.settingKey])}>Save</Button>
@@ -867,8 +906,8 @@ export function AdminPage({
           <div className="policyFormGrid">
             {slotGenerationSettings.map(setting => (
               <div className="policyEditor" key={setting.settingKey}>
-                <strong>{setting.settingKey}</strong>
-                <FieldControl label={setting.description || setting.settingKey}>
+                <strong>{policyLabels[setting.settingKey] || setting.description || 'Availability rule'}</strong>
+                <FieldControl label={setting.description || policyLabels[setting.settingKey] || 'Rule value'}>
                   <div className="policyInputRow">
                     <input {...settingInputProps(setting.settingKey)} value={policyValues[setting.settingKey] ?? ''} onChange={event => setPolicyValues(values => ({ ...values, [setting.settingKey]: event.target.value }))} />
                     <Button size="xs" onClick={() => updatePolicySetting(setting.settingKey, policyValues[setting.settingKey])}>Save</Button>
@@ -938,17 +977,25 @@ export function AdminPage({
         </InfoPanel>
       </div>
 
+      {feedbackPanel && <ActionPanel panel={feedbackPanel} onClose={closeFeedbackPanel} />}
+
       <Modal
-        opened={feedbackModal.opened}
-        onClose={closeFeedbackModal}
+        opened={statusConfirmation.opened}
+        onClose={() => setStatusConfirmation({ opened: false, kind: '', item: null })}
         centered
-        title={feedbackModal.title || 'Status'}
+        title={`Deactivate ${statusConfirmation.kind === 'field' ? 'football field' : 'extra service'}`}
       >
         <Stack gap="sm">
           <Text size="sm" c="dimmed">
-            {feedbackModal.message}
+            {statusConfirmation.kind === 'field'
+              ? 'Customers will no longer be able to choose this field for new bookings. Existing bookings are not deleted.'
+              : 'Customers and staff will no longer be able to add this service to new bookings. Existing booking records are not changed.'}
           </Text>
-          <Button onClick={closeFeedbackModal}>OK</Button>
+          <Text size="sm" fw={700}>{statusConfirmation.item?.fieldName || statusConfirmation.item?.serviceName}</Text>
+          <Group justify="flex-end">
+            <Button variant="light" color="gray" onClick={() => setStatusConfirmation({ opened: false, kind: '', item: null })}>Keep active</Button>
+            <Button color="red" onClick={confirmStatusChange}>Deactivate</Button>
+          </Group>
         </Stack>
       </Modal>
 
@@ -987,13 +1034,7 @@ export function AdminPage({
             </div>
             <div>
               <Text fw={700} mb="xs">Reported issues</Text>
-              {customerActivity.issues.length ? (
-                <DataList items={customerActivity.issues.map(issue => ({
-                  title: issue.title,
-                  meta: issue.bookingCode || issue.fieldName || 'General issue',
-                  value: issue.status
-                }))} />
-              ) : <Text size="sm" c="dimmed">No issues reported.</Text>}
+              <IssueCaseList issues={customerActivity.issues} />
             </div>
           </Stack>
         )}

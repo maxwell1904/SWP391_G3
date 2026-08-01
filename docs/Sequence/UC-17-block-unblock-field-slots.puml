@@ -1,0 +1,80 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+actor "Staff" as Staff
+participant "StaffPage" as UI
+participant "FieldOperationController" as Controller
+participant "FieldOperationService" as Service
+participant "SlotRepository / BookingRepository" as Repo
+database "PostgreSQL" as DB
+
+== UC-17: Block/unblock field slots ==
+
+Staff -> UI : 1. Choose field, date, time,\nreason, and Block/Unblock
+activate Staff
+activate UI
+
+alt Block an operational exception
+  UI -> Controller : 2. POST /api/slots/block
+  activate Controller
+  Controller -> Service : 3. blockSlot(request)
+  activate Service
+  Service -> Service : 4. requireOperator(); validate future range/reason
+  Service -> Repo : 5. Load overlaps and active bookings
+  activate Repo
+  Repo -> DB : 6. SELECT slot and booking state
+  activate DB
+  DB --> Repo : 7. Matching rows
+  deactivate DB
+  Repo --> Service : 8. Repository result
+  deactivate Repo
+  alt No active-booking conflict
+    Service -> Repo : 9. saveAll(blocked overlaps)\nor create future exception
+    activate Repo
+    Repo -> DB : 10. INSERT/UPDATE blocked slots
+    activate DB
+    DB --> Repo : 11. Saved
+    deactivate DB
+    Repo --> Service : 12. Blocked rows
+    deactivate Repo
+  else Invalid range, role, or active booking
+    note over Service,Controller
+      Reject without overwriting a booking or existing exception.
+    end note
+  end
+else Unblock one exception
+  UI -> Controller : 2. PUT /api/slots/{slotId}/unblock
+  Controller -> Service : 3. unblockSlot(slotId)
+  Service -> Repo : 4. Load blocked slot and conflict state
+  activate Repo
+  Repo -> DB : 5. SELECT slot and booking
+  activate DB
+  DB --> Repo : 6. Current row
+  deactivate DB
+  Repo --> Service : 7. Repository result
+  deactivate Repo
+  Service -> Repo : 8. Restore available status; clear reason/note
+  activate Repo
+  Repo -> DB : 9. UPDATE slot
+  activate DB
+  DB --> Repo : 10. Restored
+  deactivate DB
+  Repo --> Service : 11. Slot summary
+  deactivate Repo
+end
+
+Service --> Controller : 13. Domain result or error
+deactivate Service
+Controller --> UI : 14. HTTP 200 or mapped 4xx
+deactivate Controller
+UI -> UI : 15. Reload operation calendar
+UI --> Staff : 16. Show current slot state
+deactivate UI
+deactivate Staff
+
+@enduml

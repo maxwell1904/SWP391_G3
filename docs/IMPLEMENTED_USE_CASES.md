@@ -1,26 +1,29 @@
 # Implemented use cases
 
-Status date: 2026-07-26
+Status date: 2026-08-01
 
-The final backlog contains 63 use cases after removal of the obsolete
-booking-restriction item and renumbering of every later use case.
+The retake baseline contains 56 actor-goal use cases. This list is canonical together with the aligned backlog, RDS, SDS, code, and Flyway V21 schema.
 
-| Range | Status | Delivered behavior |
+| Range | Owner | Delivered behavior |
 | --- | --- | --- |
-| UC-01 - UC-06 | Implemented | Registration/email verification, login/logout, self-owned profile update, password change, and password reset. |
-| UC-07 | Implemented | Admin Customer directory with read-only View and Lock/Unlock only. Lock reason, login blocking, token revocation, email, and notification are covered. |
-| UC-08 | Implemented | Admin creates and maintains Staff identity/status; Staff owns the invited password. |
-| UC-09 | Implemented | Admin-only Customer activity detail. Staff is denied by API and has no UI panel. |
-| UC-10 - UC-22 | Implemented | Field catalogue/detail/search, field and pricing management, Admin-rule automatic slot generation, Staff Block/Unblock exceptions, daily calendar, extra services, and issue reporting/resolution. Reviews are excluded. |
-| UC-23 - UC-36 | Implemented | Online/walk-in booking, detail/history/calendar, guarded lifecycle, reschedule, cancellation preview, cancellation, check-in, completion, no-show, and conflict protection. |
-| UC-37 - UC-49 | Implemented | Checkout, PayPal Sandbox, Staff cash, payment history, invoice, refund request/processing, and policy settings. |
-| UC-50 - UC-61 | Implemented | Promotions, membership rules/progress, notifications, and Admin revenue/booking/Customer reports. |
-| UC-62 | Implemented and externally verified | Gemini parses and phrases a Customer question, while verified slots still come only from GoalZone data. An authenticated configured-environment smoke test returned HTTP 200 with grounded recommendations. |
-| UC-63 | Implemented | Deterministic ranked live-slot suggestions, explanations, and booking handoff. |
+| UC-01–UC-10 | BonVT | Registration/verification, login/logout, profile/password/recovery, Customer directory, lock/unlock security flow, Staff accounts, and single-Customer activity drill-down |
+| UC-11–UC-23 | BaoNG | Field catalogue/search/management/pricing, Admin slot rules, Staff block exceptions, operation calendar, extra services, add-on create/edit validation, and issue reporting/resolution |
+| UC-24–UC-33 | NgocPA | Online/walk-in booking, detail/history/calendar, reschedule, cancellation with included preview, check-in, completion, and no-show |
+| UC-34–UC-44 | AnNP | Checkout, PayPal Sandbox, counter balance, failed/expired payment handling, payment/invoice views, refund review/provider execution, and booking policies |
+| UC-45–UC-56 | AnPTT | Promotions, membership rules/progress/benefits, confirmation/reminder/cancellation/refund notifications, and three Admin reports |
 
-## Verification
+## Scope decisions
 
-- Backend: `mvn test` covers 17 integration/service tests.
-- Frontend: `npm run build` completes successfully.
-- PostgreSQL/Supabase: Flyway schema version V18.
-- RDS, SDS, and Final Release use the final UC-01 - UC-63 numbering.
+- Old UC-07 was split into UC-07 View customer accounts and UC-08 Lock/unlock customer account.
+- Old UC-15 was split into UC-16 Configure slot generation rules and UC-17 Block/unblock field slots.
+- Extra-service availability, manual booking confirmation/rejection, cancellation preview, conflict handling, PayPal capture, and invoice generation remain included/internal behavior rather than standalone use cases.
+- The availability assistant and ranked-suggestion page/API were removed. UC-13 ordinary availability search is authoritative.
+- Historical `rejected` status and immutable Flyway migrations remain compatible, but the current UI/API no longer exposes a manual booking approval queue.
+
+## Verification baseline
+
+- Backend integration/service tests cover security, lifecycle, payment, promotion, refund, reporting, and scheduler rules.
+- Frontend production build completes successfully.
+- PostgreSQL/Supabase schema is managed through Flyway V21.
+- RDS and SDS contain the final UC-01–UC-56 catalogue and code-design sections.
+- The 56 class and 56 sequence PlantUML sources pass the repository audit.

@@ -1,7 +1,7 @@
 # Code-first ERD decisions
 
 The canonical editable ERD is `docs/ERD/football_field_booking_erd_code_first.drawio.xml`.
-It follows the Java entities and PostgreSQL migrations through Flyway V19.
+It follows the Java entities and PostgreSQL migrations through Flyway V21.
 
 ## Corrections made to the submitted ERD
 
@@ -41,6 +41,10 @@ Hibernate update run; `app_user.status` remains the only persisted access state.
 V19 reconciles `booking.paid_amount` to gross collected payments, synchronizes
 invoice refund totals, and adds financial constraints for discounts, deposits,
 remaining balances, refundable values, and PayPal fee/net breakdowns.
+
+V20 adds `booking_promotion.usage_counted`, reserves campaign capacity for active
+pending/confirmed bookings, releases it for cancelled/rejected/expired bookings,
+and reconciles `promotion.used_count` from those reservation flags.
 
 ## Physical database notes
 

@@ -1,0 +1,71 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Customer / Staff" as Actor
+participant "AccountPage / StaffPage" as UI
+participant "App.jsx" as App
+participant "BookingController / PaymentController" as Controller
+participant "BookingWorkflowService / PaymentWorkflowService" as Service
+participant "DomainSupportService" as Support
+participant "NotificationRepository" as Repo
+database "Database" as DB
+
+== UC-53: Send cancellation/refund notification ==
+
+Actor -> UI : 1. Cancel booking or update refund state
+activate Actor
+activate UI
+UI -> App : 2. cancelCustomerBooking() / updateRefund()
+activate App
+App -> Controller : 3. PUT booking status or refund status
+activate Controller
+Controller -> Service : 4. updateBookingStatus() / updateRefundStatus()
+activate Service
+Service -> Service : 5. Validate lifecycle transition
+activate Service
+deactivate Service
+Service -> Support : 6. notifyUser(customer, booking, lifecycleType, ...)
+activate Support
+alt Booking becomes cancelled
+  Support -> Support : 6.1 Compose cancellation message
+  activate Support
+  deactivate Support
+else Refund state changes
+  Support -> Support : 6.1 Compose refund status message
+  activate Support
+  deactivate Support
+end
+Support -> Repo : 7. save(notification)
+activate Repo
+Repo -> DB : 8. INSERT notification
+activate DB
+DB --> Repo : 9. saved row
+deactivate DB
+Repo --> Support : 10. Notification
+deactivate Repo
+Support --> Service : 11. notification persisted
+deactivate Support
+Service --> Controller : 12. lifecycle summary
+deactivate Service
+Controller --> App : 13. HTTP 200
+deactivate Controller
+App -> App : 14. refreshNotifications(userId)
+activate App
+deactivate App
+App --> UI : 15. Update notification bell
+deactivate App
+UI --> Actor : 16. Show cancellation/refund message
+deactivate UI
+deactivate Actor
+
+@enduml

@@ -1,0 +1,69 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor Customer
+participant "BookingPage" as UI
+participant "PayPalCheckout" as Checkout
+participant "PayPal JS SDK" as SDK
+participant "PaymentController" as Controller
+participant "PayPalCheckoutService" as Service
+participant "PaymentRepository" as Repo
+participant "PayPal Orders v2" as PayPal
+database "Database" as DB
+
+== UC-36: Pay online via PayPal Sandbox ==
+
+Customer -> UI : 1. Choose deposit/full and click PayPal
+activate Customer
+activate UI
+UI -> Checkout : 2. Render PayPal Buttons
+activate Checkout
+Checkout -> SDK : 3. Buttons.createOrder()
+activate SDK
+SDK -> Checkout : 4. createOrder callback
+activate Checkout
+Checkout -> Controller : 5. POST /api/bookings/{id}/paypal/orders
+activate Controller
+Controller -> Service : 6. createOrder(bookingId, request)
+activate Service
+Service -> PayPal : 7. POST /v2/checkout/orders (USD)
+activate PayPal
+PayPal --> Service : 8. CREATED {orderId}
+deactivate PayPal
+Service -> Repo : 9. save pending Payment
+activate Repo
+Repo -> DB : 10. INSERT payment(provider_order_id, status='pending')
+activate DB
+DB --> Repo : 11. saved payment
+deactivate DB
+Repo --> Service : 12. Payment
+deactivate Repo
+Service --> Controller : 13. {orderId, amount, currency}
+deactivate Service
+Controller --> Checkout : 14. HTTP 200
+deactivate Controller
+Checkout --> SDK : 15. orderId
+deactivate Checkout
+alt Customer approves in PayPal
+  SDK --> Checkout : 16. onApprove(data.orderID)
+else Customer cancels
+  SDK --> Checkout : 16. onCancel(data.orderID)
+end
+deactivate SDK
+Checkout --> UI : 17. Continue capture or cancellation flow
+deactivate Checkout
+UI --> Customer : 18. Show PayPal state
+deactivate UI
+deactivate Customer
+
+@enduml

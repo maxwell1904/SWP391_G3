@@ -41,7 +41,7 @@ def main() -> None:
     document = Document(args.input_docx)
     heading = next(
         paragraph for paragraph in document.paragraphs
-        if " ".join(paragraph.text.split()).lower() == "a. database schema"
+        if " ".join(paragraph.text.split()).lower().endswith("database schema")
     )
     paragraphs = document.paragraphs
     start = next(index for index, paragraph in enumerate(paragraphs) if paragraph._p is heading._p)
@@ -65,7 +65,7 @@ def main() -> None:
     for properties in diagram._p.xpath(".//wp:docPr"):
         properties.set("name", "GoalZone Code-First Database Schema")
         properties.set("title", "GoalZone Code-First Database Schema")
-        properties.set("descr", "PostgreSQL schema aligned with Flyway V1 through V19")
+        properties.set("descr", "PostgreSQL schema aligned with Flyway V1 through V21")
 
     args.output_docx.parent.mkdir(parents=True, exist_ok=True)
     document.save(args.output_docx)

@@ -1,0 +1,68 @@
+@startuml
+title GoalZone - Staff booking operations use cases
+left to right direction
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor #F8FAFC
+  BorderColor #7C3AED
+  ArrowColor #475569
+}
+
+actor "Venue Staff" as Staff
+
+rectangle GoalZone {
+  package "Availability & counter booking" #F5F3FF {
+    usecase "UC-15\nManage slot exceptions" as UC15
+    usecase "UC-16\nView operation calendar" as UC16
+    usecase "UC-18\nCheck add-on availability" as UC18
+    usecase "UC-19\nAdd extra services" as UC19
+    usecase "UC-24\nCreate walk-in booking" as UC24
+    usecase "UC-27\nView booking calendar" as UC27
+    usecase "UC-37\nView checkout summary" as UC37
+    usecase "UC-38\nChoose cash option" as UC38
+  }
+  package "Booking operations" #ECFDF5 {
+    usecase "UC-20\nUpdate extra services" as UC20
+    usecase "UC-25\nView booking detail" as UC25
+    usecase "UC-28\nConfirm booking" as UC28
+    usecase "UC-29\nReject booking request" as UC29
+    usecase "UC-30\nReschedule booking" as UC30
+    usecase "UC-31\nPreview cancellation" as UC31
+    usecase "UC-32\nCancel booking" as UC32
+    usecase "UC-33\nCheck-in booking" as UC33
+    usecase "UC-34\nComplete booking" as UC34
+    usecase "UC-35\nMark no-show" as UC35
+    usecase "UC-36\nHandle booking conflict" as UC36
+  }
+}
+
+Staff --> UC15
+Staff --> UC16
+Staff --> UC18
+Staff --> UC19
+Staff --> UC20
+Staff --> UC24
+Staff --> UC25
+Staff --> UC27
+Staff --> UC28
+Staff --> UC29
+Staff --> UC30
+Staff --> UC31
+Staff --> UC32
+Staff --> UC33
+Staff --> UC34
+Staff --> UC35
+Staff --> UC36
+Staff --> UC37
+Staff --> UC38
+
+note bottom
+Staff identity always comes from JWT. UC-36 composes existing operations;
+it does not introduce a duplicate conflict table or an unrelated workflow.
+end note
+@enduml

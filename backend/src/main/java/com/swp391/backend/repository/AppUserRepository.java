@@ -11,6 +11,8 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
     Optional<AppUser> findByEmail(String email);
 
     @EntityGraph(attributePaths = "role")
+    Optional<AppUser> findByEmailIgnoreCase(String email);
+
+    @EntityGraph(attributePaths = "role")
     Optional<AppUser> findByPhone(String phone);
 }
-

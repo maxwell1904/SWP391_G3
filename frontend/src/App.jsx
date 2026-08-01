@@ -11,7 +11,6 @@ import { AccessPanel, ActionPanel, NotificationBell } from './components/common'
 import { emailPattern, passwordIssues, phonePattern } from './features/auth/authRules'
 import {
   AccountPage,
-  AvailabilityAssistantPage,
   AdminPage,
   AuthPage,
   BookingPage,
@@ -27,7 +26,8 @@ import {
 } from './pages'
 import api from './services/api'
 import './styles/app.css'
-import { tomorrow } from './utils/format'
+import './styles/classic.css'
+import { today, tomorrow } from './utils/format'
 
 function App() {
   const [loading, setLoading] = useState(true)
@@ -60,7 +60,6 @@ function App() {
   const [fieldTypeFilter, setFieldTypeFilter] = useState('')
   const [fieldFilter, setFieldFilter] = useState('')
   const [selectedSlotId, setSelectedSlotId] = useState(null)
-  const [suggestedSlotId, setSuggestedSlotId] = useState(null)
   const [selectedBookingId, setSelectedBookingId] = useState(null)
   const [selectedCustomerId, setSelectedCustomerId] = useState(null)
   const [selectedStaffId, setSelectedStaffId] = useState(null)
@@ -162,34 +161,10 @@ function App() {
   }, [searchDate, fieldTypeFilter])
 
   useEffect(() => {
-    if (currentPage !== 'booking') return
-    const storedSuggestion = sessionStorage.getItem('goalzoneSuggestedSlot')
-    if (!storedSuggestion) return
-    try {
-      const suggestion = JSON.parse(storedSuggestion)
-      if (!suggestion.slotId || !suggestion.slotDate) throw new Error('Invalid slot suggestion')
-      setSuggestedSlotId(Number(suggestion.slotId))
-      setSearchDate(suggestion.slotDate)
-      setFieldTypeFilter('')
-      setFieldFilter('')
-    } catch {
-      sessionStorage.removeItem('goalzoneSuggestedSlot')
-    }
-  }, [currentPage])
-
-  useEffect(() => {
-    const suggestedSlot = bookingSlots.find(slot => slot.slotId === Number(suggestedSlotId) && slot.available)
-    if (suggestedSlot) {
-      setSelectedSlotId(suggestedSlot.slotId)
-      setSuggestedSlotId(null)
-      sessionStorage.removeItem('goalzoneSuggestedSlot')
-      return
-    }
-    const firstAvailable = bookingSlots.find(slot => slot.available)
     setSelectedSlotId(current => bookingSlots.some(slot => slot.slotId === Number(current) && slot.available)
       ? current
-      : firstAvailable?.slotId || null)
-  }, [bookingSlots, suggestedSlotId])
+      : null)
+  }, [bookingSlots])
 
   useEffect(() => {
     if (currentPage !== 'verifyEmail') return undefined
@@ -438,7 +413,7 @@ function App() {
         setUsers(customerRes.data)
         setSelectedCustomerId(current => customerRes.data.some(customer => customer.userId === Number(current))
           ? current
-          : customerRes.data[0]?.userId || null)
+          : null)
         setBookings(bookingRes.data)
         setPayments(paymentRes.data)
         setRefunds(refundRes.data)
@@ -454,18 +429,21 @@ function App() {
           bookingRes,
           paymentRes,
           membershipRes,
-          notificationRes
+          notificationRes,
+          issueRes
         ] = await Promise.all([
           api.get('/bookings', { params: { customerId: viewer.userId } }),
           api.get('/payments'),
           api.get(`/membership/${viewer.userId}/progress`),
-          api.get(`/notifications/${viewer.userId}`)
+          api.get(`/notifications/${viewer.userId}`),
+          api.get('/issues')
         ])
         
         setBookings(bookingRes.data)
         setPayments(paymentRes.data)
         setMembership(membershipRes.data)
         setNotifications(notificationRes.data)
+        setIssues(issueRes.data)
         
         setSelectedBookingId(current => bookingRes.data.some(booking => booking.bookingId === Number(current))
           ? current
@@ -484,7 +462,34 @@ function App() {
         setSelectedBookingId(null)
       }
     } catch (error) {
-      setNotice(error.response?.data?.error || 'Could not connect to the booking server')
+      const status = error.response?.status
+      const serverMessage = error.response?.data?.error
+
+      if (viewer && (status === 401 || status === 403)) {
+        setCurrentUser(null)
+        setUsers([])
+        setBookings([])
+        setPayments([])
+        setRefunds([])
+        setIssues([])
+        setReports(null)
+        setSettings([])
+        setNotifications([])
+        setMembership(null)
+        setSelectedBookingId(null)
+        setSelectedCustomerId(null)
+        setSelectedStaffId(null)
+        setNotice('Session ended')
+        setActionPanel({
+          kind: 'error',
+          title: 'Session ended',
+          message: 'Sign in again to continue to your workspace.'
+        })
+      } else {
+        setNotice(serverMessage || (error.response
+          ? 'GoalZone could not load the requested data.'
+          : 'Could not connect to the booking server.'))
+      }
     } finally {
       setLoading(false)
     }
@@ -548,21 +553,21 @@ function App() {
   }
 
   async function createMembershipLevel(payload) {
-    await runAction(async () => api.post('/membership/levels', payload), 'Membership level created')
+    return runAction(async () => api.post('/membership/levels', payload), 'Membership level created')
   }
 
   async function updateMembershipLevel(id, payload) {
-    await runAction(async () => api.put(`/membership/levels/${id}`, payload), 'Membership level updated')
+    return runAction(async () => api.put(`/membership/levels/${id}`, payload), 'Membership level updated')
   }
 
   async function createPromotion(payload) {
     if (!isAdmin) return
-    await runAction(async () => api.post('/promotions', payload), 'Promotion created')
+    return runAction(async () => api.post('/promotions', payload), 'Promotion created')
   }
 
   async function updatePromotion(promotionId, payload) {
     if (!isAdmin) return
-    await runAction(async () => api.put(`/promotions/${promotionId}`, payload), 'Promotion updated')
+    return runAction(async () => api.put(`/promotions/${promotionId}`, payload), 'Promotion updated')
   }
 
   async function runAction(action, successMessage) {
@@ -615,12 +620,12 @@ function App() {
 
   function bookingCustomerId() {
     if (currentUser?.role === 'Customer') return currentUser.userId
-    return Number(selectedCustomerId)
+    return selectedCustomerId ? Number(selectedCustomerId) : null
   }
 
   function checkoutCustomerId() {
     if (currentUser?.role === 'Customer') return currentUser.userId
-    if (canOperate) return Number(selectedCustomerId)
+    if (canOperate) return selectedCustomerId ? Number(selectedCustomerId) : null
     return null
   }
 
@@ -746,9 +751,7 @@ function App() {
 
   async function resendVerification() {
     if (!currentUser) return
-    await runAction(async () => api.post('/account/email/resend', {
-      userId: currentUser.userId
-    }), 'Verification email sent')
+    await runAction(async () => api.post('/account/email/resend'), 'Verification email sent')
   }
 
   async function sendResetLink() {
@@ -819,7 +822,7 @@ function App() {
 
   async function changePassword(currentPassword, newPassword, confirmPassword) {
     if (!currentUser) return
-    await runAction(async () => api.put(`/account/users/${currentUser.userId}/password`, {
+    return runAction(async () => api.put(`/account/users/${currentUser.userId}/password`, {
       currentPassword,
       newPassword,
       confirmPassword
@@ -847,7 +850,7 @@ function App() {
     }
   }
 
-  async function createBooking(source = 'online', option = 'deposit') {
+  async function createBooking(source = 'online', option = 'deposit', guestContact = null) {
     if (!currentUser) {
       setAuthMode('login')
       navigatePage('login')
@@ -875,26 +878,36 @@ function App() {
       setNotice('Verify your email before online booking')
       return
     }
+    const walkInGuest = source === 'walk_in' && guestContact
+    const bookingPayload = {
+      customerId: walkInGuest ? null : bookingCustomerId(),
+      guestName: walkInGuest ? guestContact.name.trim() : null,
+      guestPhone: walkInGuest ? guestContact.phone.trim() : null,
+      guestEmail: walkInGuest && guestContact.email.trim() ? guestContact.email.trim() : null,
+      slotId: Number(selectedSlotId),
+      bookingSource: source,
+      promotionCode,
+      services: serviceSelections(),
+      note: source === 'walk_in' ? 'Created by staff at venue' : 'Created from customer website'
+    }
     const response = await runAction(async () => {
-      const bookingResponse = await api.post('/bookings', {
-        customerId: bookingCustomerId(),
-        staffId: source === 'walk_in' ? currentUser.userId : null,
-        slotId: Number(selectedSlotId),
-        bookingSource: source,
-        promotionCode,
-        services: serviceSelections(),
-        note: source === 'walk_in' ? 'Created by staff at venue' : 'Created from customer website'
+      if (source !== 'walk_in' || option === 'pay_later') {
+        return api.post('/bookings', bookingPayload)
+      }
+      return api.post('/payments/walk-in-checkout', {
+        customerId: bookingPayload.customerId,
+        guestName: bookingPayload.guestName,
+        guestPhone: bookingPayload.guestPhone,
+        guestEmail: bookingPayload.guestEmail,
+        slotId: bookingPayload.slotId,
+        promotionCode: bookingPayload.promotionCode,
+        services: bookingPayload.services,
+        note: bookingPayload.note,
+        paymentOption: option
       })
-      if (source !== 'walk_in') return bookingResponse
-      return api.post('/payments/capture', {
-        bookingId: bookingResponse.data.bookingId,
-        createdById: currentUser.userId,
-        paymentOption: option,
-        paymentMethod: 'cash',
-        amount: null,
-        success: true
-      })
-    }, source === 'walk_in' ? 'Walk-in booking and payment recorded' : 'Booking created')
+    }, source === 'walk_in'
+      ? option === 'pay_later' ? 'Walk-in booking recorded for later payment' : 'Walk-in booking and payment recorded'
+      : 'Booking created')
 
     if (response?.data) {
       setSelectedBookingId(response.data.bookingId)
@@ -922,7 +935,6 @@ function App() {
     try {
       const response = await api.post('/bookings', {
         customerId: bookingCustomerId(),
-        staffId: null,
         slotId: Number(selectedSlotId),
         bookingSource: 'online',
         promotionCode,
@@ -973,12 +985,11 @@ function App() {
     })
   }
 
-  async function updateBooking(status) {
+  async function updateBooking(status, note = '') {
     if (!selectedBooking) return
-    await runAction(async () => api.put(`/bookings/${selectedBooking.bookingId}/status`, {
+    return runAction(async () => api.put(`/bookings/${selectedBooking.bookingId}/status`, {
       status,
-      staffId: currentUser?.userId,
-      note: 'Updated from staff operation screen'
+      note: note.trim() || 'Updated from staff operation screen'
     }), `Booking updated to ${status}`)
   }
 
@@ -994,8 +1005,7 @@ function App() {
   async function updateIssue(issueId, status, resolutionNote) {
     await runAction(async () => api.put(`/issues/${issueId}/status`, {
       status,
-      resolutionNote,
-      assignedStaffId: currentUser?.role === 'Staff' ? currentUser.userId : null
+      resolutionNote
     }), 'Issue updated')
   }
 
@@ -1016,25 +1026,22 @@ function App() {
     if (!selectedBooking) return
     await runAction(async () => api.put(`/bookings/${selectedBooking.bookingId}/status`, {
       status: 'cancelled',
-      staffId: null,
       note: 'Cancelled by customer from account page'
     }), 'Booking cancelled')
   }
 
   async function rescheduleBooking(newSlotId) {
     if (!selectedBooking || !newSlotId) return
-    await runAction(async () => api.put(`/bookings/${selectedBooking.bookingId}/reschedule`, {
+    return runAction(async () => api.put(`/bookings/${selectedBooking.bookingId}/reschedule`, {
       newSlotId: Number(newSlotId),
-      staffId: currentUser?.role === 'Staff' ? currentUser.userId : null,
       note: currentUser?.role === 'Customer' ? 'Rescheduled by customer' : 'Rescheduled by staff'
     }), 'Booking rescheduled')
   }
 
   async function capturePayment(option = 'deposit') {
     if (!selectedBooking) return
-    await runAction(async () => api.post('/payments/capture', {
+    return runAction(async () => api.post('/payments/capture', {
       bookingId: selectedBooking.bookingId,
-      createdById: currentUser?.userId || bookingCustomerId(),
       paymentOption: option,
       paymentMethod: 'cash',
       amount: option === 'full' ? selectedBooking.remainingAmount || selectedBooking.totalAmount : null,
@@ -1042,22 +1049,18 @@ function App() {
     }), 'Payment captured')
   }
 
-  async function createRefund() {
+  async function createRefund({ refundAmount, refundReason } = {}) {
     if (!selectedBooking) return
-    await runAction(async () => api.post('/refunds', {
+    return runAction(async () => api.post('/refunds', {
       bookingId: selectedBooking.bookingId,
-      requestedById: selectedBooking.customerId,
-      processedById: null,
-      refundAmount: selectedBooking.refundableAmount || cancellationPreview?.refundableAmount || 0,
-      refundReason: 'Customer cancellation refund request',
-      approveNow: false
+      refundAmount: refundAmount ?? selectedBooking.refundableAmount ?? cancellationPreview?.refundableAmount,
+      refundReason
     }), 'Refund requested')
   }
 
   async function updateRefund(refund, status) {
     await runAction(async () => api.put(`/refunds/${refund.refundId}/status`, {
       status,
-      processedById: currentUser?.userId,
       note: status === 'rejected' ? 'Reviewed and rejected by staff' : 'Reviewed by staff'
     }), `Refund ${status}`)
   }
@@ -1069,44 +1072,48 @@ function App() {
       setNotice('Sign in before reporting an issue')
       return
     }
-    await runAction(async () => api.post('/issues', {
-      reporterId: currentUser.userId,
+    const created = await runAction(async () => api.post('/issues', {
       bookingId: selectedBooking?.bookingId,
       fieldId: selectedBooking ? null : selectedSlot?.fieldId,
-      assignedStaffId: currentUser?.role === 'Staff' ? currentUser.userId : null,
-      title: issueDraft.title,
-      description: issueDraft.description
+      title: issueDraft.title.trim(),
+      description: issueDraft.description.trim()
     }), 'Issue reported')
+    if (created) setIssueDraft({ title: '', description: '' })
+    return Boolean(created)
   }
 
   async function reportCustomerIssue(payload) {
-    if (!currentUser) return
-    await runAction(async () => api.post('/issues', {
-      ...payload,
-      reporterId: currentUser.userId,
-      assignedStaffId: null
+    if (!currentUser) return false
+    const created = await runAction(async () => api.post('/issues', {
+      ...payload
     }), 'Issue reported')
-  }
-
-  async function updateDepositSetting(value) {
-    await runAction(async () => api.put('/settings/deposit.default_percent', {
-      settingValue: String(value),
-      updatedById: currentUser?.userId
-    }), 'Deposit rule updated')
+    return Boolean(created)
   }
 
   async function updatePolicySetting(key, value) {
     await runAction(async () => api.put(`/settings/${key}`, {
-      settingValue: String(value),
-      updatedById: currentUser?.userId
+      settingValue: String(value)
     }), 'Booking policy updated')
   }
 
   async function updateCustomerLock(customer, accountLocked, lockReason = '') {
-    await runAction(async () => api.put(`/account/users/${customer.userId}/lock`, {
+    return runAction(async () => api.put(`/account/users/${customer.userId}/lock`, {
       accountLocked,
       lockReason: accountLocked ? lockReason : ''
     }), accountLocked ? 'Customer account locked' : 'Customer account unlocked')
+  }
+
+  function startWalkInBooking() {
+    setSearchDate(today())
+    setSelectedCustomerId(null)
+    setSelectedSlotId(null)
+    setPaymentOption('deposit')
+    navigatePage('booking')
+  }
+
+  function usePromotion(code) {
+    setPromotionCode(code)
+    navigatePage('booking')
   }
 
   return (
@@ -1121,7 +1128,6 @@ function App() {
           <button className={currentPage === 'fields' ? 'active' : ''} onClick={() => navigatePage('fields')}>Fields</button>
           {!isAdmin && <button className={currentPage === 'booking' ? 'active' : ''} onClick={() => navigatePage('booking')}>{isStaff ? 'Walk-in booking' : 'Book'}</button>}
           <button className={currentPage === 'promotions' ? 'active' : ''} onClick={() => navigatePage('promotions')}>Offers</button>
-          {!isStaff && !isAdmin && <button className={currentPage === 'assistant' ? 'active' : ''} onClick={() => navigatePage('assistant')}>Find a field</button>}
           <button
             className={(currentPage === 'membership-benefits' || currentPage === 'membership-rules') ? 'active' : ''}
             onClick={() => navigatePage(isAdmin ? 'membership-rules' : 'membership-benefits')}
@@ -1178,6 +1184,7 @@ function App() {
         {(currentPage === 'home' || currentPage === 'fields') && (
           <FieldsPage
             fields={fields}
+            currentUser={currentUser}
             slots={slots}
             searchDate={searchDate}
             setSearchDate={setSearchDate}
@@ -1261,6 +1268,7 @@ function App() {
             payments={payments}
             membership={membership}
             notifications={notifications}
+            issues={issues}
             selectedBookingId={selectedBookingId}
             setSelectedBookingId={setSelectedBookingId}
             selectedBookingDetail={selectedBookingDetail}
@@ -1274,7 +1282,6 @@ function App() {
             onCancelBooking={cancelCustomerBooking}
             onRequestRefund={createRefund}
             onReschedule={rescheduleBooking}
-            availableSlots={slots.filter(slot => slot.available)}
             services={services}
             fields={fields}
             onUpdateBookingServices={(items, bookingId) => updateBookingServices(items, bookingId)}
@@ -1329,22 +1336,7 @@ function App() {
             fieldTypes={fieldTypes}
             services={services}
             membershipLevels={membershipLevels}
-          />
-        )}
-
-        {currentPage === 'assistant' && !isStaff && !isAdmin && (
-          <AvailabilityAssistantPage
-            fieldTypes={fieldTypes}
-            currentUser={currentUser}
-            navigatePage={navigatePage}
-          />
-        )}
-
-        {currentPage === 'assistant' && (isStaff || isAdmin) && (
-          <AccessPanel
-            title="Customer availability assistant"
-            text="Use the Staff workspace for walk-in bookings or the Admin console for venue management."
-            onLogin={() => navigatePage(isStaff ? 'staff' : 'admin')}
+            onUsePromotion={usePromotion}
           />
         )}
 
@@ -1381,7 +1373,6 @@ function App() {
             updateBooking={updateBooking}
             previewCancellation={previewCancellation}
             rescheduleBooking={rescheduleBooking}
-            availableSlots={slots.filter(slot => slot.available)}
             capturePayment={capturePayment}
             issueDraft={issueDraft}
             setIssueDraft={setIssueDraft}
@@ -1391,17 +1382,16 @@ function App() {
             refunds={refunds}
             services={services}
             fields={fields}
-            currentUser={currentUser}
             refreshAll={refreshAll}
             loadSlots={loadSlots}
             updateBookingServices={updateBookingServices}
             updateIssue={updateIssue}
-            navigatePage={navigatePage}
+            onCreateWalkIn={startWalkInBooking}
           />
         )}
 
         {currentPage === 'staff' && !canOperate && (
-          <AccessPanel title="Staff access" text="Login with a staff or admin account to use daily operation tools." onLogin={() => navigatePage('login')} />
+          <AccessPanel title="Staff access" text="Login with a venue staff account to use daily operation tools." onLogin={() => navigatePage('login')} />
         )}
 
         {currentPage === 'admin' && isAdmin && (
@@ -1413,7 +1403,6 @@ function App() {
             issues={issues}
             settings={settings}
             fieldTypes={fieldTypes}
-            updateDepositSetting={updateDepositSetting}
             updatePolicySetting={updatePolicySetting}
             customers={customers}
             updateCustomerLock={updateCustomerLock}

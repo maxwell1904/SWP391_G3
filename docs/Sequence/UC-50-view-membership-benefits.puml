@@ -1,0 +1,74 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Guest / Customer" as Actor
+participant "MembershipBenefitsPage" as UI
+participant "App.jsx" as App
+participant "PromotionReportController" as Controller
+participant "PromotionReportService" as Service
+participant "MembershipLevelRepository" as Repo
+database "Database" as DB
+
+== UC-50: View membership benefits ==
+
+Actor -> UI : 1. Open Membership benefits
+activate Actor
+activate UI
+
+UI -> App : 2. refreshAll()
+activate App
+
+App -> Controller : 3. GET /api/membership/levels
+activate Controller
+
+Controller -> Service : 4. membershipLevels(false)
+activate Service
+
+Service -> Repo : 5. findAllByOrderByDisplayOrderAsc()
+activate Repo
+
+Repo -> DB : 6. SELECT membership_level ORDER BY display_order
+activate DB
+
+alt Active levels exist
+  DB --> Repo : 7. Matching rows
+else No active level configured
+  DB --> Repo : 7. Empty result
+end
+deactivate DB
+
+Repo --> Service : 8. List<MembershipLevel>
+deactivate Repo
+
+Service -> Service : 9. Filter active unless Admin includeInactive\nmembershipLevelSummary()
+activate Service
+deactivate Service
+
+alt Request is permitted
+  Service --> Controller : 10. ordered active benefits
+else Access or data validation fails
+  Service --> Controller : 10. ApiException
+end
+deactivate Service
+
+Controller --> App : 11. HTTP response
+deactivate Controller
+
+App --> UI : 12. setMembershipLevels(response.data)
+deactivate App
+
+UI --> Actor : 13. Show tiers, thresholds and benefits
+deactivate UI
+deactivate Actor
+
+@enduml

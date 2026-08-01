@@ -3,6 +3,7 @@ package com.swp391.backend.config;
 import com.swp391.backend.entity.*;
 import com.swp391.backend.enums.*;
 import com.swp391.backend.repository.*;
+import com.swp391.backend.service.PromotionReportService;
 import com.swp391.backend.service.SlotGenerationService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
@@ -66,16 +67,16 @@ public class DataSeeder {
             MembershipLevel silver = membership("Silver", 4, "5", "5% membership discount after 4 completed bookings", 2);
             MembershipLevel gold = membership("Gold", 8, "10", "10% membership discount after 8 completed bookings", 3);
             membershipLevelRepository.saveAll(List.of(bronze, silver, gold));
-            customerMembershipRepository.save(customerMembership(customer, bronze, 1));
-            customerMembershipRepository.save(customerMembership(secondCustomer, silver, 5));
+            customerMembershipRepository.save(customerMembership(customer, bronze, 0));
+            customerMembershipRepository.save(customerMembership(secondCustomer, bronze, 0));
 
             FieldType fiveSide = fieldType("5-a-side", 10, "Fast small-sided matches");
             FieldType sevenSide = fieldType("7-a-side", 14, "Most popular team size");
             fieldTypeRepository.saveAll(List.of(fiveSide, sevenSide));
 
-            FootballField fieldA = field("Pitch A", fiveSide, "Artificial turf pitch near the entrance", "Zone A", "Artificial grass", "https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&w=1200&q=80");
-            FootballField fieldB = field("Pitch B", sevenSide, "Wider pitch for evening leagues", "Zone B", "Hybrid grass", "https://images.unsplash.com/photo-1575361204480-aadea25e6e68?auto=format&fit=crop&w=1200&q=80");
-            FootballField fieldC = field("Pitch C", fiveSide, "Covered training pitch for rainy sessions", "Zone C", "Artificial grass", "https://images.unsplash.com/photo-1556056504-5c7696c4c28d?auto=format&fit=crop&w=1200&q=80");
+            FootballField fieldA = field("Field 5A", fiveSide, "Artificial turf field near the entrance", "Zone A - near reception", "Artificial grass", "https://images.unsplash.com/photo-1759210720456-c9814f721479?auto=format&fit=crop&w=1600&q=85");
+            FootballField fieldB = field("Field 7A", sevenSide, "Wider field for evening leagues", "Zone B", "Hybrid grass", "https://images.unsplash.com/photo-1712168539418-0aa66404ee0d?auto=format&fit=crop&w=1600&q=85");
+            FootballField fieldC = field("Covered Field 5B", fiveSide, "Covered training field for rainy sessions", "Zone B - inner row", "Artificial grass", "https://images.unsplash.com/photo-1690892738385-515d0c045ec0?auto=format&fit=crop&w=1600&q=85");
             fieldRepository.saveAll(List.of(fieldA, fieldB, fieldC));
 
             fieldPriceRepository.saveAll(List.of(
@@ -115,6 +116,12 @@ public class DataSeeder {
     @Order(3)
     CommandLineRunner materializeRollingSlotCalendar(SlotGenerationService slotGenerationService) {
         return args -> slotGenerationService.generateRollingWindow();
+    }
+
+    @Bean
+    @Order(4)
+    CommandLineRunner reconcileMembershipProgress(PromotionReportService promotionReportService) {
+        return args -> promotionReportService.reconcileMembershipAssignments();
     }
 
     private AppUser user(String fullName, String email, String phone, Role role, BCryptPasswordEncoder passwordEncoder) {

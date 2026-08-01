@@ -1,37 +1,21 @@
-# Backlog-RDS-code gap analysis
+# Backlog–RDS–code gap analysis
 
-Audit date: 2026-07-26
+Audit date: 2026-08-01
 
 ## Result
 
-- RDS, SDS, Final Release, frontend, backend, and Supabase use the same final
-  UC-01 through UC-63 numbering.
-- UC-07 exposes Admin View and Lock/Unlock only; Customer profile editing is
-  self-owned.
-- UC-09 Customer activity detail is Admin-only.
-- `avatar_url` is removed from the entity, DTO, UI, diagrams, and Supabase;
-  the current schema is Flyway V19.
-- Account access uses `status = locked` as its single source of truth plus
-  `lock_reason`. Obsolete
-  booking-restriction behavior is not part of the final backlog.
-- Reviews/ratings and production PayPal certification remain deliberate
-  exclusions.
-- The 19 JPA table mappings, DBML tables, and draw.io ERD entities match
-  one-for-one. `field_type`, `field_price`, and `system_setting` are retained
-  for normalized type metadata, effective pricing, and editable policy values.
-- The backlog now treats automatic generation as part of UC-12/UC-15/UC-16:
-  Admin controls the rule set; Staff Block/Unblock records exceptions; search
-  and calendar reads materialize missing dates on demand.
+- The final backlog, RDS, SDS, class diagrams, sequence diagrams, frontend, backend, and Flyway V21 schema use UC-01–UC-56.
+- The two justified splits are Customer View vs Lock/Unlock and Admin slot rules vs Staff block exceptions.
+- Nine submitted rows were removed/demoted because they were internal steps or duplicate journeys; their retained behavior is documented inside the parent use cases.
+- The assistant/suggestion UI, route, API, services, environment configuration, and tests were removed together.
+- Manual Staff booking Confirm/Reject actions were removed from UI and rejected by the status endpoint; payment/scheduler behavior owns confirmation/expiry.
+- The 19 JPA table mappings, DBML, ERD, and Flyway migrations remain aligned. No schema table existed solely for the removed assistant.
+- Use Case Diagram and Screen Flow are intentionally deferred until the team supplies its draw.io and eraser.io templates.
 
-## External presentation checks
+## Presentation checks
 
-- Confirm receipt of verification, password-reset, Staff invitation, and
-  account-lock emails using the configured mailbox.
-- Run one PayPal Sandbox buyer approval during the presentation environment
-  smoke check.
-- Keep `.env.local` and all credentials out of the submitted Git history.
-- UC-62 is Done: its authenticated configured-environment Gemini smoke test
-  passed with live GoalZone availability as the authoritative source. Keep
-  `GEMINI_API_KEY` and `GEMINI_MODEL` configured in the presentation
-  environment. UC-63 remains independently testable without the external
-  model.
+- Demonstrate registration/verification or password recovery using the configured SMTP mailbox.
+- Demonstrate one PayPal Sandbox buyer approval and, if time allows, one approved provider refund.
+- Demonstrate an unpaid hold expiring and a reminder being de-duplicated through automated evidence or seeded data.
+- Explain that JPA entity/repository/service code is where Hibernate behavior changes; Flyway migrations are where PostgreSQL schema changes are versioned.
+- Keep `.env.local` and all credentials outside submitted Git history.

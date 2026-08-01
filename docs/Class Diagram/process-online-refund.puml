@@ -13,11 +13,8 @@ class PaymentController <<controller>> {
 class "ApiRequests.RefundCreate" as RefundCreateDTO <<dto>> {
     -bookingId : Long
     -paymentId : Long
-    -requestedById : Long
-    -processedById : Long
     -refundAmount : BigDecimal
     -refundReason : String
-    -approveNow : boolean
 }
 
 class PaymentWorkflowService <<service>> {

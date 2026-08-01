@@ -19,7 +19,7 @@ participant "FieldOperationService" as Service
 participant "IssueRepository / NotificationRepository" as Repo
 database "Database" as DB
 
-== UC-23: Resolve Field or Service Issue ==
+== UC-23: Resolve field/service issue ==
 
 User -> UI : 1. Choose issue status and resolution note
 activate User

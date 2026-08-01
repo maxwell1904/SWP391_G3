@@ -89,7 +89,13 @@ export function AuthPage({
 
 function LoginForm({ loginForm, loginErrors, showLoginPassword, setShowLoginPassword, updateLoginForm, login }) {
   return (
-    <div className="formStack">
+    <form
+      className="formStack"
+      onSubmit={event => {
+        event.preventDefault()
+        login()
+      }}
+    >
       <FieldControl label="Email or phone" error={loginErrors.emailOrPhone}>
         <input
           autoComplete="username"
@@ -107,21 +113,27 @@ function LoginForm({ loginForm, loginErrors, showLoginPassword, setShowLoginPass
         onChange={value => updateLoginForm('password', value)}
       />
       <div className="forgotPasswordRow">
-        <button className="forgotPasswordLink" onClick={() => window.location.href = '/forgot-password'}>
+        <button type="button" className="forgotPasswordLink" onClick={() => window.location.href = '/forgot-password'}>
           Forgot password?
         </button>
       </div>
-      <button className="primaryButton wide" onClick={() => login()}>
+      <button type="submit" className="primaryButton wide">
         <LogIn size={18} />
         <span>Login</span>
       </button>
-    </div>
+    </form>
   )
 }
 
 function RegisterForm({ registerForm, registerErrors, showRegisterPassword, setShowRegisterPassword, updateRegisterForm, register, registerLoading }) {
   return (
-    <div className="formStack">
+    <form
+      className="formStack"
+      onSubmit={event => {
+        event.preventDefault()
+        register()
+      }}
+    >
       <FieldControl label="Full name" error={registerErrors.fullName}>
         <input
           autoComplete="name"
@@ -164,10 +176,10 @@ function RegisterForm({ registerForm, registerErrors, showRegisterPassword, setS
         onToggle={() => setShowRegisterPassword(!showRegisterPassword)}
         onChange={value => updateRegisterForm('confirmPassword', value)}
       />
-      <button className="primaryButton wide" onClick={register} disabled={registerLoading}>
+      <button type="submit" className="primaryButton wide" disabled={registerLoading}>
         {registerLoading ? <Loader2 className="spin" size={18} /> : null}
         <span>{registerLoading ? 'Creating account...' : 'Create account'}</span>
       </button>
-    </div>
+    </form>
   )
 }

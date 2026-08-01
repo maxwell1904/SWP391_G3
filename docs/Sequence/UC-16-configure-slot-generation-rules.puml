@@ -1,0 +1,70 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+actor "Admin" as Admin
+participant "AdminPage" as UI
+participant "PromotionReportController" as Controller
+participant "PromotionReportService" as Service
+participant "SlotGenerationService" as Generator
+participant "SystemSettingRepository / SlotRepository" as Repo
+database "PostgreSQL" as DB
+
+== UC-16: Configure slot generation rules ==
+
+Admin -> UI : 1. Edit opening, closing,\nduration, or horizon
+activate Admin
+activate UI
+UI -> Controller : 2. PUT /api/settings/{slotRuleKey}
+activate Controller
+Controller -> Service : 3. updateSetting(key, request)
+activate Service
+Service -> Generator : 4. validateRuleChange(key, value)
+Generator -> Repo : 5. Read combined rule set
+activate Repo
+Repo -> DB : 6. SELECT system settings
+activate DB
+DB --> Repo : 7. Current values
+deactivate DB
+Repo --> Generator : 8. Rule values
+deactivate Repo
+
+alt Valid combined rules
+  Generator --> Service : 9. Validated SlotRules
+  Service -> Repo : 10. Save setting
+  activate Repo
+  Repo -> DB : 11. UPDATE system_setting
+  activate DB
+  DB --> Repo : 12. Saved
+  deactivate DB
+  Repo --> Service : 13. Setting
+  deactivate Repo
+  Service -> Generator : 14. rebuildRollingWindow()
+  activate Generator
+  Generator -> Repo : 15. Preserve booked/blocked rows;\nreplace eligible generated rows
+  activate Repo
+  Repo -> DB : 16. DELETE/INSERT generated slots
+  activate DB
+  DB --> Repo : 17. Rebuilt calendar
+  deactivate DB
+  Repo --> Generator : 18. GenerationResult
+  deactivate Repo
+  Generator --> Service : 19. GenerationResult
+  deactivate Generator
+else Invalid time, duration, divisibility, or horizon
+  Generator --> Service : Mapped 400 error
+end
+
+Service --> Controller : 20. Setting summary or error
+deactivate Service
+Controller --> UI : 21. HTTP 200 or mapped 4xx
+deactivate Controller
+UI --> Admin : 22. Show saved rules or validation
+deactivate UI
+deactivate Admin
+
+@enduml

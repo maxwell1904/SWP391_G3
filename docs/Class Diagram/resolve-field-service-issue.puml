@@ -28,7 +28,6 @@ class DomainSupportService <<service>> {
 class "ApiRequests.IssueStatusUpdate" as IssueStatusUpdateDTO <<dto>> {
     -status : String
     -resolutionNote : String
-    -assignedStaffId : Long
 }
 
 interface IssueRepository <<repository>> {

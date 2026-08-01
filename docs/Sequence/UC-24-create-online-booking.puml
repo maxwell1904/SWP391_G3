@@ -19,7 +19,7 @@ participant "BookingWorkflowService" as Service
 participant "BookingRepository / BookingServiceItemRepository" as Repo
 database "Database" as DB
 
-== UC-24: Create Online Booking ==
+== UC-24: Create online booking ==
 
 User -> UI : 1. Select slot/services and start PayPal checkout
 activate User
@@ -46,7 +46,7 @@ alt Request is valid and authorized
   Service -> Repo : 7. exists active booking; save booking/services
   activate Repo
 
-  Repo -> DB : 8. SELECT slot conflict; INSERT booking/booking_service
+  Repo -> DB : 8. SELECT slot/promotion capacity;\nINSERT booking/services/promotion reservation
   activate DB
   DB --> Repo : 9. Pending online Booking
   deactivate DB
@@ -54,7 +54,7 @@ alt Request is valid and authorized
   Repo --> Service : 10. Repository result
   deactivate Repo
 
-  Service -> Service : 11. Price basket; hold slot; notify customer
+  Service -> Service : 11. Price basket; hold slot and promotion capacity; notify customer
   activate Service
   deactivate Service
 else Validation, authorization, or state rule fails

@@ -59,6 +59,8 @@ server:
   port: 8080
 
 app:
+  # All slot, check-in, no-show, reminder, and policy calculations are venue-local.
+  time-zone: ${APP_TIME_ZONE:Asia/Ho_Chi_Minh}
   frontend-base-url: ${APP_FRONTEND_BASE_URL:${FRONTEND_URL:http://localhost:5173}}
   upload:
     directory: ${APP_UPLOAD_DIRECTORY:./uploads}
@@ -71,11 +73,6 @@ app:
     env: ${PAYPAL_ENV:sandbox}
     currency: ${PAYPAL_CURRENCY:USD}
     mock-mode: ${PAYPAL_MOCK_MODE:false}
-  gemini:
-    # Keep the key in .env.local or the deployment's secret manager, never in Git.
-    api-key: ${GEMINI_API_KEY:}
-    model: ${GEMINI_MODEL:gemini-3.6-flash}
-
 jwt:
   # A local fallback keeps development accounts usable. Set JWT_SECRET in every
   # shared, staging, or production environment.

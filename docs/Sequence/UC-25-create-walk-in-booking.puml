@@ -19,26 +19,34 @@ participant "BookingWorkflowService / PaymentWorkflowService" as Service
 participant "BookingRepository / PaymentRepository" as Repo
 database "Database" as DB
 
-== UC-25: Create Walk-in Booking ==
+== UC-25: Create walk-in booking ==
 
-User -> UI : 1. Select customer/slot and record walk-in booking
+User -> UI : 1. Search phone/email or choose First-time visitor
 activate User
 activate UI
 
-UI -> App : 2. createBooking('walk_in', option)
+alt Registered Customer is matched
+  UI -> App : 2. Select matched Customer account
+else First-time visitor
+  UI -> App : 2. Enter name, phone, optional email
+end
 activate App
 
-App -> App : 3. Validate UI state and build request
+App -> App : 3. Validate one customer identity and build request
 activate App
 deactivate App
 
-App -> Controller : 4. POST /api/bookings then\nPOST /api/payments/capture
+alt Pay later
+  App -> Controller : 4. POST /api/bookings
+else Deposit or full cash
+  App -> Controller : 4. POST /api/payments/walk-in-checkout
+end
 activate Controller
 
-Controller -> Service : 5. createBooking(request) / capturePayment(request)
+Controller -> Service : 5. createBooking(request) / createWalkInAndCapture(request)
 activate Service
 
-Service -> Service : 6. Operator role; active customer; cash only
+Service -> Service : 6. Staff role; account-or-guest identity; slot and cash rules
 activate Service
 deactivate Service
 
@@ -46,20 +54,20 @@ alt Request is valid and authorized
   Service -> Repo : 7. save(booking); save(payment)
   activate Repo
 
-  Repo -> DB : 8. INSERT booking; INSERT payment; UPSERT invoice
+  Repo -> DB : 8. INSERT booking; optionally INSERT payment; UPSERT invoice
   activate DB
-  DB --> Repo : 9. Confirmed booking with cash payment
+  DB --> Repo : 9. Pending pay-later or confirmed cash booking
   deactivate DB
 
   Repo --> Service : 10. Repository result
   deactivate Repo
 
-  Service -> Service : 11. Assign staff, price booking, capture deposit/full
+  Service -> Service : 11. Assign Staff; guest gets no membership;\noptionally capture deposit/full cash
   activate Service
   deactivate Service
 else Validation, authorization, or state rule fails
   note over Service,Controller
-    Slot conflict or invalid cash amount -> HTTP 400
+    Missing guest phone, slot conflict, or invalid cash -> HTTP 400
     The service propagates ApiException to ApiExceptionHandler.
   end note
 end
@@ -74,11 +82,11 @@ deactivate Controller
 Controller --> App : 14. HTTP 200 or mapped 4xx\nresponse body or error payload
 deactivate Controller
 
-App -> App : 15. setSelectedBookingDetail; refreshAll()
+App -> App : 15. setSelectedBookingDetail; clear checkout draft
 activate App
 deactivate App
 
-App --> UI : 16. Navigate to StaffPage with receipt
+App --> UI : 16. Navigate to Staff workspace
 deactivate App
 
 UI --> User : 17. Updated screen or error feedback

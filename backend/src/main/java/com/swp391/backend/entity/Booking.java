@@ -22,9 +22,18 @@ public class Booking extends AuditEntity {
     @Column(name = "booking_id")
     private Long bookingId;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id")
     private AppUser customer;
+
+    @Column(name = "guest_name", length = 120)
+    private String guestName;
+
+    @Column(name = "guest_phone", length = 30)
+    private String guestPhone;
+
+    @Column(name = "guest_email", length = 160)
+    private String guestEmail;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "staff_id")

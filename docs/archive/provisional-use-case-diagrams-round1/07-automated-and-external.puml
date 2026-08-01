@@ -1,0 +1,56 @@
+@startuml
+title GoalZone - Automated triggers and external payment boundary
+left to right direction
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor #F8FAFC
+  BorderColor #0369A1
+  ArrowColor #475569
+}
+
+actor "Booking event" as Event
+actor "Scheduled time" as Time
+actor "PayPal Sandbox" as PayPal
+
+rectangle GoalZone {
+  package "Synchronous business rules" #ECFDF5 {
+    usecase "UC-18\nValidate add-on availability" as UC18
+    usecase "UC-28\nConfirm eligible booking" as UC28
+    usecase "UC-40\nCapture/confirm online payment" as UC40
+    usecase "UC-44\nGenerate/update invoice" as UC44
+    usecase "UC-52\nValidate/apply promotion" as UC52
+    usecase "UC-63\nRank live slot suggestions" as UC63
+  }
+  package "Scheduled & event notifications" #EFF6FF {
+    usecase "UC-42\nExpire unpaid hold" as UC42
+    usecase "UC-56\nSend booking confirmation" as UC56
+    usecase "UC-57\nSend booking reminder" as UC57
+    usecase "UC-58\nSend cancellation/refund update" as UC58
+  }
+  package "Provider refund" #FFF7ED {
+    usecase "UC-46\nSubmit/reconcile online refund" as UC46
+  }
+}
+
+Event --> UC18
+Event --> UC28
+PayPal --> UC40
+Event --> UC44
+Event --> UC52
+Event --> UC56
+Event --> UC58
+Event --> UC63
+Time --> UC42
+Time --> UC57
+PayPal --> UC46
+
+note bottom
+"Booking event" and "Scheduled time" are triggers, not human users.
+PayPal Sandbox is the external boundary; GoalZone remains the source of booking and refund state.
+end note
+@enduml

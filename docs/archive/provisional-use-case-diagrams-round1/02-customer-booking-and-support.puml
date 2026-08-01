@@ -1,0 +1,66 @@
+@startuml
+title GoalZone - Customer booking, payment and support use cases
+left to right direction
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor #F8FAFC
+  BorderColor #0F766E
+  ArrowColor #475569
+}
+
+actor Customer
+
+rectangle GoalZone {
+  package "Create booking" #ECFDF5 {
+    usecase "UC-19\nAdd extra services" as UC19
+    usecase "UC-23\nCreate online booking" as UC23
+    usecase "UC-37\nView checkout summary" as UC37
+    usecase "UC-38\nChoose payment option" as UC38
+    usecase "UC-39\nPay via PayPal Sandbox" as UC39
+    usecase "UC-52\nApply promotion" as UC52
+  }
+  package "Review booking" #EFF6FF {
+    usecase "UC-25\nView booking detail" as UC25
+    usecase "UC-26\nView my bookings" as UC26
+    usecase "UC-43\nView payment history" as UC43
+    usecase "UC-45\nView invoice/payment status" as UC45
+  }
+  package "Change booking" #FFF7ED {
+    usecase "UC-20\nUpdate extra services" as UC20
+    usecase "UC-30\nReschedule booking" as UC30
+    usecase "UC-31\nPreview cancellation" as UC31
+    usecase "UC-32\nCancel booking" as UC32
+  }
+  package "Support" #FEF2F2 {
+    usecase "UC-21\nReport field/service issue" as UC21
+    usecase "UC-47\nRequest refund" as UC47
+  }
+}
+
+Customer --> UC19
+Customer --> UC20
+Customer --> UC21
+Customer --> UC23
+Customer --> UC25
+Customer --> UC26
+Customer --> UC30
+Customer --> UC31
+Customer --> UC32
+Customer --> UC37
+Customer --> UC38
+Customer --> UC39
+Customer --> UC43
+Customer --> UC45
+Customer --> UC47
+Customer --> UC52
+
+note bottom
+Every mutation uses the authenticated Customer identity from JWT.
+Database IDs are internal; the UI uses booking, payment, invoice and refund codes as business references.
+end note
+@enduml

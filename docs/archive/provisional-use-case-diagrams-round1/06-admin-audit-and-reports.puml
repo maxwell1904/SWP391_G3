@@ -1,0 +1,46 @@
+@startuml
+title GoalZone - Admin audit and reporting use cases
+left to right direction
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor #F8FAFC
+  BorderColor #B45309
+  ArrowColor #475569
+}
+
+actor Admin
+
+rectangle GoalZone {
+  package "Commercial audit" #FFF7ED {
+    usecase "UC-25\nView booking detail" as UC25
+    usecase "UC-43\nView payment history" as UC43
+    usecase "UC-45\nView invoice status" as UC45
+    usecase "UC-46\nProcess online refund" as UC46
+    usecase "UC-47\nManage refund requests" as UC47
+  }
+  package "Reports" #FEF2F2 {
+    usecase "UC-59\nView revenue report" as UC59
+    usecase "UC-60\nView booking report" as UC60
+    usecase "UC-61\nView Customer activity report" as UC61
+  }
+}
+
+Admin --> UC25
+Admin --> UC43
+Admin --> UC45
+Admin --> UC46
+Admin --> UC47
+Admin --> UC59
+Admin --> UC60
+Admin --> UC61
+
+note bottom
+Reports use the selected date period. Cancelled/rejected/expired bookings do not inflate
+commercial value or utilization, and raw database IDs are not presentation fields.
+end note
+@enduml

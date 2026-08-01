@@ -32,6 +32,7 @@ class DomainSupportService <<service>> {
     +calculateDeposit(total : BigDecimal) : BigDecimal
     +saveBookingServices(booking : Booking, selections : List<ApiRequests.ServiceSelection>) : void
     +saveBookingPromotion(booking : Booking, code : String, discount : BigDecimal) : void
+    +reconcilePromotionUsage(booking : Booking) : void
     +notifyUser(user : AppUser, booking : Booking, type : NotificationType, title : String, message : String) : void
     +bookingSummary(booking : Booking) : Map<String, Object>
     +bookingServiceSummary(item : BookingServiceItem) : Map<String, Object>
@@ -41,7 +42,6 @@ class DomainSupportService <<service>> {
 
 class "ApiRequests.BookingCreate" as BookingCreateDTO <<dto>> {
     -customerId : Long
-    -staffId : Long
     -slotId : Long
     -bookingSource : String
     -promotionCode : String
@@ -116,6 +116,7 @@ class BookingPromotion <<entity>> {
     -promotion : Promotion
     -promotionCodeSnapshot : String
     -discountAmount : BigDecimal
+    -usageCounted : boolean
     -appliedAt : LocalDateTime
 }
 

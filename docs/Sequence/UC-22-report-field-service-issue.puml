@@ -19,7 +19,7 @@ participant "FieldOperationService" as Service
 participant "IssueRepository" as Repo
 database "Database" as DB
 
-== UC-22: Report Field or Service Issue ==
+== UC-22: Report field/service issue ==
 
 User -> UI : 1. Enter issue title and description
 activate User

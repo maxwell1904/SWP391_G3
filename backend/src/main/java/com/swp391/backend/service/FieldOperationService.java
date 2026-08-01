@@ -132,10 +132,10 @@ public class FieldOperationService {
         slotGenerationService.ensureDate(targetDate);
         return support.slotRepository.findBySlotDate(targetDate).stream()
                 .filter(slot -> slot.getField().getStatus() == CommonStatus.active)
+                .filter(support::isSlotStartInFuture)
                 .filter(slot -> fieldTypeId == null || Objects.equals(slot.getField().getFieldType().getFieldTypeId(), fieldTypeId))
-                .map(slot -> {
+                .flatMap(slot -> support.findFieldPrice(slot).stream().map(fieldPrice -> {
                     boolean reserved = support.bookingRepository.existsBySlotAndStatusIn(slot, DomainSupportService.ACTIVE_BOOKING_STATUSES);
-                    BigDecimal fieldPrice = support.calculateFieldPrice(slot);
                     return Map.<String, Object>ofEntries(
                             Map.entry("slotId", slot.getSlotId()),
                             Map.entry("fieldId", slot.getField().getFieldId()),
@@ -148,94 +148,12 @@ public class FieldOperationService {
                             Map.entry("available", slot.getStatus() == SlotStatus.available && !reserved),
                             Map.entry("price", fieldPrice)
                     );
-                })
-                .toList();
-    }
-
-    /** UC-63: deterministic ranked suggestions over live availability. */
-    public List<Map<String, Object>> suggestSlots(LocalDate date, LocalTime preferredTime, Long fieldTypeId, BigDecimal maxPrice, Long customerId) {
-        LocalDate targetDate = date == null ? LocalDate.now().plusDays(1) : date;
-        if (targetDate.isBefore(LocalDate.now())) throw support.badRequest("Suggestion date cannot be in the past");
-        if (maxPrice != null && maxPrice.signum() < 0) throw support.badRequest("Maximum price cannot be negative");
-        slotGenerationService.ensureDate(targetDate);
-        AppUser customer = authenticatedSuggestionCustomer(customerId);
-        return support.slotRepository.findBySlotDate(targetDate).stream()
-                .filter(slot -> slot.getField().getStatus() == CommonStatus.active && slot.getStatus() == SlotStatus.available)
-                .filter(slot -> !support.bookingRepository.existsBySlotAndStatusIn(slot, DomainSupportService.ACTIVE_BOOKING_STATUSES))
-                .filter(slot -> fieldTypeId == null || Objects.equals(slot.getField().getFieldType().getFieldTypeId(), fieldTypeId))
-                .map(slot -> suggestionSummary(slot, preferredTime, maxPrice, customer))
-                .filter(item -> maxPrice == null || ((BigDecimal) item.get("price")).compareTo(maxPrice) <= 0)
-                .sorted(Comparator.<Map<String, Object>>comparingInt(item -> ((Number) item.get("score")).intValue()).reversed()
-                        .thenComparing(item -> (String) item.get("startTime")))
-                .limit(8)
-                .toList();
-    }
-
-    private AppUser authenticatedSuggestionCustomer(Long customerId) {
-        if (customerId == null) return null;
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !(authentication.getPrincipal() instanceof SecurityUser user)
-                || !Objects.equals(user.getAppUser().getUserId(), customerId)
-                || !"Customer".equalsIgnoreCase(user.getAppUser().getRole().getRoleName())) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "Customer suggestions can only use your own membership");
-        }
-        return user.getAppUser();
-    }
-
-    private Map<String, Object> suggestionSummary(Slot slot, LocalTime preferredTime, BigDecimal maxPrice, AppUser customer) {
-        BigDecimal price = support.calculateFieldPrice(slot);
-        List<String> reasons = new java.util.ArrayList<>();
-        int score = 100;
-        reasons.add("Available " + slot.getSlotDate() + " at " + slot.getStartTime());
-        if (preferredTime != null) {
-            long minutesAway = Math.abs(java.time.Duration.between(preferredTime, slot.getStartTime()).toMinutes());
-            score -= (int) Math.min(45, minutesAway / 10);
-            if (minutesAway <= 30) reasons.add("Matches your preferred time");
-        }
-        if (maxPrice != null) {
-            score += 10;
-            reasons.add("Within your budget");
-        }
-        List<String> promotionCodes = eligiblePromotionCodes(slot, customer, price);
-        if (!promotionCodes.isEmpty()) {
-            score += 15;
-            reasons.add("Eligible promotion: " + String.join(", ", promotionCodes));
-        }
-        return Map.<String, Object>ofEntries(
-                Map.entry("slotId", slot.getSlotId()), Map.entry("fieldId", slot.getField().getFieldId()),
-                Map.entry("fieldName", slot.getField().getFieldName()), Map.entry("fieldType", slot.getField().getFieldType().getTypeName()),
-                Map.entry("slotDate", slot.getSlotDate().toString()), Map.entry("startTime", slot.getStartTime().toString()),
-                Map.entry("endTime", slot.getEndTime().toString()), Map.entry("price", price), Map.entry("score", score),
-                Map.entry("reasons", reasons), Map.entry("eligiblePromotionCodes", promotionCodes)
-        );
-    }
-
-    private List<String> eligiblePromotionCodes(Slot slot, AppUser customer, BigDecimal price) {
-        String dayType = switch (slot.getSlotDate().getDayOfWeek()) {
-            case SATURDAY, SUNDAY -> "weekend";
-            default -> "weekday";
-        };
-        LocalDate date = slot.getSlotDate();
-        return support.promotionRepository.findByStatus(CommonStatus.active).stream()
-                .filter(promotion -> !date.isBefore(promotion.getStartDate()) && !date.isAfter(promotion.getEndDate()))
-                .filter(promotion -> promotion.getUsageLimit() == null || promotion.getUsedCount() < promotion.getUsageLimit())
-                .filter(promotion -> promotion.getMinBookingAmount() == null || price.compareTo(promotion.getMinBookingAmount()) >= 0)
-                .filter(promotion -> promotion.getApplicableFieldType() == null || Objects.equals(
-                        promotion.getApplicableFieldType().getFieldTypeId(), slot.getField().getFieldType().getFieldTypeId()))
-                .filter(promotion -> promotion.getApplicableExtraService() == null)
-                .filter(promotion -> promotion.getApplicableMembershipLevel() == null || (customer != null && Objects.equals(
-                        support.resolveEligibleMembershipLevel(customer, slot.getSlotDate()).getMembershipLevelId(),
-                        promotion.getApplicableMembershipLevel().getMembershipLevelId())))
-                .filter(promotion -> support.isBlank(promotion.getApplicableDayType()) || "all".equalsIgnoreCase(promotion.getApplicableDayType())
-                        || dayType.equalsIgnoreCase(promotion.getApplicableDayType()))
-                .filter(promotion -> promotion.getApplicableStartTime() == null || (!slot.getStartTime().isBefore(promotion.getApplicableStartTime())
-                        && !slot.getEndTime().isAfter(promotion.getApplicableEndTime())))
-                .map(Promotion::getPromotionCode)
+                }))
                 .toList();
     }
 
     public Map<String, Object> blockSlot(ApiRequests.SlotBlock request) {
-        requireOperator();
+        requireCurrentStaff();
         if (request.slotDate() == null) throw support.badRequest("Slot date is required");
         if (request.slotDate().isBefore(LocalDate.now())) throw support.badRequest("Past slots cannot be blocked");
         support.requireText(request.startTime(), "Start time is required");
@@ -273,7 +191,7 @@ public class FieldOperationService {
     }
 
     public Map<String, Object> unblockSlot(Long slotId) {
-        requireOperator();
+        requireCurrentStaff();
         Slot slot = support.getSlot(slotId);
         if (slot.getStatus() != SlotStatus.blocked) {
             throw support.badRequest("Only blocked slots can be unblocked");
@@ -286,7 +204,7 @@ public class FieldOperationService {
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> operationCalendar(LocalDate date) {
-        requireOperator();
+        requireCurrentStaff();
         LocalDate targetDate = date == null ? LocalDate.now() : date;
         slotGenerationService.ensureDate(targetDate);
         Map<Long, Booking> bookingsBySlot = support.bookingRepository.findBySlot_SlotDateOrderBySlot_StartTimeAsc(targetDate).stream()
@@ -333,42 +251,59 @@ public class FieldOperationService {
 
     public Map<String, Object> createIssue(ApiRequests.IssueCreate request) {
         support.requireText(request.title(), "Issue title is required");
+        support.requireText(request.description(), "Issue description is required");
         AppUser reporter = currentUser();
-        if (request.reporterId() != null && !Objects.equals(request.reporterId(), reporter.getUserId()) && !isOperator()) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "You can only report issues under your own account");
+        if (!isStaff(reporter) && !"Customer".equalsIgnoreCase(reporter.getRole().getRoleName())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Only customers or venue staff can report an issue");
         }
         Issue issue = new Issue();
         issue.setReporter(reporter);
+        Booking relatedBooking = null;
         if (request.bookingId() != null) {
-            Booking booking = support.getBooking(request.bookingId());
-            if (!isOperator() && !Objects.equals(booking.getCustomer().getUserId(), reporter.getUserId())) {
+            relatedBooking = support.getBooking(request.bookingId());
+            Long ownerId = relatedBooking.getCustomer() == null ? null : relatedBooking.getCustomer().getUserId();
+            if (!isOperator() && !Objects.equals(ownerId, reporter.getUserId())) {
                 throw new ApiException(HttpStatus.FORBIDDEN, "You can only report issues for your own booking");
             }
-            issue.setBooking(booking);
+            issue.setBooking(relatedBooking);
         }
         if (request.fieldId() != null) {
-            issue.setField(support.getField(request.fieldId()));
+            FootballField field = support.getField(request.fieldId());
+            if (relatedBooking != null && !Objects.equals(
+                    relatedBooking.getSlot().getField().getFieldId(), field.getFieldId())) {
+                throw support.badRequest("The selected field does not belong to the related booking");
+            }
+            issue.setField(field);
         }
         if (request.extraServiceId() != null) {
-            issue.setExtraService(support.getExtraService(request.extraServiceId()));
+            ExtraService service = support.getExtraService(request.extraServiceId());
+            if (relatedBooking != null && support.bookingServiceItemRepository
+                    .findByBooking_BookingId(relatedBooking.getBookingId()).stream()
+                    .noneMatch(item -> Objects.equals(item.getExtraService().getExtraServiceId(), service.getExtraServiceId()))) {
+                throw support.badRequest("The selected service does not belong to the related booking");
+            }
+            issue.setExtraService(service);
         }
-        if (request.assignedStaffId() != null) {
-            requireOperator();
-            issue.setAssignedStaff(requireStaff(request.assignedStaffId()));
+        if (isStaff(reporter)) {
+            issue.setAssignedStaff(reporter);
         }
-        issue.setTitle(request.title());
-        issue.setDescription(request.description());
+        issue.setTitle(support.clean(request.title()));
+        issue.setDescription(support.clean(request.description()));
         return support.issueSummary(support.issueRepository.save(issue));
     }
 
     // Backlog owner: BaoNG - UC-23 Resolve field/service issue.
     public Map<String, Object> updateIssueStatus(Long issueId, ApiRequests.IssueStatusUpdate request) {
-        requireOperator();
+        AppUser operator = currentUser();
+        if (!isStaff(operator)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Venue staff access is required to handle issues");
+        }
         Issue issue = support.issueRepository.findById(issueId)
                 .orElseThrow(() -> support.notFound("Issue not found"));
         IssueStatus nextStatus = support.parseEnum(IssueStatus.class, request.status(), issue.getStatus());
-        if (request.assignedStaffId() != null) {
-            issue.setAssignedStaff(requireStaff(request.assignedStaffId()));
+        requireValidIssueTransition(issue.getStatus(), nextStatus);
+        if (issue.getAssignedStaff() == null) {
+            issue.setAssignedStaff(operator);
         }
 
         String resolutionNote = support.clean(request.resolutionNote());
@@ -393,8 +328,12 @@ public class FieldOperationService {
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> issues() {
-        requireOperator();
+        AppUser requester = currentUser();
+        boolean operator = "Staff".equalsIgnoreCase(requester.getRole().getRoleName())
+                || "Admin".equalsIgnoreCase(requester.getRole().getRoleName());
         return support.issueRepository.findAllByOrderByIssueIdDesc().stream()
+                .filter(issue -> operator
+                        || issue.getReporter().getUserId().equals(requester.getUserId()))
                 .map(support::issueSummary)
                 .toList();
     }
@@ -412,14 +351,29 @@ public class FieldOperationService {
         return "Staff".equalsIgnoreCase(role) || "Admin".equalsIgnoreCase(role);
     }
 
+    private boolean isStaff(AppUser user) {
+        return "Staff".equalsIgnoreCase(user.getRole().getRoleName());
+    }
+
+    private void requireValidIssueTransition(IssueStatus current, IssueStatus next) {
+        boolean valid = switch (current) {
+            case open -> next == IssueStatus.in_progress || next == IssueStatus.resolved || next == IssueStatus.rejected;
+            case in_progress -> next == IssueStatus.resolved || next == IssueStatus.rejected;
+            case resolved, rejected -> false;
+        };
+        if (!valid) {
+            throw support.badRequest("Issue cannot change from " + current + " to " + next);
+        }
+    }
+
     private void requireOperator() {
         if (!isOperator()) throw new ApiException(HttpStatus.FORBIDDEN, "Staff or administrator access is required");
     }
 
-    private AppUser requireStaff(Long userId) {
-        AppUser user = support.getUser(userId);
-        if (!"Staff".equalsIgnoreCase(user.getRole().getRoleName())) {
-            throw support.badRequest("Issues can only be assigned to a staff account");
+    private AppUser requireCurrentStaff() {
+        AppUser user = currentUser();
+        if (!isStaff(user)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Venue staff access is required");
         }
         return user;
     }
@@ -534,8 +488,10 @@ public class FieldOperationService {
                 .flatMap(date -> support.slotRepository.findBySlotDate(date).stream())
                 .filter(slot -> Objects.equals(slot.getField().getFieldId(), fieldId))
                 .filter(slot -> slot.getField().getStatus() == CommonStatus.active)
+                .filter(support::isSlotStartInFuture)
                 .filter(slot -> slot.getStatus() == SlotStatus.available)
                 .filter(slot -> !support.bookingRepository.existsBySlotAndStatusIn(slot, DomainSupportService.ACTIVE_BOOKING_STATUSES))
+                .filter(slot -> support.findFieldPrice(slot).isPresent())
                 .sorted(Comparator.comparing(Slot::getSlotDate).thenComparing(Slot::getStartTime))
                 .limit(5)
                 .map(slot -> Map.<String, Object>ofEntries(

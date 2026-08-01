@@ -1,0 +1,108 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Customer" as User
+participant "BookingPage" as UI
+participant "App.jsx" as App
+participant "FieldOperationController" as Controller
+participant "FieldOperationService" as Service
+participant "SlotGenerationService" as Generator
+participant "SystemSetting / Field / Slot Repositories" as Repo
+database "Database" as DB
+
+== UC-12: Search Available Fields by Date and Type ==
+
+User -> UI : 1. Choose date and field type
+activate User
+activate UI
+
+UI -> App : 2. loadSlots()
+activate App
+
+App -> App : 3. Validate UI state and build request
+activate App
+deactivate App
+
+App -> Controller : 4. GET /api/slots/search?date&fieldTypeId
+activate Controller
+
+Controller -> Service : 5. searchSlots(date, fieldTypeId)
+activate Service
+
+alt Request is valid and authorized
+  Service -> Generator : 6. ensureDate(targetDate)
+  activate Generator
+  Generator -> Repo : 7. Load generation rules,\nactive fields and existing slots
+  activate Repo
+
+  Repo -> DB : 8. SELECT system_setting, field and slot
+  activate DB
+  DB --> Repo : 9. Rules and current calendar rows
+  deactivate DB
+
+  Repo --> Generator : 10. Repository result
+  deactivate Repo
+
+  Generator -> Repo : 11. saveAll(missing available slots)
+  activate Repo
+  Repo -> DB : 12. INSERT non-overlapping generated slots
+  activate DB
+  DB --> Repo : 13. Persisted rows
+  deactivate DB
+  Repo --> Generator : 14. Created count
+  deactivate Repo
+  Generator --> Service : 15. Date materialized
+  deactivate Generator
+
+  Service -> Repo : 16. findBySlotDate; check active bookings
+  activate Repo
+  Repo -> DB : 17. SELECT slots and booking state
+  activate DB
+  DB --> Repo : 18. Slots with reservation flags
+  deactivate DB
+  Repo --> Service : 19. Repository result
+  deactivate Repo
+
+  Service -> Service : 20. Filter type; calculate price\nand available flag
+  activate Service
+  deactivate Service
+else Validation, authorization, or state rule fails
+  note over Service,Controller
+    API failure -> no search results and error notice
+    The service propagates ApiException to ApiExceptionHandler.
+  end note
+end
+
+Service --> Controller : 21. Domain result or propagated error
+deactivate Service
+
+Controller -> Controller : 22. Serialize response
+activate Controller
+deactivate Controller
+
+Controller --> App : 23. HTTP 200 or mapped 4xx\nresponse body or error payload
+deactivate Controller
+
+App -> App : 24. setSlots(response.data)
+activate App
+deactivate App
+
+App --> UI : 25. Render matching slot list
+deactivate App
+
+UI --> User : 26. Updated screen or error feedback
+
+deactivate UI
+deactivate User
+
+@enduml

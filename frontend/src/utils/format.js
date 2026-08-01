@@ -25,9 +25,21 @@ export const formatTime = value => String(value || '').slice(0, 5)
 
 export const formatTimeRange = (startTime, endTime) => `${formatTime(startTime)} - ${formatTime(endTime)}`
 
+export const humanizeStatus = value => String(value || 'unknown')
+  .replaceAll('_', ' ')
+  .replace(/\b\w/g, character => character.toUpperCase())
+
+export const paymentMethodLabel = value => {
+  if (value === 'paypal_sandbox') return 'PayPal'
+  if (value === 'cash') return 'Cash'
+  if (value === 'bank_transfer') return 'Bank transfer'
+  if (value === 'online_sandbox') return 'Online sandbox'
+  return humanizeStatus(value)
+}
+
 export const formatDateTime = value => {
   if (!value) return 'Pending'
-  return new Intl.DateTimeFormat('vi-VN', {
+  return new Intl.DateTimeFormat('en-US', {
     dateStyle: 'medium',
     timeStyle: 'short'
   }).format(new Date(value))

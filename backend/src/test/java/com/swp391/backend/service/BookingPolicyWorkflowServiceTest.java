@@ -10,6 +10,7 @@ import com.swp391.backend.enums.SlotStatus;
 import com.swp391.backend.repository.AppUserRepository;
 import com.swp391.backend.repository.BookingRepository;
 import com.swp391.backend.repository.ExtraServiceRepository;
+import com.swp391.backend.repository.PromotionRepository;
 import com.swp391.backend.repository.SlotRepository;
 import com.swp391.backend.security.SecurityUser;
 import org.junit.jupiter.api.AfterEach;
@@ -38,10 +39,11 @@ class BookingPolicyWorkflowServiceTest {
     @Autowired private ExtraServiceRepository extraServiceRepository;
     @Autowired private DomainSupportService support;
     @Autowired private PromotionReportService promotionReportService;
+    @Autowired private PromotionRepository promotionRepository;
 
     @BeforeEach
     void signInAsAdminForProtectedWorkflowCalls() {
-        authenticate(userRepository.findByEmail("admin@goalzone.local").orElseThrow());
+        authenticate(userRepository.findByEmail("staff@goalzone.local").orElseThrow());
     }
 
     private void authenticate(AppUser user) {
@@ -64,7 +66,7 @@ class BookingPolicyWorkflowServiceTest {
         Slot replacement = availableSlotExcept(oldSlotId);
 
         Map<String, Object> detail = bookingWorkflowService.reschedule(bookingId,
-                new ApiRequests.BookingReschedule(replacement.getSlotId(), null, "Customer changed plans"));
+                new ApiRequests.BookingReschedule(replacement.getSlotId(), "Customer changed plans"));
 
         assertThat(detail.get("slotId")).isEqualTo(replacement.getSlotId());
         Booking saved = bookingRepository.findById(bookingId).orElseThrow();
@@ -79,14 +81,14 @@ class BookingPolicyWorkflowServiceTest {
         Long bookingId = ((Number) created.get("bookingId")).longValue();
         Long oldSlotId = ((Number) created.get("slotId")).longValue();
         BigDecimal originalFieldPrice = (BigDecimal) created.get("fieldPriceAmount");
-        AppUser customer = userRepository.findByEmail("customer@goalzone.local").orElseThrow();
+        authenticate(userRepository.findByEmail("staff@goalzone.local").orElseThrow());
         Map<String, Object> paidDetail = paymentWorkflowService.capturePayment(new ApiRequests.PaymentCapture(
-                bookingId, customer.getUserId(), "deposit", "cash", null, true));
+                bookingId, "deposit", "cash", null, true));
         BigDecimal paidBeforeReschedule = (BigDecimal) paidDetail.get("paidAmount");
         Slot replacement = availableSlotWithDifferentPrice(oldSlotId, originalFieldPrice);
 
         Map<String, Object> detail = bookingWorkflowService.reschedule(bookingId,
-                new ApiRequests.BookingReschedule(replacement.getSlotId(), null, "Move to a differently priced slot"));
+                new ApiRequests.BookingReschedule(replacement.getSlotId(), "Move to a differently priced slot"));
 
         BigDecimal newTotal = (BigDecimal) detail.get("totalAmount");
         BigDecimal expectedRemaining = newTotal.subtract(paidBeforeReschedule).max(BigDecimal.ZERO).setScale(2);
@@ -102,23 +104,24 @@ class BookingPolicyWorkflowServiceTest {
         Map<String, Object> created = createBooking();
         Long bookingId = ((Number) created.get("bookingId")).longValue();
         AppUser customer = userRepository.findByEmail("customer@goalzone.local").orElseThrow();
-        Map<String, Object> paid = paymentWorkflowService.capturePayment(new ApiRequests.PaymentCapture(bookingId, customer.getUserId(),
+        authenticate(userRepository.findByEmail("staff@goalzone.local").orElseThrow());
+        Map<String, Object> paid = paymentWorkflowService.capturePayment(new ApiRequests.PaymentCapture(bookingId,
                 "deposit", "cash", null, true));
-        bookingWorkflowService.updateBookingStatus(bookingId, new ApiRequests.BookingStatusUpdate("cancelled", null, "Test cancellation"));
+        bookingWorkflowService.updateBookingStatus(bookingId, new ApiRequests.BookingStatusUpdate("cancelled", "Test cancellation"));
 
         authenticate(customer);
         Map<String, Object> refund = paymentWorkflowService.createRefund(new ApiRequests.RefundCreate(
-                bookingId, null, customer.getUserId(), null, null, "Test request", false));
+                bookingId, null, null, "Test request"));
         assertThat(refund.get("status")).isEqualTo("requested");
 
-        authenticate(userRepository.findByEmail("admin@goalzone.local").orElseThrow());
+        authenticate(userRepository.findByEmail("staff@goalzone.local").orElseThrow());
         Map<String, Object> approved = paymentWorkflowService.updateRefundStatus(
                 ((Number) refund.get("refundId")).longValue(),
-                new ApiRequests.RefundStatusUpdate("approved", customer.getUserId(), "Reviewed"));
+                new ApiRequests.RefundStatusUpdate("approved", "Reviewed"));
         assertThat(approved.get("status")).isEqualTo("approved");
         Map<String, Object> completed = paymentWorkflowService.updateRefundStatus(
                 ((Number) refund.get("refundId")).longValue(),
-                new ApiRequests.RefundStatusUpdate("completed", customer.getUserId(), "Provider completed"));
+                new ApiRequests.RefundStatusUpdate("completed", "Provider completed"));
         assertThat(completed.get("status")).isEqualTo("completed");
         assertThat(completed.get("paymentMethod")).isEqualTo("cash");
         assertThat(completed.get("providerStatus")).isEqualTo("MANUAL_CASH_REFUND");
@@ -133,8 +136,9 @@ class BookingPolicyWorkflowServiceTest {
         Map<String, Object> created = createBooking();
         Long bookingId = ((Number) created.get("bookingId")).longValue();
         AppUser customer = userRepository.findByEmail("customer@goalzone.local").orElseThrow();
+        authenticate(userRepository.findByEmail("staff@goalzone.local").orElseThrow());
         Map<String, Object> paid = paymentWorkflowService.capturePayment(new ApiRequests.PaymentCapture(
-                bookingId, customer.getUserId(), "full", "cash", null, true));
+                bookingId, "full", "cash", null, true));
         BigDecimal grossPaid = (BigDecimal) paid.get("paidAmount");
         BigDecimal firstAmount = grossPaid.divide(BigDecimal.valueOf(2)).setScale(2, java.math.RoundingMode.HALF_UP);
         Booking booking = bookingRepository.findById(bookingId).orElseThrow();
@@ -143,16 +147,16 @@ class BookingPolicyWorkflowServiceTest {
 
         authenticate(customer);
         Map<String, Object> first = paymentWorkflowService.createRefund(new ApiRequests.RefundCreate(
-                bookingId, null, customer.getUserId(), null, firstAmount, "First partial refund", false));
-        authenticate(userRepository.findByEmail("admin@goalzone.local").orElseThrow());
+                bookingId, null, firstAmount, "First partial refund"));
+        authenticate(userRepository.findByEmail("staff@goalzone.local").orElseThrow());
         paymentWorkflowService.updateRefundStatus(((Number) first.get("refundId")).longValue(),
-                new ApiRequests.RefundStatusUpdate("approved", null, "Approved"));
+                new ApiRequests.RefundStatusUpdate("approved", "Approved"));
         paymentWorkflowService.updateRefundStatus(((Number) first.get("refundId")).longValue(),
-                new ApiRequests.RefundStatusUpdate("completed", null, "Cash returned"));
+                new ApiRequests.RefundStatusUpdate("completed", "Cash returned"));
 
         authenticate(customer);
         Map<String, Object> second = paymentWorkflowService.createRefund(new ApiRequests.RefundCreate(
-                bookingId, null, customer.getUserId(), null, null, "Remaining refund", false));
+                bookingId, null, null, "Remaining refund"));
 
         assertThat(second.get("refundAmount"))
                 .isEqualTo(grossPaid.subtract(firstAmount).setScale(2));
@@ -169,6 +173,7 @@ class BookingPolicyWorkflowServiceTest {
 
         Map<String, Object> capped = promotionReportService.createPromotion(promotionRequest(
                 "CAPTOTAL", new BigDecimal("999"), true, slot));
+        authenticate(customer);
         Map<String, Object> cappedPreview = bookingWorkflowService.previewCheckout(new ApiRequests.PromotionApply(
                 customer.getUserId(), slot.getSlotId(), (String) capped.get("promotionCode"), "online", List.of()));
         BigDecimal subtotal = ((BigDecimal) cappedPreview.get("fieldPriceAmount"))
@@ -177,17 +182,49 @@ class BookingPolicyWorkflowServiceTest {
         assertThat(cappedPreview.get("membershipDiscountAmount")).isEqualTo(BigDecimal.ZERO.setScale(2));
         assertThat(cappedPreview.get("totalAmount")).isEqualTo(BigDecimal.ZERO.setScale(2));
 
+        authenticate(userRepository.findByEmail("admin@goalzone.local").orElseThrow());
         Map<String, Object> exclusive = promotionReportService.createPromotion(promotionRequest(
                 "EXCLUSIVE", BigDecimal.ONE, false, slot));
+        authenticate(customer);
         Map<String, Object> exclusivePreview = bookingWorkflowService.previewCheckout(new ApiRequests.PromotionApply(
                 customer.getUserId(), slot.getSlotId(), (String) exclusive.get("promotionCode"), "online", List.of()));
         assertThat(exclusivePreview.get("membershipDiscountAmount")).isEqualTo(BigDecimal.ZERO.setScale(2));
 
+        authenticate(userRepository.findByEmail("admin@goalzone.local").orElseThrow());
         Map<String, Object> stackable = promotionReportService.createPromotion(promotionRequest(
                 "STACKABLE", BigDecimal.ONE, true, slot));
+        authenticate(customer);
         Map<String, Object> stackablePreview = bookingWorkflowService.previewCheckout(new ApiRequests.PromotionApply(
                 customer.getUserId(), slot.getSlotId(), (String) stackable.get("promotionCode"), "online", List.of()));
         assertThat((BigDecimal) stackablePreview.get("membershipDiscountAmount")).isGreaterThan(BigDecimal.ZERO);
+    }
+
+    @Test
+    void promotionUsageIsReservedWhilePendingAndReleasedOnCancellation() {
+        AppUser admin = userRepository.findByEmail("admin@goalzone.local").orElseThrow();
+        AppUser customer = userRepository.findByEmail("customer@goalzone.local").orElseThrow();
+        AppUser staff = userRepository.findByEmail("staff@goalzone.local").orElseThrow();
+        Slot slot = availableSlotExcept(null);
+
+        authenticate(admin);
+        Map<String, Object> promotion = promotionReportService.createPromotion(promotionRequest(
+                "COUNTCONF", BigDecimal.ONE, true, slot));
+        String code = (String) promotion.get("promotionCode");
+
+        authenticate(customer);
+        Map<String, Object> created = bookingWorkflowService.createBooking(new ApiRequests.BookingCreate(
+                customer.getUserId(), slot.getSlotId(), "online", code, List.of(), "Count on confirmation"));
+        Long bookingId = ((Number) created.get("bookingId")).longValue();
+        assertThat(promotionRepository.findByPromotionCodeIgnoreCase(code).orElseThrow().getUsedCount()).isEqualTo(1);
+
+        authenticate(staff);
+        paymentWorkflowService.capturePayment(new ApiRequests.PaymentCapture(
+                bookingId, "deposit", "cash", null, true));
+        assertThat(promotionRepository.findByPromotionCodeIgnoreCase(code).orElseThrow().getUsedCount()).isEqualTo(1);
+
+        bookingWorkflowService.updateBookingStatus(bookingId,
+                new ApiRequests.BookingStatusUpdate("cancelled", "Release promotion usage"));
+        assertThat(promotionRepository.findByPromotionCodeIgnoreCase(code).orElseThrow().getUsedCount()).isZero();
     }
 
     @Test
@@ -215,9 +252,8 @@ class BookingPolicyWorkflowServiceTest {
         AppUser customer = userRepository.findByEmail("customer@goalzone.local").orElseThrow();
         Slot slot = availableSlotExcept(null);
         authenticate(customer);
-        Map<String, Object> booking = bookingWorkflowService.createBooking(new ApiRequests.BookingCreate(customer.getUserId(), null,
+        Map<String, Object> booking = bookingWorkflowService.createBooking(new ApiRequests.BookingCreate(customer.getUserId(),
                 slot.getSlotId(), "online", null, List.of(), "Policy workflow test"));
-        authenticate(userRepository.findByEmail("admin@goalzone.local").orElseThrow());
         return booking;
     }
 

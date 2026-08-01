@@ -1,11 +1,11 @@
 import { formatMoney } from '../../../utils/format'
 
-export function ServicePicker({ services, selectedServices, setSelectedServices }) {
+export function ServicePicker({ services, selectedServices, setSelectedServices, disabled = false }) {
   return (
-    <div className="serviceBlock">
+    <div className={disabled ? 'serviceBlock disabledStep' : 'serviceBlock'}>
       <div className="bookingStepHeader">
         <div><span>Step 2</span><h3>Add services</h3></div>
-        <p>Optional</p>
+        <p>{disabled ? 'Choose a time first' : 'Optional'}</p>
       </div>
       <div className="serviceGrid">
         {services.map(service => (
@@ -18,6 +18,7 @@ export function ServicePicker({ services, selectedServices, setSelectedServices 
               type="number"
               min="0"
               max={service.maxQuantityPerBooking || 5}
+              disabled={disabled}
               value={selectedServices[service.extraServiceId] || 0}
               onChange={event => setSelectedServices({
                 ...selectedServices,

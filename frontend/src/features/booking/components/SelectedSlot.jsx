@@ -1,5 +1,5 @@
 import { Clock } from 'lucide-react'
-import { formatMoney, formatTimeRange } from '../../../utils/format'
+import { formatDate, formatMoney, formatTimeRange } from '../../../utils/format'
 
 export function SelectedSlot({ slot }) {
   if (!slot) return <p className="emptyText">Select an available slot first.</p>
@@ -8,7 +8,7 @@ export function SelectedSlot({ slot }) {
       <Clock size={18} />
       <div>
         <strong>{slot.fieldName}</strong>
-        <p>{slot.slotDate} · {formatTimeRange(slot.startTime, slot.endTime)}</p>
+        <p>{formatDate(slot.slotDate)} · {formatTimeRange(slot.startTime, slot.endTime)}</p>
       </div>
       <span>{formatMoney(slot.price)}</span>
     </div>

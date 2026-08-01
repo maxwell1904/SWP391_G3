@@ -2,7 +2,7 @@ import { Badge, Group, Paper, SimpleGrid, Text, Title } from '@mantine/core'
 
 export function WorkspaceHeader({ kicker, title, text, status, metrics = [] }) {
   return (
-    <Paper className="workspaceHeader" withBorder shadow="xs">
+    <Paper className="workspaceHeader" withBorder>
       <div className="workspaceIntro">
         <span>{kicker}</span>
         <Title order={2}>{title}</Title>

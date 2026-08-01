@@ -1,0 +1,78 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Admin" as User
+participant "AdminPage" as UI
+participant "AccountController" as Controller
+participant "AccountService" as Service
+participant "BookingRepository / IssueRepository" as Repo
+database "Database" as DB
+
+== UC-10: View customer activity ==
+
+User -> UI : 1. Open People & access and choose View
+activate User
+activate UI
+
+UI -> Controller : 2. GET /api/account/users/{userId}/activity
+activate Controller
+
+Controller -> Service : 3. activity(userId)
+activate Service
+
+Service -> Service : 4. requireAdmin()
+activate Service
+deactivate Service
+
+alt Request is valid and authorized
+  Service -> Repo : 5. findByCustomer...; findAllByOrderByIssueIdDesc()
+  activate Repo
+
+  Repo -> DB : 6. SELECT booking and issue by customer
+  activate DB
+  DB --> Repo : 7. Recent bookings and reported issues
+  deactivate DB
+
+  Repo --> Service : 8. Repository result
+  deactivate Repo
+
+  Service -> Service : 9. Count completed bookings; build activity summary
+  activate Service
+  deactivate Service
+else Validation, authorization, or state rule fails
+  note over Service,Controller
+    Non-Admin request -> HTTP 403
+    The service propagates ApiException to ApiExceptionHandler.
+  end note
+end
+
+Service --> Controller : 10. Domain result or propagated error
+deactivate Service
+
+Controller -> Controller : 11. Serialize response
+activate Controller
+deactivate Controller
+
+Controller --> UI : 12. HTTP 200 or mapped 4xx\nresponse body or error payload
+deactivate Controller
+
+UI -> UI : 13. setCustomerActivity(response.data)
+activate UI
+deactivate UI
+
+UI --> User : 14. Show read-only profile, counts and recent records
+
+deactivate UI
+deactivate User
+
+@enduml

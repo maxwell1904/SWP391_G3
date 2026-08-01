@@ -5,7 +5,7 @@ export function DataList({ items }) {
   return (
     <div className="dataList">
       {items.map((item, index) => (
-        <div className="dataRow" key={`${item.title}-${index}`}>
+        <div className={`dataRow${item.wrapMeta ? ' dataRowWrap' : ''}`} key={`${item.title}-${index}`}>
           <span>
             <strong>{item.title}</strong>
             <small>{item.meta}</small>

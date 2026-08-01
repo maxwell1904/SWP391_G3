@@ -1,0 +1,103 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Staff" as Actor
+participant "StaffPage" as UI
+participant "App.jsx" as App
+participant "PaymentController" as Controller
+participant "PaymentWorkflowService" as Service
+participant "DomainSupportService" as Support
+participant "BookingRepository" as BookingRepo
+participant "PaymentRepository" as PaymentRepo
+participant "InvoiceRepository" as InvoiceRepo
+database "Database" as DB
+
+== Confirm remaining payment ==
+
+Actor -> UI : 1. Click Record remaining cash
+activate Actor
+activate UI
+
+UI -> App : 2. capturePayment('remaining')
+activate App
+
+App -> Controller : 3. POST /api/payments/capture\n{bookingId, paymentOption:'remaining', paymentMethod:'cash'}
+activate Controller
+
+Controller -> Service : 4. capturePayment(request)
+activate Service
+
+Service -> Support : 5. getBooking(bookingId)
+activate Support
+
+Support -> BookingRepo : 6. findById(bookingId)
+activate BookingRepo
+
+BookingRepo -> DB : 7. SELECT booking WHERE booking_id = ?
+activate DB
+DB --> BookingRepo : 8. Booking row
+deactivate DB
+BookingRepo --> Support : 9. Optional<Booking>
+deactivate BookingRepo
+Support --> Service : 10. Booking
+deactivate Support
+
+Service -> Service : 11. Require Staff\npayableAmount(remaining)\namount must match
+activate Service
+deactivate Service
+
+alt Validation fails
+  Service -> Service : 12. Build ApiException
+  activate Service
+  deactivate Service
+else Validation succeeds
+  Service -> PaymentRepo : 12. save(payment)
+  activate PaymentRepo
+  PaymentRepo -> DB : 13. INSERT payment; UPDATE managed booking
+  activate DB
+  DB --> PaymentRepo : 14. Saved payment
+  deactivate DB
+  PaymentRepo --> Service : 15. Payment
+  deactivate PaymentRepo
+  Service -> Support : 16. generateInvoice(booking)
+  activate Support
+  Support -> InvoiceRepo : 17. findByBooking_BookingId(bookingId)
+  activate InvoiceRepo
+  InvoiceRepo -> DB : 18. SELECT then INSERT/UPDATE invoice
+  activate DB
+  DB --> InvoiceRepo : 19. saved invoice
+  deactivate DB
+  InvoiceRepo --> Support : 20. Invoice
+  deactivate InvoiceRepo
+  Support --> Service : 21. invoice synchronized
+  deactivate Support
+end
+
+Service --> Controller : 22. bookingDetail or error
+deactivate Service
+
+Controller --> App : 23. HTTP response
+deactivate Controller
+
+App -> App : 24. refreshAll()
+activate App
+deactivate App
+
+App --> UI : 25. Refresh payment and invoice data
+deactivate App
+
+UI --> Actor : 26. Show remaining balance paid
+deactivate UI
+deactivate Actor
+
+@enduml

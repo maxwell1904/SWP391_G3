@@ -1,0 +1,83 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Staff" as Actor
+participant "StaffPage" as UI
+participant "App.jsx" as App
+participant "BookingController" as Controller
+participant "BookingWorkflowService" as Service
+participant "BookingRepository" as Repo
+database "Database" as DB
+
+== UC-32: Complete booking ==
+
+Actor -> UI : 1. Click Complete
+activate Actor
+activate UI
+
+UI -> App : 2. updateBooking('completed')
+activate App
+
+App -> Controller : 3. PUT /api/bookings/{bookingId}/status\n{status:'completed'}
+activate Controller
+
+Controller -> Service : 4. updateBookingStatus(bookingId, request)
+activate Service
+
+Service -> Repo : 5. findById(bookingId)
+activate Repo
+
+Repo -> DB : 6. SELECT booking WHERE booking_id = ?
+activate DB
+DB --> Repo : 7. Current record(s)
+deactivate DB
+Repo --> Service : 8. Domain object(s)
+deactivate Repo
+
+Service -> Service : 9. Require Venue Staff; checked_in -> completed\nstart time reached; remaining balance is zero\nupdateMembershipProgress(); generateInvoice()
+activate Service
+deactivate Service
+
+alt Validation fails
+  Service -> Service : 10. Build ApiException
+  activate Service
+  deactivate Service
+else Validation succeeds
+  Service -> Repo : 10. save booking, membership and invoice
+  activate Repo
+  Repo -> DB : 11. UPDATE booking; UPSERT customer_membership; UPSERT invoice
+  activate DB
+  DB --> Repo : 12. Saved row(s)
+  deactivate DB
+  Repo --> Service : 13. Saved domain object
+  deactivate Repo
+end
+
+Service --> Controller : 14. bookingDetail or error
+deactivate Service
+
+Controller --> App : 15. HTTP response
+deactivate Controller
+
+App -> App : 16. refreshAll()
+activate App
+deactivate App
+
+App --> UI : 17. Refresh booking, invoice and reports
+deactivate App
+
+UI --> Actor : 18. Show completed status
+deactivate UI
+deactivate Actor
+
+@enduml

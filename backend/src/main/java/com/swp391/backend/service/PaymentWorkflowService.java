@@ -33,10 +33,45 @@ public class PaymentWorkflowService {
         this.payPalCheckoutService = payPalCheckoutService;
     }
 
+    /**
+     * UC-25 counter checkout. The service transaction covers both booking
+     * creation and cash capture, so a capture failure cannot leave a newly
+     * confirmed unpaid booking behind.
+     */
+    public Map<String, Object> createWalkInAndCapture(ApiRequests.WalkInCheckout request) {
+        AppUser operator = currentUser();
+        if (!"Staff".equalsIgnoreCase(operator.getRole().getRoleName())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Venue staff access is required for walk-in checkout");
+        }
+        PaymentOption option = support.parseEnum(PaymentOption.class, request.paymentOption(), PaymentOption.deposit);
+        if (option != PaymentOption.deposit && option != PaymentOption.full) {
+            throw support.badRequest("Initial walk-in payment must be deposit or full");
+        }
+        Map<String, Object> booking = bookingWorkflowService.createBooking(new ApiRequests.BookingCreate(
+                request.customerId(),
+                request.guestName(),
+                request.guestPhone(),
+                request.guestEmail(),
+                request.slotId(),
+                BookingSource.walk_in.name(),
+                request.promotionCode(),
+                request.services(),
+                request.note()
+        ));
+        Long bookingId = ((Number) booking.get("bookingId")).longValue();
+        return capturePayment(new ApiRequests.PaymentCapture(
+                bookingId,
+                option.name(),
+                PaymentMethod.cash.name(),
+                null,
+                true
+        ));
+    }
+
     public Map<String, Object> capturePayment(ApiRequests.PaymentCapture request) {
         AppUser operator = currentUser();
-        if (!isOperator(operator)) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "Staff or administrator access is required for counter payments");
+        if (!"Staff".equalsIgnoreCase(operator.getRole().getRoleName())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Venue staff access is required for counter payments");
         }
         PaymentMethod method = support.parseEnum(PaymentMethod.class, request.paymentMethod(), PaymentMethod.cash);
         if (method != PaymentMethod.cash) {
@@ -63,6 +98,7 @@ public class PaymentWorkflowService {
         payment.setStatus(request.success() ? PaymentStatus.paid : PaymentStatus.failed);
         payment.setGatewayMessage(request.success() ? "Cash payment recorded at the venue" : "Cash payment could not be collected at the venue");
         payment.setTransactionCode("CASH-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        boolean newlyConfirmed = false;
         if (request.success()) {
             payment.setPaidAt(LocalDateTime.now());
             booking.setPaidAmount(support.money(booking.getPaidAmount().add(amount)));
@@ -70,8 +106,13 @@ public class PaymentWorkflowService {
             if (booking.getStatus() == BookingStatus.pending && booking.getPaidAmount().compareTo(booking.getDepositAmount()) >= 0) {
                 booking.setStatus(BookingStatus.confirmed);
                 booking.setConfirmedAt(LocalDateTime.now());
+                newlyConfirmed = true;
             }
             support.notifyUser(booking.getCustomer(), booking, NotificationType.payment, "Payment captured", "Payment was captured for " + booking.getBookingCode() + ".");
+            if (newlyConfirmed) {
+                support.notifyUser(booking.getCustomer(), booking, NotificationType.booking_confirmation,
+                        "Booking confirmed", "Your booking " + booking.getBookingCode() + " is confirmed.");
+            }
         }
         support.paymentRepository.save(payment);
         support.generateInvoice(booking);
@@ -109,15 +150,22 @@ public class PaymentWorkflowService {
     public Map<String, Object> createRefund(ApiRequests.RefundCreate request) {
         Booking booking = support.getBooking(request.bookingId());
         AppUser requester = currentUser();
-        if (!"Customer".equalsIgnoreCase(requester.getRole().getRoleName())) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "Refund requests must be submitted by the customer; staff review and process them");
-        }
-        if (!booking.getCustomer().getUserId().equals(requester.getUserId())) {
+        boolean owningCustomer = booking.getCustomer() != null
+                && "Customer".equalsIgnoreCase(requester.getRole().getRoleName())
+                && booking.getCustomer().getUserId().equals(requester.getUserId());
+        boolean guestWalkInHandledByStaff = booking.getCustomer() == null
+                && booking.getBookingSource() == BookingSource.walk_in
+                && "Staff".equalsIgnoreCase(requester.getRole().getRoleName());
+        if (!owningCustomer && !guestWalkInHandledByStaff) {
+            if (booking.getCustomer() != null && "Staff".equalsIgnoreCase(requester.getRole().getRoleName())) {
+                throw new ApiException(HttpStatus.FORBIDDEN, "Refund requests must be submitted by the customer; staff review and process them");
+            }
             throw new ApiException(HttpStatus.FORBIDDEN, "You can only request a refund for your own booking");
         }
         if (booking.getRefundableAmount().compareTo(BigDecimal.ZERO) <= 0) {
             throw support.badRequest("This booking has no refundable payment");
         }
+        support.requireText(request.refundReason(), "Refund reason is required");
         Refund refund = new Refund();
         refund.setBooking(booking);
         refund.setRefundCode("RF" + System.currentTimeMillis());
@@ -138,20 +186,17 @@ public class PaymentWorkflowService {
         }
         refund.setRefundAmount(requestedAmount);
         refund.setPayment(resolveRefundPayment(booking, request.paymentId(), requestedAmount));
-        refund.setRefundReason(request.refundReason());
+        refund.setRefundReason(support.clean(request.refundReason()));
         refund.setRequestedAt(LocalDateTime.now());
         Refund savedRefund = support.refundRepository.save(refund);
         support.notifyUser(booking.getCustomer(), booking, NotificationType.refund, "Refund requested",
                 "Your refund request " + savedRefund.getRefundCode() + " is awaiting staff review.");
-        if (request.approveNow() || request.processedById() != null) {
-            throw support.badRequest("Customers cannot approve or assign their own refund request");
-        }
         return support.refundSummary(savedRefund);
     }
 
     public Map<String, Object> updateRefundStatus(Long refundId, ApiRequests.RefundStatusUpdate request) {
-        if (!isOperator(currentUser())) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "Staff or administrator access is required");
+        if (!"Staff".equalsIgnoreCase(currentUser().getRole().getRoleName())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Venue staff access is required to handle refunds");
         }
         Refund refund = support.refundRepository.findById(refundId)
                 .orElseThrow(() -> support.notFound("Refund not found"));
@@ -166,9 +211,9 @@ public class PaymentWorkflowService {
         if (!validTransition) {
             throw support.badRequest("Invalid refund transition from " + current + " to " + next);
         }
-        if (request.processedById() != null) {
-            refund.setProcessedBy(support.getUser(request.processedById()));
-        }
+        // The authenticated operator is the audit source of truth. Never trust
+        // a client-supplied user id for who approved or processed a refund.
+        refund.setProcessedBy(currentUser());
         if (!support.isBlank(request.note())) {
             refund.setRefundReason(request.note());
         }
@@ -297,7 +342,8 @@ public class PaymentWorkflowService {
         AppUser requester = currentUser();
         return support.refundRepository.findAllByOrderByRefundIdDesc().stream()
                 .filter(refund -> isOperator(requester)
-                        || refund.getBooking().getCustomer().getUserId().equals(requester.getUserId()))
+                        || (refund.getBooking().getCustomer() != null
+                        && refund.getBooking().getCustomer().getUserId().equals(requester.getUserId())))
                 .map(support::refundSummary)
                 .toList();
     }

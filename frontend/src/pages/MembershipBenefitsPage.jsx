@@ -4,6 +4,7 @@ export function MembershipBenefitsPage({ membershipLevels, membership }) {
   const currentLevelId = membership?.membershipLevel?.membershipLevelId
   const bookingsCompleted = membership?.completedBookingCount || 0
   const sortedLevels = membershipLevels.filter(level => level.status !== 'inactive').sort((a, b) => a.displayOrder - b.displayOrder)
+  const currentLevel = sortedLevels.find(level => Number(level.membershipLevelId) === Number(currentLevelId))
   const nextLevel = sortedLevels.find(level => level.levelName === membership?.nextLevel)
   const progress = membership?.nextLevelTarget ? Math.min(100, ((membership?.nextLevelProgress || 0) / membership.nextLevelTarget) * 100) : 100
   const progressLabel = membership?.nextLevelQualificationPeriod === 'weekly'
@@ -31,7 +32,7 @@ export function MembershipBenefitsPage({ membershipLevels, membership }) {
           <ol className="tierTimeline">
             {sortedLevels.map(level => {
               const isCurrent = level.membershipLevelId === currentLevelId
-              const isUnlocked = level.requiredCompletedBookings <= bookingsCompleted
+              const isUnlocked = currentLevel && Number(level.displayOrder) <= Number(currentLevel.displayOrder)
               return (
                 <li key={level.membershipLevelId} className={`tierTimelineItem ${isCurrent ? 'current' : ''} ${isUnlocked ? 'unlocked' : ''}`}>
                   <div className="tierTimelineMarker" aria-hidden="true" />

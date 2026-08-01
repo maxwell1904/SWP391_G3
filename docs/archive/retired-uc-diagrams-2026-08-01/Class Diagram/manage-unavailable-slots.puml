@@ -1,0 +1,89 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class FieldOperationController <<controller>> {
+    -fieldOperationService : FieldOperationService
+
+    +blockSlot(request : ApiRequests.SlotBlock) : Object
+    +unblockSlot(slotId : Long) : Object
+}
+
+class FieldOperationService <<service>> {
+    -support : DomainSupportService
+
+    +blockSlot(request : ApiRequests.SlotBlock) : Map<String, Object>
+    +unblockSlot(slotId : Long) : Map<String, Object>
+    -requireOperator() : void
+}
+
+class PromotionReportController <<controller>> {
+    -promotionReportService : PromotionReportService
+    +updateSetting(key : String, request : SettingUpdate) : Object
+}
+
+class PromotionReportService <<service>> {
+    -slotGenerationService : SlotGenerationService
+    +updateSetting(key : String, request : SettingUpdate) : Map<String, Object>
+}
+
+class SlotGenerationService <<service>> {
+    +validateRuleChange(key : String, value : String) : SlotRules
+    +rebuildRollingWindow() : GenerationResult
+    +ensureDate(date : LocalDate) : int
+}
+
+class "ApiRequests.SlotBlock" as SlotBlockDTO <<dto>> {
+    -fieldId : Long
+    -slotDate : LocalDate
+    -startTime : String
+    -endTime : String
+    -blockReason : String
+    -blockNote : String
+}
+
+interface SlotRepository <<repository>> {
+    +findByField_FieldIdAndSlotDate(fieldId : Long, slotDate : LocalDate) : List<Slot>
+    +findById(id : Long) : Optional<Slot>
+    +save(entity : Slot) : Slot
+}
+
+interface BookingRepository <<repository>> {
+    +existsBySlotAndStatusIn(slot : Slot, statuses : Collection<BookingStatus>) : boolean
+}
+
+interface SystemSettingRepository <<repository>> {
+    +findBySettingKey(settingKey : String) : Optional<SystemSetting>
+}
+
+class Slot <<entity>> {
+    -slotId : Long
+    -field : FootballField
+    -slotDate : LocalDate
+    -startTime : LocalTime
+    -endTime : LocalTime
+    -status : SlotStatus
+    -blockReason : String
+    -blockNote : String
+    -createdBy : AppUser
+}
+
+class FootballField <<entity>> {
+    -fieldId : Long
+    -fieldName : String
+}
+
+FieldOperationController ..> FieldOperationService
+FieldOperationController ..> SlotBlockDTO
+FieldOperationService ..> SlotBlockDTO
+FieldOperationService ..> SlotRepository
+FieldOperationService ..> BookingRepository
+PromotionReportController ..> PromotionReportService
+PromotionReportService ..> SlotGenerationService
+PromotionReportService ..> SystemSettingRepository
+SlotGenerationService ..> SlotRepository
+SlotRepository --> Slot
+Slot --> FootballField
+
+@enduml

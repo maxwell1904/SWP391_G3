@@ -32,7 +32,6 @@ class DomainSupportService <<service>> {
 
 class "ApiRequests.BookingReschedule" as BookingRescheduleDTO <<dto>> {
     -newSlotId : Long
-    -staffId : Long
     -note : String
 }
 

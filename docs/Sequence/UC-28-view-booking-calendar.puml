@@ -18,7 +18,7 @@ participant "FieldOperationService" as Service
 participant "BookingRepository / SlotRepository" as Repo
 database "Database" as DB
 
-== UC-28: View Booking Calendar ==
+== UC-28: View booking calendar ==
 
 User -> UI : 1. Select booking calendar date
 activate User

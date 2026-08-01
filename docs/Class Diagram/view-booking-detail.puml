@@ -123,6 +123,7 @@ class BookingPromotion <<entity>> {
     -promotion : Promotion
     -promotionCodeSnapshot : String
     -discountAmount : BigDecimal
+    -usageCounted : boolean
     -appliedAt : LocalDateTime
 }
 

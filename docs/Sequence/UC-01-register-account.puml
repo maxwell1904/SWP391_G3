@@ -1,0 +1,282 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor Guest
+participant "AuthPage" as UI
+participant "App.jsx" as App
+participant "AccountController" as Controller
+participant "AccountService" as Service
+participant "DomainSupportService" as Support
+participant "VerificationEmailService" as EmailSvc
+participant "AppUserRepository" as UserRepo
+participant "RoleRepository" as RoleRepo
+participant "MembershipLevelRepository" as MembLevelRepo
+participant "CustomerMembershipRepository" as CustMembRepo
+database "Database" as DB
+
+== UC-01: Register account ==
+
+Guest -> UI : 1. Fill form & click "Create Account"
+activate Guest
+activate UI
+
+UI -> App : 2. register()
+activate App
+
+App -> App : 3. validateRegisterForm()
+activate App
+deactivate App
+
+opt Validation fails
+  App --> UI : 3.1 Show error toast
+  UI --> Guest : 3.2 Error message
+end
+
+App -> Controller : 4. POST /api/account/register\n{fullName, email, phone, password}
+activate Controller
+
+Controller -> Service : 5. register(request)
+activate Service
+
+Service -> Support : 6. clean(email), clean(phone)\nrequireText(fullName, email, phone)
+activate Support
+Support --> Service : 7. trimmed values
+deactivate Support
+
+Service -> Support : 8. userRepository.findByEmail(email)
+activate Support
+
+Support -> UserRepo : 9. findByEmail(email)
+activate UserRepo
+
+UserRepo -> DB : 10. SELECT * FROM app_user\nWHERE email = ?
+activate DB
+DB --> UserRepo : 11. empty
+deactivate DB
+
+UserRepo --> Support : 12. Optional.empty
+deactivate UserRepo
+
+Support --> Service : 13. empty
+deactivate Support
+
+Service -> Support : 14. userRepository.findByPhone(phone)
+activate Support
+
+Support -> UserRepo : 15. findByPhone(phone)
+activate UserRepo
+
+UserRepo -> DB : 16. SELECT * FROM app_user\nWHERE phone = ?
+activate DB
+DB --> UserRepo : 17. empty
+deactivate DB
+
+UserRepo --> Support : 18. Optional.empty
+deactivate UserRepo
+
+Support --> Service : 19. empty
+deactivate Support
+
+Service -> Service : 20. validatePassword(password, confirmPassword)
+activate Service
+deactivate Service
+
+Service -> Support : 21. roleRepository.findByRoleName("Customer")
+activate Support
+
+Support -> RoleRepo : 22. findByRoleName("Customer")
+activate RoleRepo
+
+RoleRepo -> DB : 23. SELECT * FROM role\nWHERE role_name = 'Customer'
+activate DB
+DB --> RoleRepo : 24. Customer role
+deactivate DB
+
+RoleRepo --> Support : 25. Optional<Role>
+deactivate RoleRepo
+
+Support --> Service : 26. Customer role
+deactivate Support
+
+Service -> Service : 27. issueEmailVerification(user)\nGenerate 16-char UUID token
+activate Service
+deactivate Service
+
+Service -> Support : 28. userRepository.save(user)
+activate Support
+
+Support -> UserRepo : 29. save(user)
+activate UserRepo
+
+UserRepo -> DB : 30. INSERT INTO app_user
+activate DB
+DB --> UserRepo : 31. saved user
+deactivate DB
+
+UserRepo --> Support : 32. saved user
+deactivate UserRepo
+
+Support --> Service : 33. saved user
+deactivate Support
+
+Service -> EmailSvc : 34. sendVerificationEmail(user)
+activate EmailSvc
+
+alt SMTP configured
+  EmailSvc -> EmailSvc : 35. Build verification link\n(frontend URL + userId + token)
+  activate EmailSvc
+  deactivate EmailSvc
+  EmailSvc -> EmailSvc : 36. Send email via SMTP
+  activate EmailSvc
+  deactivate EmailSvc
+  EmailSvc --> Service : 37. Delivery(sent=true, status="sent")
+else SMTP not configured
+  EmailSvc --> Service : 37. Delivery(sent=false, status="not_configured")
+end
+
+deactivate EmailSvc
+
+Service -> Support : 38. attachDefaultMembership(user)
+activate Support
+
+Support -> MembLevelRepo : 39. findAllByOrderByDisplayOrderAsc()
+activate MembLevelRepo
+
+MembLevelRepo -> DB : 40. SELECT * FROM membership_level\nORDER BY display_order ASC
+activate DB
+DB --> MembLevelRepo : 41. Bronze (first level)
+deactivate DB
+
+MembLevelRepo --> Support : 42. List<MembershipLevel>
+deactivate MembLevelRepo
+
+Support -> CustMembRepo : 43. save(customerMembership)
+activate CustMembRepo
+
+CustMembRepo -> DB : 44. INSERT INTO customer_membership
+activate DB
+DB --> CustMembRepo : 45. saved record
+deactivate DB
+
+CustMembRepo --> Support : 46. CustomerMembership
+deactivate CustMembRepo
+
+Support --> Service : 47. CustomerMembership
+deactivate Support
+
+Service -> Service : 48. jwtService.generateToken(email)
+activate Service
+deactivate Service
+
+Service -> Support : 49. userSummary(user)
+activate Support
+Support --> Service : 50. {userId, fullName, email, ...}
+deactivate Support
+
+Service --> Controller : 51. {token, user, verificationRequired, message}
+deactivate Service
+
+Controller --> App : 52. HTTP 200 response
+deactivate Controller
+
+App -> App : 53. saveStoredToken(token)\nsetCurrentUser(user)
+activate App
+deactivate App
+
+App --> UI : 54. Navigate to account page
+deactivate App
+
+UI --> Guest : 55. Show notice:\n"Check your inbox to verify email"
+deactivate UI
+
+== Email Verification (via link) ==
+
+Guest -> UI : 56. Click verification link in email
+activate UI
+
+UI -> App : 57. useEffect reads URL params\n(userId, token)
+activate App
+
+App -> Controller : 58. POST /api/account/email/verify\n{userId, token}
+activate Controller
+
+Controller -> Service : 59. verifyEmail(request)
+activate Service
+
+Service -> Support : 60. getUser(userId)
+activate Support
+
+Support -> UserRepo : 61. findById(userId)
+activate UserRepo
+
+UserRepo -> DB : 62. SELECT * FROM app_user\nWHERE user_id = ?
+activate DB
+DB --> UserRepo : 63. user
+deactivate DB
+
+UserRepo --> Support : 64. Optional<AppUser>
+deactivate UserRepo
+
+Support --> Service : 65. user
+deactivate Support
+
+Service -> Service : 66. Validate token match\n& check expiry (< 1 hour)
+activate Service
+deactivate Service
+
+opt Token invalid or expired
+  Service --> Controller : 66.1 Throw BAD_REQUEST
+  Controller --> App : 66.2 HTTP 400 error
+  App --> UI : 66.3 Show error message
+end
+
+Service -> Support : 67. userRepository.save(user)\n(emailVerified=true, token cleared)
+activate Support
+
+Support -> UserRepo : 68. save(user)
+activate UserRepo
+
+UserRepo -> DB : 69. UPDATE app_user\nSET email_verified = true
+activate DB
+DB --> UserRepo : 70. updated user
+deactivate DB
+
+UserRepo --> Support : 71. updated user
+deactivate UserRepo
+
+Support --> Service : 72. updated user
+deactivate Support
+
+Service -> Support : 73. userSummary(user)
+activate Support
+Support --> Service : 74. {userId, fullName, email, ...}
+deactivate Support
+
+Service --> Controller : 75. {user, message:"Email verified"}
+deactivate Service
+
+Controller --> App : 76. HTTP 200
+deactivate Controller
+
+App -> App : 77. setCurrentUser(updatedUser)
+activate App
+deactivate App
+
+App --> UI : 78. Show "Email verified" result
+deactivate App
+
+UI --> Guest : 79. Display verified status\nwith "Continue booking" button
+deactivate UI
+deactivate Guest
+
+@enduml

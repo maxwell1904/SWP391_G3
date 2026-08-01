@@ -26,7 +26,6 @@ class "ApiRequests.PromotionApply" as PromotionApplyDTO <<dto>> {
 
 class "ApiRequests.BookingCreate" as BookingCreateDTO <<dto>> {
     -customerId : Long
-    -staffId : Long
     -slotId : Long
     -bookingSource : String
     -promotionCode : String
@@ -56,6 +55,7 @@ class DomainSupportService <<service>> {
     +promotionAllowsMembershipStacking(promotionCode : String) : boolean
     +calculateMembershipDiscount(customer : AppUser, baseAmount : BigDecimal, source : BookingSource) : BigDecimal
     +saveBookingPromotion(booking : Booking, promotionCode : String, discount : BigDecimal) : void
+    +reconcilePromotionUsage(booking : Booking) : void
 }
 
 interface PromotionRepository <<repository>> {
@@ -90,6 +90,7 @@ class BookingPromotion <<entity>> {
     -promotion : Promotion
     -promotionCodeSnapshot : String
     -discountAmount : BigDecimal
+    -usageCounted : boolean
     -appliedAt : LocalDateTime
 }
 

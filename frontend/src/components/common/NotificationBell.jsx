@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Bell, BellOff, CalendarCheck, CalendarX, Clock3, CreditCard, RotateCcw } from 'lucide-react'
+import { Bell, BellOff, CalendarCheck, CalendarX, Clock3, CreditCard, RotateCcw, Wrench } from 'lucide-react'
 
 export function NotificationBell({ currentUser, notifications, onToggleRead, onMarkAllRead }) {
   const [open, setOpen] = useState(false)
@@ -33,11 +33,12 @@ export function NotificationBell({ currentUser, notifications, onToggleRead, onM
   }
 
   const typeIcon = {
-    booking_confirmed: CalendarCheck,
-    booking_cancelled: CalendarX,
-    payment_received: CreditCard,
-    refund_processed: RotateCcw,
-    check_in_reminder: Clock3,
+    booking_confirmation: CalendarCheck,
+    booking_reminder: Clock3,
+    cancellation: CalendarX,
+    payment: CreditCard,
+    refund: RotateCcw,
+    issue: Wrench,
     system: Bell,
   }
 

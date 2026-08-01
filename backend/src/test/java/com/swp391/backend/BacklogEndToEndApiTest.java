@@ -3,7 +3,9 @@ package com.swp391.backend;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.swp391.backend.entity.AppUser;
+import com.swp391.backend.entity.Slot;
 import com.swp391.backend.repository.AppUserRepository;
+import com.swp391.backend.repository.SlotRepository;
 import com.swp391.backend.service.BookingMaintenanceScheduler;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +25,7 @@ import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -57,6 +60,9 @@ class BacklogEndToEndApiTest {
     private AppUserRepository userRepository;
 
     @Autowired
+    private SlotRepository slotRepository;
+
+    @Autowired
     private BookingMaintenanceScheduler bookingMaintenanceScheduler;
 
     @Autowired
@@ -81,6 +87,7 @@ class BacklogEndToEndApiTest {
         long otherCustomerId = userId(login("member@goalzone.local"));
         JsonNode membership = exchange(auth(get("/api/membership/" + customerId + "/progress"), customerToken), 200);
         assertThat(membership.path("customer").path("userId").asLong()).isEqualTo(customerId);
+        assertThat(membership.path("completedBookingCount").asInt()).isZero();
 
         List<JsonNode> slots = availableSlots(LocalDate.now().plusDays(1));
         JsonNode lowerPricedSlot = slots.stream()
@@ -91,7 +98,7 @@ class BacklogEndToEndApiTest {
                 .orElseThrow();
         assertThat(slotPrice(higherPricedSlot)).isGreaterThan(slotPrice(lowerPricedSlot));
 
-        JsonNode preview = exchange(post("/api/bookings/checkout-preview")
+        JsonNode preview = exchange(auth(post("/api/bookings/checkout-preview")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(Map.of(
                         "customerId", customerId,
@@ -99,7 +106,7 @@ class BacklogEndToEndApiTest {
                         "promotionCode", "WELCOME10",
                         "bookingSource", "online",
                         "services", List.of()
-                ))), 200);
+                ))), customerToken), 200);
         assertThat(preview.path("totalAmount").decimalValue()).isGreaterThan(BigDecimal.ZERO);
         assertThat(preview.path("promotionDiscountAmount").decimalValue()).isGreaterThan(BigDecimal.ZERO);
         assertThat(preview.has("customer")).isFalse();
@@ -114,7 +121,7 @@ class BacklogEndToEndApiTest {
         assertThat(customerEditedServices.path("services").size()).isEqualTo(1);
         JsonNode customerIssue = exchange(auth(post("/api/issues")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json(Map.of("reporterId", customerId, "bookingId", bookingId,
+                .content(json(Map.of("bookingId", bookingId,
                         "title", "E2E customer issue", "description", "Reported through customer support flow"))), customerToken), 200);
         assertThat(customerIssue.path("reporter").asText()).isEqualTo("Nguyen Van Customer");
         JsonNode order = createPayPalOrder(customerToken, bookingId, customerId, "full");
@@ -136,14 +143,12 @@ class BacklogEndToEndApiTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(Map.of(
                         "bookingId", bookingId,
-                        "refundReason", "Price difference after reschedule",
-                        "approveNow", false
+                        "refundReason", "Price difference after reschedule"
                 ))), customerToken), 200);
         assertThat(refund.path("status").asText()).isEqualTo("requested");
 
         JsonNode staffLogin = login("staff@goalzone.local");
         String staffToken = token(staffLogin);
-        long staffId = userId(staffLogin);
         assertThat(exchange(auth(post("/api/refunds")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(Map.of(
@@ -153,15 +158,15 @@ class BacklogEndToEndApiTest {
                 .contains("submitted by the customer");
         JsonNode approvedRefund = exchange(auth(put("/api/refunds/" + refund.path("refundId").asLong() + "/status")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json(Map.of("status", "approved", "processedById", staffId, "note", "Validated by E2E"))), staffToken), 200);
+                .content(json(Map.of("status", "approved", "note", "Validated by E2E"))), staffToken), 200);
         assertThat(approvedRefund.path("status").asText()).isEqualTo("approved");
         JsonNode rejectedFakeCompletion = exchange(auth(put("/api/refunds/" + refund.path("refundId").asLong() + "/status")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json(Map.of("status", "completed", "processedById", staffId, "note", "Must not bypass PayPal"))), staffToken), 400);
+                .content(json(Map.of("status", "completed", "note", "Must not bypass PayPal"))), staffToken), 400);
         assertThat(rejectedFakeCompletion.path("error").asText()).contains("Invalid refund transition");
         JsonNode completedRefund = exchange(auth(put("/api/refunds/" + refund.path("refundId").asLong() + "/status")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json(Map.of("status", "processing", "processedById", staffId, "note", "Sent to PayPal by E2E"))), staffToken), 200);
+                .content(json(Map.of("status", "processing", "note", "Sent to PayPal by E2E"))), staffToken), 200);
         assertThat(completedRefund.path("status").asText()).isEqualTo("completed");
         assertThat(completedRefund.path("paymentMethod").asText()).isEqualTo("paypal_sandbox");
         assertThat(completedRefund.path("providerStatus").asText()).isEqualTo("COMPLETED");
@@ -184,7 +189,6 @@ class BacklogEndToEndApiTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(Map.of(
                         "bookingId", cancellableBookingId,
-                        "createdById", staffId,
                         "paymentOption", "remaining",
                         "paymentMethod", "cash",
                         "success", true
@@ -205,25 +209,25 @@ class BacklogEndToEndApiTest {
     void staffCanRunOperationsLifecycleIssueAndCustomerActivityFlows() throws Exception {
         JsonNode staffLogin = login("staff@goalzone.local");
         String staffToken = token(staffLogin);
-        long staffId = userId(staffLogin);
         JsonNode customerLogin = login("customer@goalzone.local");
         String customerToken = token(customerLogin);
         long customerId = userId(customerLogin);
         JsonNode walkInCustomers = exchange(auth(get("/api/account/customers"), staffToken), 200);
-        assertThat(walkInCustomers).anySatisfy(customer ->
-                assertThat(customer.path("userId").asLong()).isEqualTo(customerId));
+        assertThat(walkInCustomers).anySatisfy(customer -> {
+            assertThat(customer.path("userId").asLong()).isEqualTo(customerId);
+            assertThat(customer.path("role").asText()).isEqualTo("Customer");
+        });
 
         JsonNode operatorSlot = availableSlots(LocalDate.now().plusDays(1)).get(0);
         JsonNode customerBooking = createOnlineBooking(customerToken, customerId, operatorSlot.path("slotId").asLong(), "E2E counter settlement");
         assertThat(exchange(auth(post("/api/bookings/" + customerBooking.path("bookingId").asLong() + "/paypal/orders")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json(Map.of("createdById", staffId, "paymentOption", "full"))), staffToken), 403)
+                .content(json(Map.of("paymentOption", "full"))), staffToken), 403)
                 .path("error").asText()).isNotBlank();
         assertThat(exchange(auth(post("/api/bookings")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(Map.of(
                         "customerId", customerId,
-                        "staffId", staffId,
                         "slotId", availableSlots(LocalDate.now().plusDays(2)).get(0).path("slotId").asLong(),
                         "bookingSource", "online",
                         "services", List.of()
@@ -236,7 +240,6 @@ class BacklogEndToEndApiTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(Map.of(
                         "bookingId", customerBooking.path("bookingId").asLong(),
-                        "createdById", staffId,
                         "paymentOption", "full",
                         "paymentMethod", "online_sandbox",
                         "success", true
@@ -245,7 +248,6 @@ class BacklogEndToEndApiTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(Map.of(
                         "bookingId", customerBooking.path("bookingId").asLong(),
-                        "createdById", staffId,
                         "paymentOption", "remaining",
                         "paymentMethod", "cash",
                         "success", true
@@ -264,8 +266,7 @@ class BacklogEndToEndApiTest {
                         "startTime", "12:00",
                         "endTime", "14:00",
                         "blockReason", "E2E maintenance",
-                        "blockNote", "Operations test",
-                        "createdById", staffId
+                        "blockNote", "Operations test"
                 ))), staffToken), 200);
         assertThat(blocked.path("status").asText()).isEqualTo("blocked");
         JsonNode unblocked = exchange(auth(put("/api/slots/" + blocked.path("slotId").asLong() + "/unblock"), staffToken), 200);
@@ -274,25 +275,71 @@ class BacklogEndToEndApiTest {
         JsonNode issue = exchange(auth(post("/api/issues")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(Map.of(
-                        "reporterId", staffId,
                         "fieldId", field.path("fieldId").asLong(),
-                        "assignedStaffId", staffId,
                         "title", "E2E equipment check",
                         "description", "Verify staff issue lifecycle"
                 ))), staffToken), 200);
         JsonNode resolvedIssue = exchange(auth(put("/api/issues/" + issue.path("issueId").asLong() + "/status")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json(Map.of("status", "resolved", "assignedStaffId", staffId, "resolutionNote", "Checked and resolved"))), staffToken), 200);
+                .content(json(Map.of("status", "resolved", "resolutionNote", "Checked and resolved"))), staffToken), 200);
         assertThat(resolvedIssue.path("status").asText()).isEqualTo("resolved");
+        assertThat(exchange(auth(put("/api/issues/" + issue.path("issueId").asLong() + "/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of("status", "in_progress", "resolutionNote", "Invalid reopen"))), staffToken), 400)
+                .path("error").asText()).contains("cannot change");
 
         JsonNode memberLogin = login("member@goalzone.local");
         long memberId = userId(memberLogin);
+
+        JsonNode guestSlot = availableSlots(LocalDate.now().plusDays(5)).get(0);
+        JsonNode guestWalkIn = exchange(auth(post("/api/bookings")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of(
+                        "guestName", "Tran Minh Guest",
+                        "guestPhone", "0909000111",
+                        "guestEmail", "walkin@example.com",
+                        "slotId", guestSlot.path("slotId").asLong(),
+                        "bookingSource", "walk_in",
+                        "services", List.of(),
+                        "note", "First-time visitor E2E"
+                ))), staffToken), 200);
+        assertThat(guestWalkIn.path("customerId").isNull()).isTrue();
+        assertThat(guestWalkIn.path("customer").asText()).isEqualTo("Tran Minh Guest");
+        assertThat(guestWalkIn.path("customerPhone").asText()).isEqualTo("0909000111");
+        assertThat(guestWalkIn.path("walkInGuest").asBoolean()).isTrue();
+        assertThat(guestWalkIn.path("membershipDiscountAmount").decimalValue()).isEqualByComparingTo(BigDecimal.ZERO);
+        JsonNode guestPaid = exchange(auth(post("/api/payments/capture")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of(
+                        "bookingId", guestWalkIn.path("bookingId").asLong(),
+                        "paymentOption", "deposit",
+                        "paymentMethod", "cash",
+                        "success", true
+                ))), staffToken), 200);
+        assertThat(guestPaid.path("status").asText()).isEqualTo("confirmed");
+        assertThat(exchange(auth(post("/api/bookings")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of(
+                        "guestName", "Missing Phone",
+                        "slotId", guestSlot.path("slotId").asLong(),
+                        "bookingSource", "walk_in",
+                        "services", List.of()
+                ))), staffToken), 400).path("error").asText()).contains("phone");
+        assertThat(exchange(auth(post("/api/bookings")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of(
+                        "guestName", "Customer Cannot Create Guest Walk-in",
+                        "guestPhone", "0909000222",
+                        "slotId", guestSlot.path("slotId").asLong(),
+                        "bookingSource", "walk_in",
+                        "services", List.of()
+                ))), customerToken), 400).path("error").asText()).contains("required for online booking");
+
         JsonNode slot = availableSlots(LocalDate.now().plusDays(2)).get(0);
         JsonNode walkIn = exchange(auth(post("/api/bookings")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(Map.of(
                         "customerId", memberId,
-                        "staffId", staffId,
                         "slotId", slot.path("slotId").asLong(),
                         "bookingSource", "walk_in",
                         "services", List.of(),
@@ -314,34 +361,54 @@ class BacklogEndToEndApiTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(Map.of(
                         "bookingId", walkInId,
-                        "createdById", staffId,
-                        "paymentOption", "full",
+                        "paymentOption", "deposit",
                         "paymentMethod", "cash",
                         "success", true
                 ))), staffToken), 200);
-        assertThat(paid.path("paymentStatus").asText()).isEqualTo("paid");
+        assertThat(paid.path("paidAmount").decimalValue()).isGreaterThanOrEqualTo(paid.path("depositAmount").decimalValue());
+        assertThat(paid.path("remainingAmount").decimalValue()).isGreaterThan(BigDecimal.ZERO);
+        assertThat(exchange(auth(put("/api/bookings/" + walkInId + "/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of("status", "checked_in", "note", "Too early"))), staffToken), 400)
+                .path("error").asText()).contains("30 minutes");
+        moveSlotIntoPast(walkIn.path("slotId").asLong(), LocalTime.of(10, 0));
         JsonNode checkedIn = exchange(auth(put("/api/bookings/" + walkInId + "/status")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json(Map.of("status", "checked_in", "staffId", staffId, "note", "Arrived"))), staffToken), 200);
+                .content(json(Map.of("status", "checked_in", "note", "Arrived"))), staffToken), 200);
         assertThat(checkedIn.path("status").asText()).isEqualTo("checked_in");
+        assertThat(exchange(auth(put("/api/bookings/" + walkInId + "/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of("status", "completed", "note", "Balance still due"))), staffToken), 400)
+                .path("error").asText()).contains("remaining balance");
+        exchange(auth(post("/api/payments/capture")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of(
+                        "bookingId", walkInId,
+                        "paymentOption", "remaining",
+                        "paymentMethod", "cash",
+                        "success", true
+                ))), staffToken), 200);
         JsonNode completed = exchange(auth(put("/api/bookings/" + walkInId + "/status")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json(Map.of("status", "completed", "staffId", staffId, "note", "Finished"))), staffToken), 200);
+                .content(json(Map.of("status", "completed", "note", "Finished"))), staffToken), 200);
         assertThat(completed.path("status").asText()).isEqualTo("completed");
 
-        JsonNode rejectedSlot = availableSlots(LocalDate.now().plusDays(3)).get(0);
-        JsonNode pendingOnline = createOnlineBooking(customerToken, customerId, rejectedSlot.path("slotId").asLong(), "E2E rejection");
-        JsonNode rejected = exchange(auth(put("/api/bookings/" + pendingOnline.path("bookingId").asLong() + "/status")
+        JsonNode pendingSlot = availableSlots(LocalDate.now().plusDays(3)).get(0);
+        JsonNode pendingOnline = createOnlineBooking(customerToken, customerId, pendingSlot.path("slotId").asLong(), "E2E pending payment");
+        assertThat(exchange(auth(put("/api/bookings/" + pendingOnline.path("bookingId").asLong() + "/status")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json(Map.of("status", "rejected", "staffId", staffId, "note", "Invalid request"))), staffToken), 200);
-        assertThat(rejected.path("status").asText()).isEqualTo("rejected");
+                .content(json(Map.of("status", "confirmed", "note", "Manual approval is unavailable"))), staffToken), 400)
+                .path("error").asText()).contains("cannot change");
+        assertThat(exchange(auth(put("/api/bookings/" + pendingOnline.path("bookingId").asLong() + "/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of("status", "rejected", "note", "Manual rejection is unavailable"))), staffToken), 400)
+                .path("error").asText()).contains("cannot change");
 
         JsonNode noShowSlot = availableSlots(LocalDate.now().plusDays(4)).get(0);
         JsonNode noShowWalkIn = exchange(auth(post("/api/bookings")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(Map.of(
                         "customerId", memberId,
-                        "staffId", staffId,
                         "slotId", noShowSlot.path("slotId").asLong(),
                         "bookingSource", "walk_in",
                         "services", List.of(),
@@ -351,14 +418,18 @@ class BacklogEndToEndApiTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(Map.of(
                         "bookingId", noShowWalkIn.path("bookingId").asLong(),
-                        "createdById", staffId,
                         "paymentOption", "full",
                         "paymentMethod", "cash",
                         "success", true
                 ))), staffToken), 200);
+        assertThat(exchange(auth(put("/api/bookings/" + noShowWalkIn.path("bookingId").asLong() + "/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of("status", "no_show", "note", "Too early"))), staffToken), 400)
+                .path("error").asText()).contains("15 minutes");
+        moveSlotIntoPast(noShowWalkIn.path("slotId").asLong(), LocalTime.of(12, 0));
         JsonNode noShow = exchange(auth(put("/api/bookings/" + noShowWalkIn.path("bookingId").asLong() + "/status")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json(Map.of("status", "no_show", "staffId", staffId, "note", "Customer did not arrive"))), staffToken), 200);
+                .content(json(Map.of("status", "no_show", "note", "Customer did not arrive"))), staffToken), 200);
         assertThat(noShow.path("status").asText()).isEqualTo("no_show");
         assertThat(exchange(auth(get("/api/payments"), staffToken), 200).isArray()).isTrue();
         assertThat(exchange(auth(get("/api/refunds"), staffToken), 200).isArray()).isTrue();
@@ -393,12 +464,10 @@ class BacklogEndToEndApiTest {
                 .orElseThrow();
         JsonNode staffLogin = login("staff@goalzone.local");
         String staffToken = token(staffLogin);
-        long staffId = userId(staffLogin);
         JsonNode reminderBooking = exchange(auth(post("/api/bookings")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(Map.of(
                         "customerId", customerId,
-                        "staffId", staffId,
                         "slotId", reminderSlot.path("slotId").asLong(),
                         "bookingSource", "walk_in",
                         "services", List.of(),
@@ -410,33 +479,6 @@ class BacklogEndToEndApiTest {
         JsonNode notifications = exchange(auth(get("/api/notifications/" + customerId), customerToken), 200);
         assertThat(notifications).anySatisfy(notification ->
                 assertThat(notification.path("type").asText()).isEqualTo("booking_reminder"));
-    }
-
-    @Test
-    void availabilityAssistantReturnsRankedAvailableSlots() throws Exception {
-        JsonNode suggestions = exchange(get("/api/slots/suggestions")
-                .param("date", LocalDate.now().plusDays(1).toString())
-                .param("preferredTime", "08:00"), 200);
-        assertThat(suggestions.isArray()).isTrue();
-        assertThat(suggestions).isNotEmpty();
-        assertThat(suggestions.get(0).path("slotId").asLong()).isPositive();
-        assertThat(suggestions.get(0).path("reasons")).isNotEmpty();
-        assertThat(suggestions.get(0).path("score").asInt()).isPositive();
-
-        exchange(get("/api/slots/suggestions")
-                .param("date", LocalDate.now().minusDays(1).toString()), 400);
-        exchange(get("/api/slots/suggestions")
-                .param("date", LocalDate.now().plusDays(1).toString())
-                .param("maxPrice", "-1"), 400);
-
-        JsonNode customerLogin = login("customer@goalzone.local");
-        exchange(get("/api/slots/suggestions")
-                .param("date", LocalDate.now().plusDays(1).toString())
-                .param("customerId", customerLogin.path("user").path("userId").asText()), 403);
-        JsonNode customerSuggestions = exchange(auth(get("/api/slots/suggestions")
-                .param("date", LocalDate.now().plusDays(1).toString())
-                .param("customerId", customerLogin.path("user").path("userId").asText()), token(customerLogin)), 200);
-        assertThat(customerSuggestions).isNotEmpty();
     }
 
     @Test
@@ -504,7 +546,7 @@ class BacklogEndToEndApiTest {
         long adminId = userId(adminLogin);
         JsonNode horizon = exchange(auth(put("/api/settings/slot.generation_horizon_days")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json(Map.of("settingValue", "14", "updatedById", adminId))), adminToken), 200);
+                .content(json(Map.of("settingValue", "14"))), adminToken), 200);
         assertThat(horizon.path("settingValue").asText()).isEqualTo("14");
         assertThat(horizon.path("generatedThrough").asText()).isEqualTo(LocalDate.now().plusDays(14).toString());
         exchange(get("/api/slots/search").param("date", LocalDate.now().plusDays(15).toString()), 400);
@@ -534,6 +576,34 @@ class BacklogEndToEndApiTest {
         assertThat(blockedView).isNotNull();
         assertThat(blockedView.path("available").asBoolean()).isFalse();
         assertThat(blockedView.path("status").asText()).isEqualTo("blocked");
+    }
+
+    @Test
+    void sameDaySearchAndCheckoutExcludeSlotsThatAlreadyStarted() throws Exception {
+        LocalDate today = LocalDate.now();
+        Slot startedSlot = slotRepository.findAll().stream()
+                .filter(slot -> slot.getStatus().name().equals("available"))
+                .findFirst()
+                .orElseThrow();
+        LocalTime startedAt = LocalTime.now().minusMinutes(5);
+        startedSlot.setSlotDate(today);
+        startedSlot.setStartTime(startedAt);
+        startedSlot.setEndTime(startedAt.plusMinutes(30));
+        slotRepository.saveAndFlush(startedSlot);
+
+        JsonNode search = exchange(get("/api/slots/search").param("date", today.toString()), 200);
+        assertThat(search).noneMatch(slot -> slot.path("slotId").asLong() == startedSlot.getSlotId());
+
+        JsonNode customerLogin = login("customer@goalzone.local");
+        exchange(auth(post("/api/bookings/checkout-preview")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of(
+                        "customerId", userId(customerLogin),
+                        "slotId", startedSlot.getSlotId(),
+                        "promotionCode", "",
+                        "bookingSource", "online",
+                        "services", List.of()
+                ))), token(customerLogin)), 400);
     }
 
     @Test
@@ -651,11 +721,11 @@ class BacklogEndToEndApiTest {
 
         JsonNode setting = exchange(auth(put("/api/settings/deposit.default_percent")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json(Map.of("settingValue", "25", "updatedById", adminId))), adminToken), 200);
+                .content(json(Map.of("settingValue", "25"))), adminToken), 200);
         assertThat(setting.path("settingValue").asText()).isEqualTo("25");
         JsonNode refundPolicy = exchange(auth(put("/api/settings/refund.before_24h_percent")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json(Map.of("settingValue", "90", "updatedById", adminId))), adminToken), 200);
+                .content(json(Map.of("settingValue", "90"))), adminToken), 200);
         assertThat(refundPolicy.path("settingValue").asText()).isEqualTo("90");
         JsonNode customerLogin = login("customer@goalzone.local");
         String customerToken = token(customerLogin);
@@ -672,6 +742,12 @@ class BacklogEndToEndApiTest {
                 ))), adminToken), 403);
         JsonNode reportBooking = createOnlineBooking(customerToken, customerId,
                 availableSlots(LocalDate.now().plusDays(1)).get(0).path("slotId").asLong(), "E2E report booking");
+        assertThat(exchange(auth(put("/api/bookings/" + reportBooking.path("bookingId").asLong() + "/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of("status", "cancelled", "note", "Admin must not operate bookings"))), adminToken), 403)
+                .path("error").asText()).contains("venue staff");
+        exchange(auth(get("/api/operations/calendar")
+                .param("date", LocalDate.now().plusDays(1).toString()), adminToken), 403);
         JsonNode reportOrder = createPayPalOrder(customerToken, reportBooking.path("bookingId").asLong(), customerId, "full");
         capturePayPalOrder(customerToken, reportBooking.path("bookingId").asLong(), reportOrder.path("orderId").asText(), customerId);
         assertThat(exchange(auth(get("/api/reports"), adminToken), 200).path("bookingCount").asLong()).isPositive();
@@ -682,7 +758,6 @@ class BacklogEndToEndApiTest {
                         "fullName", "E2E Staff",
                         "email", "staff." + suffix + "@goalzone.local",
                         "phone", uniquePhone(),
-                        "password", "E2EStaff@123",
                         "status", "active"
                 ))), adminToken), 200);
         JsonNode staffUpdated = exchange(auth(put("/api/account/staff/" + newStaff.path("userId").asLong())
@@ -691,7 +766,6 @@ class BacklogEndToEndApiTest {
                         "fullName", "E2E Staff Updated",
                         "email", newStaff.path("email").asText(),
                         "phone", newStaff.path("phone").asText(),
-                        "password", "",
                         "status", "active"
                 ))), adminToken), 200);
         assertThat(staffUpdated.path("fullName").asText()).isEqualTo("E2E Staff Updated");
@@ -731,10 +805,13 @@ class BacklogEndToEndApiTest {
                         "confirmPassword", "E2ECustomer@123"
                 ))), 200);
         long userId = registered.path("user").path("userId").asLong();
+        String registrationToken = token(registered);
         assertThat(registered.path("verificationRequired").asBoolean()).isTrue();
-        assertThat(exchange(post("/api/account/email/resend")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json(Map.of("userId", userId))), 200).path("user").path("userId").asLong()).isEqualTo(userId);
+        exchange(post("/api/account/email/resend")
+                .contentType(MediaType.APPLICATION_JSON), 403);
+        assertThat(exchange(auth(post("/api/account/email/resend")
+                .contentType(MediaType.APPLICATION_JSON), registrationToken), 200)
+                .path("user").path("userId").asLong()).isEqualTo(userId);
 
         AppUser persisted = userRepository.findById(userId).orElseThrow();
         exchange(post("/api/account/email/verify")
@@ -795,13 +872,13 @@ class BacklogEndToEndApiTest {
     private JsonNode createPayPalOrder(String token, long bookingId, long userId, String paymentOption) throws Exception {
         return exchange(auth(post("/api/bookings/" + bookingId + "/paypal/orders")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json(Map.of("createdById", userId, "paymentOption", paymentOption))), token), 200);
+                .content(json(Map.of("paymentOption", paymentOption))), token), 200);
     }
 
     private JsonNode capturePayPalOrder(String token, long bookingId, String orderId, long userId) throws Exception {
         return exchange(auth(post("/api/bookings/" + bookingId + "/paypal/orders/" + orderId + "/capture")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json(Map.of("createdById", userId))), token), 200);
+                .content(json(Map.of())), token), 200);
     }
 
     private JsonNode login(String email) throws Exception {
@@ -842,6 +919,14 @@ class BacklogEndToEndApiTest {
     private String uniquePhone() {
         long number = Math.floorMod(System.nanoTime(), 10_000_000L);
         return String.format("079%07d", number);
+    }
+
+    private void moveSlotIntoPast(long slotId, LocalTime startTime) {
+        Slot slot = slotRepository.findById(slotId).orElseThrow();
+        slot.setSlotDate(LocalDate.now().minusDays(1));
+        slot.setStartTime(startTime);
+        slot.setEndTime(startTime.plusHours(1));
+        slotRepository.save(slot);
     }
 
     private String token(JsonNode login) {

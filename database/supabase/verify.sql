@@ -20,10 +20,12 @@ declare
         'ex_slot_no_overlapping_time',
         'chk_booking_amounts',
         'chk_booking_financial_relationships',
+        'chk_booking_customer_identity',
         'chk_payment_method',
         'chk_payment_provider_amounts',
         'chk_payment_provider_breakdown',
-        'chk_refund_amount'
+        'chk_refund_amount',
+        'chk_promotion_used_count'
     ];
 begin
     if not exists (select 1 from information_schema.tables where table_schema = current_schema() and table_name = 'flyway_schema_history') then
@@ -36,6 +38,79 @@ begin
 
     if (select count(*) from pg_constraint where connamespace = current_schema()::regnamespace and conname = any(required_constraints)) <> cardinality(required_constraints) then
         raise exception 'One or more required constraints are missing: %', required_constraints;
+    end if;
+end;
+$$;
+
+do $$
+begin
+    if not exists (
+        select 1 from flyway_schema_history
+        where version = '21' and success
+    ) then
+        raise exception 'Walk-in guest migration V21 is missing';
+    end if;
+
+    if (
+        select count(*)
+        from information_schema.columns
+        where table_schema = current_schema()
+          and table_name = 'booking'
+          and column_name in ('guest_name', 'guest_phone', 'guest_email')
+    ) <> 3 then
+        raise exception 'One or more walk-in guest contact columns are missing';
+    end if;
+
+    if exists (
+        select 1 from information_schema.columns
+        where table_schema = current_schema()
+          and table_name = 'booking'
+          and column_name = 'customer_id'
+          and is_nullable <> 'YES'
+    ) then
+        raise exception 'booking.customer_id must be nullable for first-time walk-in visitors';
+    end if;
+
+    if not exists (
+        select 1 from flyway_schema_history
+        where version = '20' and success
+    ) then
+        raise exception 'Promotion usage reconciliation migration V20 is missing';
+    end if;
+
+    if not exists (
+        select 1 from information_schema.columns
+        where table_schema = current_schema()
+          and table_name = 'booking_promotion'
+          and column_name = 'usage_counted'
+    ) then
+        raise exception 'booking_promotion.usage_counted is missing';
+    end if;
+
+    if exists (
+        select 1
+        from booking_promotion bp
+        join booking b on b.booking_id = bp.booking_id
+        where bp.usage_counted is distinct from (
+            bp.discount_amount > 0
+            and b.status in ('pending', 'confirmed', 'checked_in', 'completed', 'no_show')
+        )
+    ) then
+        raise exception 'booking promotion usage flags do not match qualifying booking states';
+    end if;
+
+    if exists (
+        select 1
+        from promotion p
+        left join (
+            select promotion_id, count(*)::integer as actual_count
+            from booking_promotion
+            where usage_counted
+            group by promotion_id
+        ) usage on usage.promotion_id = p.promotion_id
+        where p.used_count is distinct from coalesce(usage.actual_count, 0)
+    ) then
+        raise exception 'promotion.used_count is not reconciled to active reservation/confirmed booking usage';
     end if;
 end;
 $$;

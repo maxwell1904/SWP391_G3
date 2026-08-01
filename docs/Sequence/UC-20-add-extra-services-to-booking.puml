@@ -19,7 +19,7 @@ participant "BookingWorkflowService" as Service
 participant "BookingServiceItemRepository / ExtraServiceRepository" as Repo
 database "Database" as DB
 
-== UC-20: Add Extra Services to Booking ==
+== UC-20: Add extra services to booking ==
 
 User -> UI : 1. Select services for a pending booking
 activate User

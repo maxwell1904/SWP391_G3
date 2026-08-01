@@ -1,8 +1,8 @@
 import { Badge } from '@mantine/core'
 import { CreditCard, ReceiptText } from 'lucide-react'
-import { formatDateTime, formatMoney } from '../../../utils/format'
+import { formatDateTime, formatMoney, humanizeStatus, paymentMethodLabel } from '../../../utils/format'
 
-export function BillingDetails({ detail, loading, error }) {
+export function BillingDetails({ detail, loading, error, showProcessorDetails = false }) {
   if (loading) return <p className="emptyText">Loading invoice and payment status...</p>
   if (error) return <p className="errorText">{error}</p>
   if (!detail) return <p className="emptyText">Select a booking to view its billing details.</p>
@@ -47,14 +47,14 @@ export function BillingDetails({ detail, loading, error }) {
             <CreditCard size={17} />
             <span>
               <strong>{payment.paymentCode} · {optionLabel(payment.paymentOption)}</strong>
-              <small>{payment.paymentMethod.replaceAll('_', ' ')} · {formatDateTime(payment.paidAt)}</small>
-              {payment.providerFeeTracked && (
+              <small>{paymentMethodLabel(payment.paymentMethod)} · {formatDateTime(payment.paidAt)}</small>
+              {showProcessorDetails && payment.providerFeeTracked && (
                 <small>Processor fee {formatMoney(payment.providerFeeAmount)} · provider net {formatMoney(payment.providerNetAmount)}</small>
               )}
             </span>
             <span className="paymentRecordValue">
               <strong>{formatMoney(payment.amount)}</strong>
-              <small>{payment.status}</small>
+              <small>{humanizeStatus(payment.status)}</small>
             </span>
           </div>
         )) : <p className="emptyText">No payment transactions yet.</p>}
@@ -67,11 +67,15 @@ export function BillingDetails({ detail, loading, error }) {
               <ReceiptText size={17} />
               <span>
                 <strong>{refund.refundCode}</strong>
-                <small>{refund.paymentMethod?.replaceAll('_', ' ') || 'Payment'} · {refund.gatewayMessage || refund.refundReason || 'Refund case'}</small>
+                <small>
+                  {paymentMethodLabel(refund.paymentMethod)} · {showProcessorDetails
+                    ? (refund.gatewayMessage || refund.refundReason || 'Refund case')
+                    : (refund.refundReason || humanizeStatus(refund.status))}
+                </small>
               </span>
               <span className="paymentRecordValue">
                 <strong>{formatMoney(refund.refundAmount)}</strong>
-                <small>{refund.status}</small>
+                <small>{humanizeStatus(refund.status)}</small>
               </span>
             </div>
           ))}

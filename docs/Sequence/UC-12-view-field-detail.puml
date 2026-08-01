@@ -18,7 +18,7 @@ participant "FieldOperationService" as Service
 participant "FootballFieldRepository / FieldPriceRepository" as Repo
 database "Database" as DB
 
-== UC-12: View Field Detail ==
+== UC-12: View field detail ==
 
 User -> UI : 1. Select a field
 activate User

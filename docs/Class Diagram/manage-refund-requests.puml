@@ -31,7 +31,6 @@ class PayPalCheckoutService <<service>> {
 
 class "ApiRequests.RefundStatusUpdate" as RefundStatusUpdateDTO <<dto>> {
     -status : String
-    -processedById : Long
     -note : String
 }
 

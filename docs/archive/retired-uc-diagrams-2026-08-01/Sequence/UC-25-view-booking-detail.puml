@@ -1,0 +1,89 @@
+@startuml
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+skinparam participant {
+  BackgroundColor white
+  BorderColor black
+}
+
+actor "Customer / Staff" as User
+participant "AccountPage / StaffPage" as UI
+participant "App.jsx" as App
+participant "BookingController" as Controller
+participant "BookingWorkflowService" as Service
+participant "BookingRepository / PaymentRepository / InvoiceRepository" as Repo
+database "Database" as DB
+
+== UC-25: View Booking Detail ==
+
+User -> UI : 1. Select a booking
+activate User
+activate UI
+
+UI -> App : 2. selectedBookingId effect
+activate App
+
+App -> App : 3. Validate UI state and build request
+activate App
+deactivate App
+
+App -> Controller : 4. GET /api/bookings/{bookingId}
+activate Controller
+
+Controller -> Service : 5. bookingDetail(bookingId)
+activate Service
+
+Service -> Service : 6. requireBookingVisible(booking)
+activate Service
+deactivate Service
+
+alt Request is valid and authorized
+  Service -> Repo : 7. findById; find payments; find invoice/refunds/services
+  activate Repo
+
+  Repo -> DB : 8. SELECT booking and related billing rows
+  activate DB
+  DB --> Repo : 9. Booking aggregate
+  deactivate DB
+
+  Repo --> Service : 10. Repository result
+  deactivate Repo
+
+  Service -> Service : 11. Add services, payments, promotions, invoice and refunds
+  activate Service
+  deactivate Service
+else Validation, authorization, or state rule fails
+  note over Service,Controller
+    Unknown/foreign booking -> 404/403
+    The service propagates ApiException to ApiExceptionHandler.
+  end note
+end
+
+Service --> Controller : 12. Domain result or propagated error
+deactivate Service
+
+Controller -> Controller : 13. Serialize response
+activate Controller
+deactivate Controller
+
+Controller --> App : 14. HTTP 200 or mapped 4xx\nresponse body or error payload
+deactivate Controller
+
+App -> App : 15. setSelectedBookingDetail(response.data)
+activate App
+deactivate App
+
+App --> UI : 16. Render SelectedBooking and BillingDetails
+deactivate App
+
+UI --> User : 17. Updated screen or error feedback
+
+deactivate UI
+deactivate User
+
+@enduml

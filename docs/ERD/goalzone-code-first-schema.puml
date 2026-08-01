@@ -95,6 +95,9 @@ entity booking {
   * booking_id : bigint <<PK>>
   --
   customer_id : bigint <<FK>>
+  guest_name : varchar
+  guest_phone : varchar
+  guest_email : varchar
   staff_id : bigint <<FK>>
   slot_id : bigint <<FK>>
   booking_code : varchar <<UQ>>
@@ -162,6 +165,7 @@ entity booking_promotion {
   promotion_id : bigint <<FK>>
   promotion_code_snapshot : varchar
   discount_amount : numeric
+  usage_counted : boolean <<reservation flag>>
 }
 
 entity payment {

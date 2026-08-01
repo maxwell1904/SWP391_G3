@@ -1,0 +1,78 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+
+class BookingWorkflowService <<service>> {
+    -support : DomainSupportService
+
+    +createBooking(request : ApiRequests.BookingCreate) : Map<String, Object>
+    +reschedule(bookingId : Long, request : ApiRequests.BookingReschedule) : Map<String, Object>
+    +updateBookingStatus(bookingId : Long, request : ApiRequests.BookingStatusUpdate) : Map<String, Object>
+}
+
+class DomainSupportService <<service>> {
+    -bookingRepository : BookingRepository
+
+    +validateSlotBookable(slot : Slot) : void
+    +getBooking(bookingId : Long) : Booking
+    +getSlot(slotId : Long) : Slot
+    +notifyUser(user : AppUser, booking : Booking, type : NotificationType, title : String, message : String) : void
+}
+
+interface BookingRepository <<repository>> {
+    +existsBySlotAndStatusIn(slot : Slot, statuses : Collection<BookingStatus>) : boolean
+    +findById(id : Long) : Optional<Booking>
+}
+
+class "ApiRequests.BookingReschedule" as BookingRescheduleDTO <<dto>> {
+    -newSlotId : Long
+    -note : String
+}
+
+class Booking <<entity>> {
+    -bookingId : Long
+    -customer : AppUser
+    -slot : Slot
+    -status : BookingStatus
+    -totalAmount : BigDecimal
+    -paidAmount : BigDecimal
+    -remainingAmount : BigDecimal
+    -refundableAmount : BigDecimal
+}
+
+class Slot <<entity>> {
+    -slotId : Long
+    -field : FootballField
+    -slotDate : LocalDate
+    -startTime : LocalTime
+    -endTime : LocalTime
+    -status : SlotStatus
+    -blockReason : String
+}
+
+enum BookingStatus {
+    + pending
+    + confirmed
+    + checked_in
+    + completed
+    + cancelled
+    + no_show
+    + expired
+    + rejected
+}
+
+BookingWorkflowService ..> DomainSupportService
+BookingWorkflowService ..> BookingRescheduleDTO
+DomainSupportService ..> BookingRepository
+BookingRepository --> Booking
+Booking --> Slot
+Booking --> BookingStatus
+
+note right of BookingWorkflowService
+No dedicated conflict entity or endpoint exists.
+Resolution reuses reschedule, cancel, refund,
+issue, and notification workflows.
+end note
+
+@enduml

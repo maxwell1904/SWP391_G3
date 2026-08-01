@@ -1,0 +1,63 @@
+@startuml
+title GoalZone - Account and discovery use cases
+left to right direction
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor #F0F9FF
+  BorderColor #0369A1
+  ArrowColor #475569
+}
+
+actor Guest
+actor "Authenticated User" as User
+actor Customer
+User <|-- Customer
+
+rectangle GoalZone {
+  package "Account access" #ECFDF5 {
+    usecase "UC-01\nRegister account" as UC01
+    usecase "UC-02\nLogin" as UC02
+    usecase "UC-03\nLogout" as UC03
+    usecase "UC-04\nManage personal profile" as UC04
+    usecase "UC-05\nChange password" as UC05
+    usecase "UC-06\nForgot/reset password" as UC06
+  }
+  package "Public discovery" #EFF6FF {
+    usecase "UC-10\nView field list" as UC10
+    usecase "UC-11\nView field detail" as UC11
+    usecase "UC-12\nSearch available fields" as UC12
+    usecase "UC-50\nView active promotions" as UC50
+    usecase "UC-55\nView membership benefits" as UC55
+  }
+  package "Customer assistance" #FFF7ED {
+    usecase "UC-53\nView membership progress" as UC53
+    usecase "UC-62\nAsk availability assistant" as UC62
+    usecase "UC-63\nGet ranked slot suggestions" as UC63
+  }
+}
+
+Guest --> UC01
+Guest --> UC02
+Guest --> UC06
+Guest --> UC10
+Guest --> UC11
+Guest --> UC12
+Guest --> UC50
+Guest --> UC55
+User --> UC03
+User --> UC04
+User --> UC05
+Customer --> UC53
+Customer --> UC62
+Customer --> UC63
+
+note bottom
+Feature groups organize related goals; they are not additional use cases.
+UC-62 is optional natural-language input. UC-63 and live GoalZone data remain authoritative.
+end note
+@enduml

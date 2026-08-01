@@ -19,6 +19,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 @Service
@@ -46,7 +47,7 @@ public class AccountService {
 
     public Map<String, Object> register(ApiRequests.Register request) {
         support.requireText(request.fullName(), "Full name is required");
-        String email = support.clean(request.email());
+        String email = normalizedEmail(request.email());
         String phone = support.clean(request.phone());
         support.requireText(email, "Email is required");
         support.requireText(phone, "Phone is required");
@@ -57,7 +58,7 @@ public class AccountService {
             throw support.badRequest("Phone must be 10 digits and start with 0");
         }
         validatePassword(request.password(), request.confirmPassword());
-        if (support.userRepository.findByEmail(email).isPresent()) {
+        if (support.userRepository.findByEmailIgnoreCase(email).isPresent()) {
             throw support.badRequest("Email already exists");
         }
         if (support.userRepository.findByPhone(phone).isPresent()) {
@@ -92,7 +93,7 @@ public class AccountService {
         support.requireText(request.emailOrPhone(), "Email or phone is required");
         support.requireText(request.password(), "Password is required");
         String identity = support.clean(request.emailOrPhone());
-        AppUser user = support.userRepository.findByEmail(identity)
+        AppUser user = support.userRepository.findByEmailIgnoreCase(identity)
                 .or(() -> support.userRepository.findByPhone(identity))
                 .orElseThrow(() -> support.notFound("Account not found"));
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
@@ -132,8 +133,8 @@ public class AccountService {
         return Map.of("user", support.userSummary(user), "message", "Email verified");
     }
 
-    public Map<String, Object> resendEmailVerification(ApiRequests.EmailVerificationResend request) {
-        AppUser user = support.getUser(request.userId());
+    public Map<String, Object> resendEmailVerification() {
+        AppUser user = currentUser();
         if (support.isBlank(user.getEmail())) {
             throw support.badRequest("Account does not have an email address");
         }
@@ -174,6 +175,7 @@ public class AccountService {
 
     public Map<String, Object> validateResetToken(ApiRequests.ValidateResetToken request) {
         AppUser user = support.getUser(request.userId());
+        support.requireText(request.token(), "Reset token is required");
         if (!Objects.equals(user.getPasswordResetToken(), request.token().trim())) {
             throw support.badRequest("Invalid or expired reset link");
         }
@@ -185,13 +187,13 @@ public class AccountService {
     }
 
     public Map<String, Object> forgotPassword(ApiRequests.ForgotPassword request) {
-        String email = support.clean(request.email());
+        String email = normalizedEmail(request.email());
         support.requireText(email, "Email is required");
         if (!EMAIL_PATTERN.matcher(email).matches()) {
             throw support.badRequest("Email format is invalid");
         }
 
-        AppUser user = support.userRepository.findByEmail(email).orElse(null);
+        AppUser user = support.userRepository.findByEmailIgnoreCase(email).orElse(null);
         if (user == null) {
             return Map.of("message", "If this email is registered, a password reset link has been sent.");
         }
@@ -301,7 +303,15 @@ public class AccountService {
         return support.userRepository.findAll().stream()
                 .filter(user -> "Customer".equalsIgnoreCase(user.getRole().getRoleName()))
                 .filter(user -> user.getStatus() == AccountStatus.active)
-                .map(support::userSummary)
+                .map(user -> {
+                    Map<String, Object> summary = new LinkedHashMap<>();
+                    summary.put("userId", user.getUserId());
+                    summary.put("role", "Customer");
+                    summary.put("fullName", user.getFullName());
+                    summary.put("email", user.getEmail());
+                    summary.put("phone", user.getPhone());
+                    return summary;
+                })
                 .toList();
     }
 
@@ -332,8 +342,8 @@ public class AccountService {
         VerificationEmailDelivery delivery = support.isBlank(user.getEmail()) ? null
                 : verificationEmailService.sendAccountStatusEmail(user, status != AccountStatus.active);
         support.notifyUser(user, null, com.swp391.backend.enums.NotificationType.system,
-                status == AccountStatus.active ? "Account access restored" : "Account locked",
-                status == AccountStatus.active ? "Your account is active again." : "Your account can no longer sign in.");
+                status == AccountStatus.active ? "Account access restored" : "Account deactivated",
+                status == AccountStatus.active ? "Your account is active again." : "Your staff account has been deactivated.");
         Map<String, Object> response = new LinkedHashMap<>(support.userSummary(user));
         if (delivery != null) {
             response.put("emailDeliveryStatus", delivery.status());
@@ -400,10 +410,10 @@ public class AccountService {
         if (!"Staff".equalsIgnoreCase(staff.getRole().getRoleName())) {
             throw support.badRequest("The selected account is not a staff account");
         }
-        validateStaffRequest(request, false, userId);
-        if (!support.isBlank(request.password())) {
-            throw support.badRequest("Administrators cannot change a staff member's password; staff must change or reset it themselves");
+        if (!staff.getEmail().equalsIgnoreCase(normalizedEmail(request.email()))) {
+            throw support.badRequest("Staff email cannot be changed after account creation");
         }
+        validateStaffRequest(request, false, userId);
         applyStaffRequest(staff, request, false);
         if (staff.getStatus() != AccountStatus.active) {
             revokeAllTokens(staff);
@@ -413,13 +423,13 @@ public class AccountService {
 
     private void validateStaffRequest(ApiRequests.StaffUpsert request, boolean creating, Long currentUserId) {
         support.requireText(request.fullName(), "Full name is required");
-        String email = support.clean(request.email());
+        String email = normalizedEmail(request.email());
         String phone = support.clean(request.phone());
         support.requireText(email, "Email is required");
         support.requireText(phone, "Phone is required");
         if (!EMAIL_PATTERN.matcher(email).matches()) throw support.badRequest("Email format is invalid");
         if (!PHONE_PATTERN.matcher(phone).matches()) throw support.badRequest("Phone must be 10 digits and start with 0");
-        support.userRepository.findByEmail(email).filter(user -> !Objects.equals(user.getUserId(), currentUserId))
+        support.userRepository.findByEmailIgnoreCase(email).filter(user -> !Objects.equals(user.getUserId(), currentUserId))
                 .ifPresent(user -> { throw support.badRequest("Email already exists"); });
         support.userRepository.findByPhone(phone).filter(user -> !Objects.equals(user.getUserId(), currentUserId))
                 .ifPresent(user -> { throw support.badRequest("Phone already exists"); });
@@ -427,7 +437,9 @@ public class AccountService {
 
     private void applyStaffRequest(AppUser staff, ApiRequests.StaffUpsert request, boolean creating) {
         staff.setFullName(support.clean(request.fullName()));
-        staff.setEmail(support.clean(request.email()));
+        if (creating) {
+            staff.setEmail(normalizedEmail(request.email()));
+        }
         staff.setPhone(support.clean(request.phone()));
         staff.setStatus(support.parseEnum(AccountStatus.class, request.status(), AccountStatus.active));
         if (creating) {
@@ -484,5 +496,10 @@ public class AccountService {
         if (!Objects.equals(password, confirmPassword)) {
             throw support.badRequest("Password confirmation does not match");
         }
+    }
+
+    private String normalizedEmail(String email) {
+        String cleaned = support.clean(email);
+        return cleaned == null ? null : cleaned.toLowerCase(Locale.ROOT);
     }
 }

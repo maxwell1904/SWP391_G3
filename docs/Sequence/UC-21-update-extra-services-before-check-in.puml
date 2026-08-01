@@ -19,7 +19,7 @@ participant "BookingWorkflowService" as Service
 participant "BookingServiceItemRepository / InvoiceRepository" as Repo
 database "Database" as DB
 
-== UC-21: Update Extra Services Before Check-in ==
+== UC-21: Update extra services before check-in ==
 
 User -> UI : 1. Increase, reduce or remove booked services
 activate User
@@ -38,7 +38,7 @@ activate Controller
 Controller -> Service : 5. updateBookingServices(bookingId, request)
 activate Service
 
-Service -> Service : 6. Only pending/confirmed; recheck visibility and stock
+Service -> Service : 6. Only pending/confirmed before booked start;\nrecheck visibility, quantity and overlapping stock
 activate Service
 deactivate Service
 
