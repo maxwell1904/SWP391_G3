@@ -142,6 +142,7 @@ public class AccountService {
             return Map.of("user", support.userSummary(user), "message", "Email is already verified");
         }
         issueEmailVerification(user);
+        support.userRepository.save(user);
         VerificationEmailDelivery delivery = verificationEmailService.sendVerificationEmail(user);
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("user", support.userSummary(user));
