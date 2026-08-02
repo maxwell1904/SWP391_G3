@@ -272,7 +272,9 @@ class BookingPolicyWorkflowServiceTest {
                 .filter(slot -> slot.getStatus() == SlotStatus.available)
                 .filter(slot -> !bookingRepository.existsBySlotAndStatusIn(slot,
                         List.of(BookingStatus.pending, BookingStatus.confirmed, BookingStatus.checked_in)))
-                .filter(slot -> support.calculateFieldPrice(slot).compareTo(originalPrice) != 0)
+                .filter(slot -> support.findFieldPrice(slot)
+                        .filter(price -> price.compareTo(originalPrice) != 0)
+                        .isPresent())
                 .findFirst().orElseThrow();
     }
 
