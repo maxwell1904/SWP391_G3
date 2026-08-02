@@ -1241,17 +1241,59 @@ def update_rds() -> None:
     )
 
     # Screen description and authorization are corrected against actual routes/roles.
+    screen_descriptions = {
+        "Unavailable Slot Management": (
+            "Venue Staff reviews the daily field schedule and blocks or unblocks operational slot exceptions. "
+            "Admin slot-generation rules are configured separately in the policy workspace."
+        ),
+        "Issue Report / Issue Management": (
+            "Customer or Staff reports a field, booking, or service issue; Venue Staff resolves or rejects it; "
+            "Admin has read-only audit access."
+        ),
+        "Walk-in Booking": (
+            "Venue Staff creates a walk-in booking for either a Customer matched by phone/email or a first-time "
+            "visitor identified by name and phone, then records deposit/full cash or leaves payment pending."
+        ),
+        "Booking Detail": (
+            "Customer views an owned booking, Venue Staff performs eligible lifecycle actions, and Admin reviews "
+            "booking and billing data in read-only audit mode."
+        ),
+        "Booking Operations": (
+            "Venue Staff uses the booking queue and selected-booking controls for reschedule, cancellation, "
+            "check-in, completion, no-show, services, cash payment, invoice, and transaction history."
+        ),
+        "Payment History": (
+            "Customer views owned transactions; Venue Staff and Admin review role-authorized payment records, "
+            "with Admin access remaining read-only."
+        ),
+        "Invoice Detail": (
+            "Displays the generated invoice and settlement state to the booking owner or Venue Staff; Admin access "
+            "is read-only audit."
+        ),
+        "Refund Management": (
+            "Customer submits an eligible refund request, Venue Staff reviews and processes it, and Admin inspects "
+            "the refund audit trail without changing it."
+        ),
+        "Policy Management": (
+            "Admin policy workspace for deposit, cancellation/refund, payment timeout, reminder, and automatic "
+            "slot opening/closing/duration/horizon rules."
+        ),
+    }
     for table in document.tables:
         if not table.rows:
             continue
         header = [cell.text.strip() for cell in table.rows[0].cells]
         if header[:4] == ["#", "Feature", "Screen", "Description"]:
             for row in table.rows[1:]:
-                if row.cells[2].text.strip() == "Booking and Refund Policies":
-                    row.cells[3].text = (
-                        "Admin policy workspace for deposit, cancellation/refund, payment timeout, reminder, and "
-                        "automatic slot opening/closing/duration/horizon rules."
-                    )
+                screen_name = row.cells[2].text.strip()
+                if screen_name == "Booking Calendar":
+                    screen_name = "Booking Operations"
+                    row.cells[2].text = screen_name
+                elif screen_name == "Booking and Refund Policies":
+                    screen_name = "Policy Management"
+                    row.cells[2].text = screen_name
+                if screen_name in screen_descriptions:
+                    row.cells[3].text = screen_descriptions[screen_name]
         if header[:5] == ["Screen", "Guest", "Customer", "Staff", "Admin"]:
             access = {
                 "Landing Page": {"Guest", "Customer"},
@@ -1274,7 +1316,7 @@ def update_rds() -> None:
                 "Walk-in Booking": {"Staff"},
                 "Booking Detail": {"Customer", "Staff", "Admin"},
                 "My Bookings": {"Customer"},
-                "Booking Calendar": {"Staff"},
+                "Booking Operations": {"Staff"},
                 "Reschedule Booking": {"Customer", "Staff"},
                 "Cancellation Preview": {"Customer", "Staff"},
                 "Checkout Summary": {"Guest", "Customer", "Staff"},
@@ -1282,7 +1324,7 @@ def update_rds() -> None:
                 "Payment History": {"Customer", "Staff", "Admin"},
                 "Invoice Detail": {"Customer", "Staff", "Admin"},
                 "Refund Management": {"Customer", "Staff", "Admin"},
-                "Booking and Refund Policies": {"Admin"},
+                "Policy Management": {"Admin"},
                 "Promotion List": {"Guest", "Customer", "Staff", "Admin"},
                 "Promotion Management": {"Admin"},
                 "Membership Benefits": {"Guest", "Customer", "Staff", "Admin"},
@@ -1295,7 +1337,14 @@ def update_rds() -> None:
                 "Customer Account State Report": {"Admin"},
             }
             for row in table.rows[1:]:
-                allowed = access.get(row.cells[0].text.strip(), set())
+                screen_name = row.cells[0].text.strip()
+                if screen_name == "Booking Calendar":
+                    screen_name = "Booking Operations"
+                    row.cells[0].text = screen_name
+                elif screen_name == "Booking and Refund Policies":
+                    screen_name = "Policy Management"
+                    row.cells[0].text = screen_name
+                allowed = access.get(screen_name, set())
                 for column, role in enumerate(["Guest", "Customer", "Staff", "Admin"], start=1):
                     row.cells[column].text = "X" if role in allowed else ""
 
@@ -1304,7 +1353,28 @@ def update_rds() -> None:
         document,
         [
             ("UC-07/UC-08, UC-10", "UC-07, UC-08, UC-10"),
-            ("UC-16/UC-17, UC-18", "UC-16, UC-17, UC-18"),
+            ("UC-16/UC-17, UC-18", "UC-17, UC-18"),
+            ("Related use cases: UC-16, UC-17, UC-18", "Related use cases: UC-17, UC-18"),
+            ("Detailed as-built SQL is specified under UC-16, UC-17, UC-18 in the SDS Database Queries sections.",
+             "Detailed as-built SQL is specified under UC-17, UC-18 in the SDS Database Queries sections."),
+            ("Staff blocks/unblocks field time with a reason and reviews daily field operations.",
+             "Venue Staff reviews daily field operations and blocks or unblocks operational slot exceptions; Admin configures ordinary slot generation separately."),
+            ("Customer/Staff reports a field, booking, or service issue; Staff resolves it and notifies the reporter.",
+             "Customer or Staff reports a field, booking, or service issue; Venue Staff resolves or rejects it and notifies the reporter; Admin reviews the history in read-only mode."),
+            ("Role/ownership-protected view of booking, billing, and allowed lifecycle actions.",
+             "Customer views an owned booking; Venue Staff performs eligible lifecycle actions; Admin reviews booking and billing data in read-only audit mode."),
+            ("Shows real persisted transaction history subject to booking ownership/operator access.",
+             "Shows persisted transaction history subject to ownership or operational access; Admin access is read-only audit."),
+            ("Displays the generated booking invoice and current settlement state.",
+             "Displays the generated booking invoice and current settlement state; Admin access is read-only audit."),
+            ("Customer submits an eligible request; Staff reviews it and completes PayPal or cash refund workflows.",
+             "Customer submits an eligible request; Venue Staff reviews and completes PayPal or cash refund workflows; Admin reviews the audit trail without changing it."),
+            ("Admin maintains deposit, payment-timeout, cancellation/refund, and reminder settings.",
+             "Admin maintains slot-generation, deposit, payment-timeout, cancellation/refund, and reminder settings."),
+            ("f. Booking and Refund Policies", "f. Policy Management"),
+            ("Related use cases: UC-43, UC-44", "Related use cases: UC-16, UC-43, UC-44"),
+            ("Detailed as-built SQL is specified under UC-43, UC-44 in the SDS Database Queries sections.",
+             "Detailed as-built SQL is specified under UC-16, UC-43, UC-44 in the SDS Database Queries sections."),
             ("UC-20, UC-20, UC-21", "UC-20, UC-21"),
             ("UC-25, UC-36, UC-37", "UC-25, UC-35, UC-37"),
             ("UC-26, UC-36, UC-24, UC-31, UC-32, UC-33", "UC-26, UC-31, UC-32, UC-33, UC-37, UC-40"),

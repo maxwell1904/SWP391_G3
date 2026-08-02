@@ -1,0 +1,68 @@
+textSize small
+title Guest Screen Flow - GoalZone Football Field Booking
+
+legend [position: bottom-left] {
+  [shape: rectangle, label: "Page / visible tab or panel"]
+  [shape: oval, label: "Modal / notice / outcome"]
+}
+
+LandingPage [shape: rectangle, label: "Landing Page"]
+FieldListScreen [shape: rectangle, label: "Field List"]
+FieldDetailModal [shape: oval, label: "Field Detail Modal"]
+BookingScreen [shape: rectangle, label: "Booking / Live Availability"]
+PromotionListScreen [shape: rectangle, label: "Promotion List"]
+MembershipBenefitsScreen [shape: rectangle, label: "Membership Benefits"]
+LoginScreen [shape: rectangle, label: "Login"]
+RegisterScreen [shape: rectangle, label: "Register Account"]
+CustomerAccountScreen [shape: rectangle, label: "Customer Account"]
+VerificationRequiredNotice [shape: oval, label: "Email Verification Required"]
+VerifyEmailScreen [shape: rectangle, label: "Verify Email"]
+VerifySuccessState [shape: oval, label: "Email Verified"]
+VerifyFailedState [shape: oval, label: "Invalid / Expired Verification Link"]
+LoginFailedNotice [shape: oval, label: "Login Failed"]
+RegistrationFailedNotice [shape: oval, label: "Registration Failed"]
+ForgotPasswordScreen [shape: rectangle, label: "Forgot Password"]
+ResetLinkSentState [shape: oval, label: "Reset Link Sent"]
+ResetPasswordScreen [shape: rectangle, label: "Set New Password"]
+InvalidResetLinkState [shape: oval, label: "Invalid / Expired Reset Link"]
+ResetSuccessState [shape: oval, label: "Password Reset Complete"]
+
+LandingPage > FieldListScreen: Click "Fields" or "View fields"
+FieldListScreen > FieldDetailModal: Select a field
+FieldDetailModal > FieldListScreen: Close details
+FieldDetailModal > BookingScreen: Click "Check availability"
+
+LandingPage > BookingScreen: Click "Book a field" or "Show live slots"
+BookingScreen > LoginScreen: Click "Sign in to book"
+
+LandingPage > PromotionListScreen: Click "Offers"
+PromotionListScreen > BookingScreen: Click "Use this code"
+
+LandingPage > MembershipBenefitsScreen: Click "Membership"
+
+LandingPage > LoginScreen: Click "Sign in"
+LoginScreen > RegisterScreen: Select "Register" tab
+RegisterScreen > CustomerAccountScreen: Submit valid registration and sign in automatically
+RegisterScreen > RegistrationFailedNotice: Invalid or duplicate account information
+RegistrationFailedNotice > RegisterScreen: Correct information and retry
+
+CustomerAccountScreen > VerificationRequiredNotice: Account email is not verified
+VerificationRequiredNotice > VerifyEmailScreen: Open verification link from email
+VerifyEmailScreen > VerifySuccessState: Verification token is valid
+VerifyEmailScreen > VerifyFailedState: Token is invalid or expired
+VerifyFailedState > VerifyEmailScreen: Click "Resend email"
+VerifySuccessState > BookingScreen: Continue booking while signed in
+VerifySuccessState > LoginScreen: Back to login when no session exists
+
+LoginScreen > CustomerAccountScreen: Submit valid Customer credentials
+LoginScreen > LoginFailedNotice: Invalid credentials or locked account
+LoginFailedNotice > LoginScreen: Correct credentials and retry
+
+LoginScreen > ForgotPasswordScreen: Click "Forgot password?"
+ForgotPasswordScreen > ResetLinkSentState: Submit a valid email
+ResetLinkSentState > LoginScreen: Click "Back to login"
+ResetLinkSentState > ResetPasswordScreen: Open reset link from email
+ResetPasswordScreen > InvalidResetLinkState: Link is invalid or expired
+InvalidResetLinkState > ForgotPasswordScreen: Request a new link
+ResetPasswordScreen > ResetSuccessState: Submit a valid new password
+ResetSuccessState > LoginScreen: Click "Go to login"

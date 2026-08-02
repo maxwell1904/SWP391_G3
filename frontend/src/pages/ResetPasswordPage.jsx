@@ -12,7 +12,8 @@ export function ResetPasswordPage({
   resetPasswordToken,
   resetTokenChecking,
   updateResetForm,
-  submitReset
+  submitReset,
+  navigatePage
 }) {
   const isDone = resetResult?.status === 'success'
 
@@ -20,7 +21,7 @@ export function ResetPasswordPage({
     <section id="reset-password" className="section authSection">
       <SectionIntro
         kicker="Password reset"
-        title={resetTokenChecking ? 'Checking...' : isDone ? 'Password updated' : resetPasswordToken ? 'Set new password' : 'Invalid link'}
+        title={resetTokenChecking ? 'Checking…' : isDone ? 'Password updated' : resetPasswordToken ? 'Set new password' : 'Invalid link'}
         text={resetTokenChecking
           ? 'Validating your reset link.'
           : isDone
@@ -43,7 +44,7 @@ export function ResetPasswordPage({
               <h3>Password reset complete</h3>
               <p>You can now sign in with your new password.</p>
               <div className="buttonRow noMargin">
-                <button className="primaryButton wide" onClick={() => window.location.href = '/login'}>Go to login</button>
+                <button className="primaryButton wide" onClick={() => navigatePage('login')}>Go to login</button>
               </div>
             </div>
           ) : resetPasswordToken ? (
@@ -69,7 +70,7 @@ export function ResetPasswordPage({
               />
               <button className="primaryButton wide" disabled={resetLoading} onClick={submitReset}>
                 <KeyRound size={18} />
-                <span>{resetLoading ? 'Resetting...' : 'Reset password'}</span>
+                <span>{resetLoading ? 'Resetting…' : 'Reset password'}</span>
               </button>
             </div>
           ) : (
@@ -78,7 +79,7 @@ export function ResetPasswordPage({
               <h3>Cannot reset password</h3>
               <p>This reset link is invalid or expired. Please request a new one.</p>
               <div className="buttonRow noMargin">
-                <button className="primaryButton wide" onClick={() => window.location.href = '/forgot-password'}>Request new link</button>
+                <button className="primaryButton wide" onClick={() => navigatePage('forgotPassword')}>Request new link</button>
               </div>
             </div>
           )}

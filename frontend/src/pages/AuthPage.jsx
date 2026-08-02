@@ -18,6 +18,7 @@ export function AuthPage({
   setShowRegisterPassword,
   login,
   register,
+  loginLoading,
   registerLoading,
   logout,
   navigatePage,
@@ -67,6 +68,8 @@ export function AuthPage({
                   setShowLoginPassword={setShowLoginPassword}
                   updateLoginForm={updateLoginForm}
                   login={login}
+                  loginLoading={loginLoading}
+                  onForgotPassword={() => navigatePage('forgotPassword')}
                 />
               ) : (
                 <RegisterForm
@@ -87,7 +90,7 @@ export function AuthPage({
   )
 }
 
-function LoginForm({ loginForm, loginErrors, showLoginPassword, setShowLoginPassword, updateLoginForm, login }) {
+function LoginForm({ loginForm, loginErrors, showLoginPassword, setShowLoginPassword, updateLoginForm, login, loginLoading, onForgotPassword }) {
   return (
     <form
       className="formStack"
@@ -113,13 +116,13 @@ function LoginForm({ loginForm, loginErrors, showLoginPassword, setShowLoginPass
         onChange={value => updateLoginForm('password', value)}
       />
       <div className="forgotPasswordRow">
-        <button type="button" className="forgotPasswordLink" onClick={() => window.location.href = '/forgot-password'}>
+        <button type="button" className="forgotPasswordLink" onClick={onForgotPassword}>
           Forgot password?
         </button>
       </div>
-      <button type="submit" className="primaryButton wide">
-        <LogIn size={18} />
-        <span>Login</span>
+      <button type="submit" className="primaryButton wide" disabled={loginLoading}>
+        {loginLoading ? <Loader2 className="spin" size={18} /> : <LogIn size={18} />}
+        <span>{loginLoading ? 'Signing in…' : 'Login'}</span>
       </button>
     </form>
   )
@@ -178,7 +181,7 @@ function RegisterForm({ registerForm, registerErrors, showRegisterPassword, setS
       />
       <button type="submit" className="primaryButton wide" disabled={registerLoading}>
         {registerLoading ? <Loader2 className="spin" size={18} /> : null}
-        <span>{registerLoading ? 'Creating account...' : 'Create account'}</span>
+        <span>{registerLoading ? 'Creating account…' : 'Create account'}</span>
       </button>
     </form>
   )

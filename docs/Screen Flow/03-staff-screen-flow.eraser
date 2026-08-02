@@ -1,0 +1,118 @@
+textSize small
+title Venue Staff Screen Flow - GoalZone Football Field Booking
+
+legend [position: bottom-left] {
+  [shape: rectangle, label: "Page / visible tab or panel"]
+  [shape: oval, label: "Modal / notice / outcome"]
+}
+
+LoginScreen [shape: rectangle, label: "Login"]
+StaffWorkspace [shape: rectangle, label: "Staff Workspace"]
+StaffBookingsTab [shape: rectangle, label: "Staff Workspace - Bookings"]
+StaffAccountScreen [shape: rectangle, label: "Staff Profile and Password"]
+NotificationDropdown [shape: oval, label: "Notification List"]
+LandingPage [shape: rectangle, label: "Landing Page"]
+
+WalkInBookingJourney [label: "Walk-in Booking"] {
+  WalkInIdentityState [shape: rectangle, label: "Customer Details"]
+  RegisteredCustomerLookup [shape: rectangle, label: "Phone / Email Customer Lookup"]
+  FirstTimeVisitorForm [shape: rectangle, label: "First-time Visitor Details"]
+  WalkInAvailabilityState [shape: rectangle, label: "Availability"]
+  WalkInServicesState [shape: rectangle, label: "Add-ons"]
+  WalkInCheckoutState [shape: rectangle, label: "Checkout"]
+  WalkInCreatedNotice [shape: oval, label: "Walk-in Booking Created"]
+  WalkInValidationNotice [shape: oval, label: "Missing Customer or Booking Information"]
+}
+
+BookingOperationsJourney [label: "Booking Operations"] {
+  BookingQueuePanel [shape: rectangle, label: "Booking Queue"]
+  SelectedBookingPanel [shape: rectangle, label: "Selected Booking Operation"]
+  RescheduleState [shape: rectangle, label: "Reschedule Booking"]
+  CancellationTermsState [shape: oval, label: "Cancellation Terms"]
+  OperationConfirmationModal [shape: oval, label: "Operation Confirmation"]
+  NoShowNoteState [shape: rectangle, label: "Required No-show Note"]
+  CashPaymentConfirmationModal [shape: oval, label: "Cash Payment Confirmation"]
+  InvoiceHistoryState [shape: rectangle, label: "Invoice and Transaction History"]
+  ServiceEditorState [shape: rectangle, label: "Edit Booking Services"]
+  OperationSuccessNotice [shape: oval, label: "Booking Operation Saved"]
+}
+
+ScheduleSupportJourney [label: "Schedule, Issues and Refunds"] {
+  FieldScheduleTab [shape: rectangle, label: "Field Schedule Tab"]
+  OperationCalendarPanel [shape: rectangle, label: "Operational Slot Calendar"]
+  BlockSlotForm [shape: rectangle, label: "Block Slot Form"]
+  ScheduleUpdatedNotice [shape: oval, label: "Schedule Updated"]
+  SupportTab [shape: rectangle, label: "Issues and Refunds Tab"]
+  IssueReportForm [shape: rectangle, label: "Staff Issue Report"]
+  IssueCaseState [shape: rectangle, label: "Issue Case"]
+  IssueUpdatedNotice [shape: oval, label: "Issue Status Updated"]
+  RefundCaseState [shape: rectangle, label: "Refund Case"]
+  PayPalRefundState [shape: rectangle, label: "PayPal Refund Processing"]
+  RefundUpdatedNotice [shape: oval, label: "Refund Status Updated"]
+}
+
+LoginScreen > StaffWorkspace: Submit valid Venue Staff credentials
+StaffWorkspace > StaffBookingsTab: Select "Bookings"
+StaffBookingsTab > WalkInIdentityState: Click "Walk-in"
+WalkInIdentityState > RegisteredCustomerLookup: Select "Registered customer"
+RegisteredCustomerLookup > WalkInAvailabilityState: Match account by phone or email
+RegisteredCustomerLookup > FirstTimeVisitorForm: No account found; select "First-time visitor"
+WalkInIdentityState > FirstTimeVisitorForm: Select "First-time visitor"
+FirstTimeVisitorForm > WalkInAvailabilityState: Enter name, phone, and optional email
+WalkInAvailabilityState > WalkInServicesState: Select an available field slot
+WalkInServicesState > WalkInCheckoutState: Choose add-ons and review totals
+WalkInCheckoutState > WalkInCreatedNotice: Record deposit or full cash payment
+WalkInCheckoutState > WalkInCreatedNotice: Choose "Pay later" with full balance remaining
+WalkInCreatedNotice > StaffBookingsTab: Open the created booking in the queue
+WalkInCheckoutState > WalkInValidationNotice: Customer details, slot, or checkout is incomplete
+WalkInValidationNotice > WalkInIdentityState: Correct customer information
+WalkInValidationNotice > WalkInAvailabilityState: Select another available slot
+
+StaffBookingsTab > BookingQueuePanel: Load the booking queue
+BookingQueuePanel > SelectedBookingPanel: Select a booking
+SelectedBookingPanel > RescheduleState: Choose a new date and available slot
+RescheduleState > SelectedBookingPanel: Confirm eligible reschedule
+SelectedBookingPanel > CancellationTermsState: Review cancellation terms
+CancellationTermsState > OperationConfirmationModal: Confirm cancellation
+SelectedBookingPanel > OperationConfirmationModal: Click "Check-in" when rules pass
+SelectedBookingPanel > OperationConfirmationModal: Click "Complete" with zero remaining balance
+SelectedBookingPanel > NoShowNoteState: Click "No-show" after the allowed time
+NoShowNoteState > OperationConfirmationModal: Enter the required note
+OperationConfirmationModal > OperationSuccessNotice: Confirm status change
+OperationConfirmationModal > SelectedBookingPanel: Cancel confirmation
+SelectedBookingPanel > CashPaymentConfirmationModal: Record remaining payment
+CashPaymentConfirmationModal > OperationSuccessNotice: Confirm cash received
+CashPaymentConfirmationModal > SelectedBookingPanel: Cancel confirmation
+SelectedBookingPanel > InvoiceHistoryState: Expand invoice and transactions
+InvoiceHistoryState > SelectedBookingPanel: Collapse details
+SelectedBookingPanel > ServiceEditorState: Edit services before start
+ServiceEditorState > SelectedBookingPanel: Save services and recalculate billing
+OperationSuccessNotice > SelectedBookingPanel: Refresh booking status and amounts
+
+StaffWorkspace > FieldScheduleTab: Select "Field schedule"
+FieldScheduleTab > OperationCalendarPanel: Choose an operating date
+OperationCalendarPanel > BlockSlotForm: Enter field, time range, reason, and optional note
+BlockSlotForm > ScheduleUpdatedNotice: Block an available slot
+OperationCalendarPanel > ScheduleUpdatedNotice: Unblock an operational exception
+ScheduleUpdatedNotice > OperationCalendarPanel: Reload available, booked, and blocked slots
+StaffWorkspace > SupportTab: Select "Issues and refunds"
+SupportTab > IssueReportForm: Enter issue title and description
+IssueReportForm > IssueCaseState: Save issue under the signed-in Staff identity
+SupportTab > IssueCaseState: Open an existing issue
+IssueCaseState > IssueUpdatedNotice: Start work
+IssueCaseState > IssueUpdatedNotice: Resolve with a resolution note
+IssueCaseState > IssueUpdatedNotice: Reject with a resolution note
+IssueUpdatedNotice > IssueCaseState: Display the latest status and audit note
+SupportTab > RefundCaseState: Open a refund request
+RefundCaseState > RefundUpdatedNotice: Approve or reject the request
+RefundCaseState > RefundUpdatedNotice: Record an approved cash refund
+RefundCaseState > PayPalRefundState: Send an approved online refund to PayPal Sandbox
+PayPalRefundState > RefundUpdatedNotice: Provider returns completed
+PayPalRefundState > RefundCaseState: Provider returns processing or failed; retry safely
+RefundUpdatedNotice > RefundCaseState: Display the latest refund lifecycle state
+
+StaffWorkspace > StaffAccountScreen: Open account profile
+StaffAccountScreen > StaffWorkspace: Return to Staff workspace
+StaffWorkspace > NotificationDropdown: Click notification bell
+NotificationDropdown > StaffWorkspace: Close notification list
+StaffWorkspace > LandingPage: Log out

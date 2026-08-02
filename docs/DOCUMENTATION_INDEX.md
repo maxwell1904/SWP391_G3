@@ -14,6 +14,8 @@ This file identifies authoritative retake artifacts. Do not infer “latest” f
 - Scope decision: `docs/LEAN_SCOPE_PROPOSAL_2026-08-01.md`
 - Core rules: `docs/CORE_BUSINESS_RULES.md`
 - Traceability: `docs/IMPLEMENTED_USE_CASES.md` and `docs/DIAGRAM_INDEX.md`
+- Use Case Diagram: `docs/Use Case Diagram/GoalZone_Use_Case_Diagrams.drawio`
+- Screen Flow: four actor-based sources under `docs/Screen Flow/`
 
 ## Authoritative editable sources
 
@@ -21,9 +23,11 @@ This file identifies authoritative retake artifacts. Do not infer “latest” f
 - 56 sequence diagrams: `docs/Sequence/*.puml`
 - ERD: `docs/ERD/football_field_booking_erd_code_first.drawio.xml` and `docs/ERD/goalzone-code-first-schema.puml`
 - Package diagram: `docs/Package Diagram/code-packages.puml`
+- Use Case Diagram: `docs/Use Case Diagram/GoalZone_Use_Case_Diagrams.drawio`
+- Screen Flow: `01-guest-screen-flow.eraser`, `02-customer-screen-flow.eraser`, `03-staff-screen-flow.eraser`, and `04-admin-screen-flow.eraser` under `docs/Screen Flow/`
 - Document generator/audits: `docs/update_imported_rds_sds.py`, `docs/update_rds_screen_images.py`, `docs/replace_database_schema_diagram.py`, `docs/audit_puml_diagrams.py`, and `docs/audit_scope_alignment.py`
 
-Use Case Diagram and Screen Flow are deliberately deferred until the team supplies the required draw.io and eraser.io templates. Earlier provisional sources are under `docs/archive/` and are not submitted/canonical.
+Use Case Diagram and Screen Flow remain external editable artifacts so the team can finalize their layouts in draw.io and eraser.io before embedding exported images in the submission documents. Earlier provisional sources under `docs/archive/` are not canonical.
 
 ## Archive policy
 

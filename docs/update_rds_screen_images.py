@@ -73,7 +73,7 @@ ADDITIONAL_SCREEN_STATES = {
     "b. Payment Sandbox": [
         ("Customer online payment selection", "customer-payment-choice.jpg"),
     ],
-    "f. Booking and Refund Policies": [
+    "f. Policy Management": [
         ("Booking, cancellation, and notification policies", "admin-booking-policies.jpg"),
         ("Automatic slot generation policies", "admin-slot-generation-policies.jpg"),
     ],
@@ -99,7 +99,10 @@ ADDITIONAL_SCREEN_STATES = {
 
 TEXT_REPLACEMENTS = {
     "UC-07/UC-08, UC-10": "UC-07, UC-08, UC-10",
-    "UC-16/UC-17, UC-18": "UC-16, UC-17, UC-18",
+    "UC-16/UC-17, UC-18": "UC-17, UC-18",
+    "Related use cases: UC-16, UC-17, UC-18": "Related use cases: UC-17, UC-18",
+    "Detailed as-built SQL is specified under UC-16, UC-17, UC-18 in the SDS Database Queries sections.":
+        "Detailed as-built SQL is specified under UC-17, UC-18 in the SDS Database Queries sections.",
     "UC-20, UC-20, UC-21": "UC-20, UC-21",
     "UC-25, UC-36, UC-37": "UC-25, UC-35, UC-37",
     "UC-26, UC-36, UC-24, UC-31, UC-32, UC-33": "UC-26, UC-31, UC-32, UC-33, UC-37, UC-40",
@@ -110,8 +113,65 @@ TEXT_REPLACEMENTS = {
     "UC-40, UC-40": "UC-40",
     "Customer Account state Report": "Customer Account State Report",
     "e. Booking Calendar": "e. Booking Operations",
+    "f. Booking and Refund Policies": "f. Policy Management",
     "Staff daily operations queue/calendar with selected-booking controls.":
         "Staff booking queue with selected-booking lifecycle, schedule, payment, invoice, and service controls.",
+    "Staff blocks/unblocks field time with a reason and reviews daily field operations.":
+        "Venue Staff reviews daily field operations and blocks or unblocks operational slot exceptions; Admin configures ordinary slot generation separately.",
+    "Customer/Staff reports a field, booking, or service issue; Staff resolves it and notifies the reporter.":
+        "Customer or Staff reports a field, booking, or service issue; Venue Staff resolves or rejects it and notifies the reporter; Admin reviews the history in read-only mode.",
+    "Role/ownership-protected view of booking, billing, and allowed lifecycle actions.":
+        "Customer views an owned booking; Venue Staff performs eligible lifecycle actions; Admin reviews booking and billing data in read-only audit mode.",
+    "Shows real persisted transaction history subject to booking ownership/operator access.":
+        "Shows persisted transaction history subject to ownership or operational access; Admin access is read-only audit.",
+    "Displays the generated booking invoice and current settlement state.":
+        "Displays the generated booking invoice and current settlement state; Admin access is read-only audit.",
+    "Customer submits an eligible request; Staff reviews it and completes PayPal or cash refund workflows.":
+        "Customer submits an eligible request; Venue Staff reviews and completes PayPal or cash refund workflows; Admin reviews the audit trail without changing it.",
+    "Admin maintains deposit, payment-timeout, cancellation/refund, and reminder settings.":
+        "Admin maintains slot-generation, deposit, payment-timeout, cancellation/refund, and reminder settings.",
+    "Related use cases: UC-43, UC-44": "Related use cases: UC-16, UC-43, UC-44",
+    "Detailed as-built SQL is specified under UC-43, UC-44 in the SDS Database Queries sections.":
+        "Detailed as-built SQL is specified under UC-16, UC-43, UC-44 in the SDS Database Queries sections.",
+}
+
+SCREEN_DESCRIPTION_UPDATES = {
+    "Unavailable Slot Management": (
+        "Venue Staff reviews the daily field schedule and blocks or unblocks operational slot exceptions. "
+        "Admin slot-generation rules are configured separately in the policy workspace."
+    ),
+    "Issue Report / Issue Management": (
+        "Customer or Staff reports a field, booking, or service issue; Venue Staff resolves or rejects it; "
+        "Admin has read-only audit access."
+    ),
+    "Walk-in Booking": (
+        "Venue Staff creates a walk-in booking for either a Customer matched by phone/email or a first-time "
+        "visitor identified by name and phone, then records deposit/full cash or leaves payment pending."
+    ),
+    "Booking Detail": (
+        "Customer views an owned booking, Venue Staff performs eligible lifecycle actions, and Admin reviews "
+        "booking and billing data in read-only audit mode."
+    ),
+    "Booking Operations": (
+        "Venue Staff uses the booking queue and selected-booking controls for reschedule, cancellation, check-in, "
+        "completion, no-show, services, cash payment, invoice, and transaction history."
+    ),
+    "Payment History": (
+        "Customer views owned transactions; Venue Staff and Admin review role-authorized payment records, with "
+        "Admin access remaining read-only."
+    ),
+    "Invoice Detail": (
+        "Displays the generated invoice and settlement state to the booking owner or Venue Staff; Admin access is "
+        "read-only audit."
+    ),
+    "Refund Management": (
+        "Customer submits an eligible refund request, Venue Staff reviews and processes it, and Admin inspects "
+        "the refund audit trail without changing it."
+    ),
+    "Policy Management": (
+        "Admin policy workspace for deposit, cancellation/refund, payment timeout, reminder, and automatic slot "
+        "opening/closing/duration/horizon rules."
+    ),
 }
 
 def all_paragraphs(document: Document):
@@ -222,12 +282,27 @@ def clean_screen_references(document: Document) -> None:
         if updated != paragraph.text:
             paragraph.text = updated
 
-    for paragraph in document.paragraphs:
-        if paragraph.text.strip() == "Staff creates a confirmed booking for an existing on-site Customer and records cash payment.":
-            paragraph.text = (
-                "Staff creates a walk-in booking for either a matched Customer account or a first-time "
-                "visitor identified by name and phone, then records cash or leaves payment pending."
-            )
+    for table in document.tables:
+        if not table.rows:
+            continue
+        header = [cell.text.strip() for cell in table.rows[0].cells]
+        if header[:4] == ["#", "Feature", "Screen", "Description"]:
+            for row in table.rows[1:]:
+                screen_name = row.cells[2].text.strip()
+                if screen_name == "Booking Calendar":
+                    screen_name = "Booking Operations"
+                    row.cells[2].text = screen_name
+                elif screen_name == "Booking and Refund Policies":
+                    screen_name = "Policy Management"
+                    row.cells[2].text = screen_name
+                if screen_name in SCREEN_DESCRIPTION_UPDATES:
+                    row.cells[3].text = SCREEN_DESCRIPTION_UPDATES[screen_name]
+        elif header[:5] == ["Screen", "Guest", "Customer", "Staff", "Admin"]:
+            for row in table.rows[1:]:
+                if row.cells[0].text.strip() == "Booking Calendar":
+                    row.cells[0].text = "Booking Operations"
+                elif row.cells[0].text.strip() == "Booking and Refund Policies":
+                    row.cells[0].text = "Policy Management"
 
     for table in document.tables:
         if not table.rows:

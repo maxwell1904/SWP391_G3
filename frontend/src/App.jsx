@@ -25,6 +25,7 @@ import {
   VerifyEmailPage
 } from './pages'
 import api from './services/api'
+import { useAutoDismiss } from './hooks/useAutoDismiss'
 import './styles/app.css'
 import './styles/classic.css'
 import { today, tomorrow } from './utils/format'
@@ -78,6 +79,7 @@ function App() {
   const [verifyResult, setVerifyResult] = useState({ status: 'idle', message: '' })
   const [loginErrors, setLoginErrors] = useState({})
   const [registerErrors, setRegisterErrors] = useState({})
+  const [loginLoading, setLoginLoading] = useState(false)
   const [registerLoading, setRegisterLoading] = useState(false)
   const [forgotEmail, setForgotEmail] = useState('')
   const [forgotSent, setForgotSent] = useState(false)
@@ -122,6 +124,8 @@ function App() {
     if (currentUser?.role === 'Staff') return 'staff'
     return 'home'
   }, [currentUser])
+
+  useAutoDismiss(notice, () => setNotice(''), 6000, !loading && !actionPanel)
 
   useEffect(() => {
     refreshAll()
@@ -268,7 +272,10 @@ function App() {
   useEffect(() => {
     if (currentUser?.role === 'Customer') {
       setSelectedCustomerId(currentUser.userId)
-      loadMembership(currentUser.userId)
+      loadMembership(currentUser.userId).catch(error => {
+        setMembership(null)
+        setNotice(error.response?.data?.error || 'Could not load membership progress')
+      })
     }
     if (currentUser) {
       loadNotifications(currentUser.userId)
@@ -571,6 +578,8 @@ function App() {
   }
 
   async function runAction(action, successMessage) {
+    setNotice('')
+    setActionPanel(null)
     setLoading(true)
     try {
       const result = await action()
@@ -673,11 +682,25 @@ function App() {
   function updateLoginForm(field, value) {
     setLoginForm({ ...loginForm, [field]: value })
     setLoginErrors(({ [field]: _ignored, ...rest }) => rest)
+    dismissTransientError()
   }
 
   function updateRegisterForm(field, value) {
     setRegisterForm({ ...registerForm, [field]: value })
     setRegisterErrors(({ [field]: _ignored, ...rest }) => rest)
+    dismissTransientError()
+  }
+
+  function updateForgotEmail(value) {
+    setForgotEmail(value)
+    setForgotError('')
+    dismissTransientError()
+  }
+
+  function dismissTransientError() {
+    if (actionPanel?.kind !== 'error') return
+    setActionPanel(null)
+    setNotice('')
   }
 
   async function login(emailOrPhone = loginForm.emailOrPhone) {
@@ -691,12 +714,17 @@ function App() {
       })
       return
     }
-    const response = await runAction(async () => api.post('/account/login', {
-      emailOrPhone: emailOrPhone.trim(),
-      password: loginForm.password
-    }), 'Signed in')
-    if (response?.data?.user) {
-      await completeSignIn(response.data)
+    setLoginLoading(true)
+    try {
+      const response = await runAction(async () => api.post('/account/login', {
+        emailOrPhone: emailOrPhone.trim(),
+        password: loginForm.password
+      }), 'Signed in')
+      if (response?.data?.user) {
+        await completeSignIn(response.data)
+      }
+    } finally {
+      setLoginLoading(false)
     }
   }
 
@@ -751,7 +779,7 @@ function App() {
 
   async function resendVerification() {
     if (!currentUser) return
-    await runAction(async () => api.post('/account/email/resend'), 'Verification email sent')
+    return runAction(async () => api.post('/account/email/resend'), 'Verification email sent')
   }
 
   async function sendResetLink() {
@@ -810,6 +838,8 @@ function App() {
     if (field === 'resetPassword') setResetPassword(value)
     if (field === 'resetConfirmPassword') setResetConfirmPassword(value)
     setResetErrors(({ [field]: _ignored, ...rest }) => rest)
+    if (resetResult?.status === 'error') setResetResult(null)
+    dismissTransientError()
   }
 
   async function saveProfile(profile) {
@@ -1255,6 +1285,7 @@ function App() {
             login={login}
             register={register}
             registerLoading={registerLoading}
+            loginLoading={loginLoading}
             logout={logout}
             navigatePage={navigatePage}
             resendVerification={resendVerification}
@@ -1302,7 +1333,7 @@ function App() {
         {currentPage === 'forgotPassword' && (
           <ForgotPasswordPage
             forgotEmail={forgotEmail}
-            setForgotEmail={setForgotEmail}
+            setForgotEmail={updateForgotEmail}
             forgotSent={forgotSent}
             forgotLoading={forgotLoading}
             forgotError={forgotError}
@@ -1324,6 +1355,7 @@ function App() {
             resetTokenChecking={resetTokenChecking}
             updateResetForm={updateResetForm}
             submitReset={submitReset}
+            navigatePage={navigatePage}
           />
         )}
 
@@ -1436,7 +1468,7 @@ function App() {
       </footer>
 
       {notice && !actionPanel && (
-        <div className={loading ? 'toast loading' : 'toast'}>
+        <div className={loading ? 'toast loading' : 'toast'} role="status" aria-live="polite" aria-atomic="true">
           <span>{loading ? 'Working' : 'Status'}</span>
           <p>{notice}</p>
         </div>

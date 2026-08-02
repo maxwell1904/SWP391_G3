@@ -67,11 +67,20 @@ export function PayPalCheckout({
             }
           },
           onApprove: async data => {
-            setStatus('processing')
-            const booking = bookingRef.current
-            const response = await api.post(`/bookings/${booking.bookingId}/paypal/orders/${data.orderID}/capture`, {})
-            await callbacksRef.current.onPaymentComplete(response.data)
-            setStatus('complete')
+            try {
+              setStatus('processing')
+              setError('')
+              const booking = bookingRef.current
+              const response = await api.post(`/bookings/${booking.bookingId}/paypal/orders/${data.orderID}/capture`, {})
+              await callbacksRef.current.onPaymentComplete(response.data)
+              bookingRef.current = null
+              setStatus('complete')
+            } catch (checkoutError) {
+              const message = errorMessage(checkoutError)
+              setError(message)
+              setStatus('error')
+              callbacksRef.current.onError?.(message)
+            }
           },
           onCancel: async data => {
             try {
@@ -115,7 +124,7 @@ export function PayPalCheckout({
     }
   }, [config, disabled, paymentOption])
 
-  if (!config) return <p className="emptyText">Loading PayPal...</p>
+  if (!config) return <p className="emptyText">Loading PayPal…</p>
   if (!config.enabled) {
     return <p className="errorText">Online payment is currently unavailable. Please try again later.</p>
   }
@@ -123,8 +132,8 @@ export function PayPalCheckout({
   return (
     <div className="paypalCheckout">
       <div ref={containerRef} />
-      {status === 'loading' && <p className="emptyText">Loading PayPal...</p>}
-      {status === 'processing' && <p className="paypalStatus">Processing secure payment...</p>}
+      {status === 'loading' && <p className="emptyText">Loading PayPal…</p>}
+      {status === 'processing' && <p className="paypalStatus">Processing secure payment…</p>}
       {error && <p className="errorText">{error}</p>}
     </div>
   )

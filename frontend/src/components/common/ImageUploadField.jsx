@@ -35,7 +35,10 @@ export function ImageUploadField({ label = 'Image', value, onChange }) {
       <input
         type="url"
         value={value || ''}
-        onChange={event => onChange(event.target.value)}
+        onChange={event => {
+          setError('')
+          onChange(event.target.value)
+        }}
         placeholder="Or paste an HTTPS image URL"
         aria-label={`${label} URL`}
       />

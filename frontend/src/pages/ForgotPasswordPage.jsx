@@ -40,7 +40,7 @@ export function ForgotPasswordPage({
               <>
                 <button className="primaryButton wide" disabled={forgotLoading} onClick={sendResetLink}>
                   <Mail size={18} />
-                  <span>{forgotLoading ? 'Sending...' : 'Send reset link'}</span>
+                  <span>{forgotLoading ? 'Sending…' : 'Send reset link'}</span>
                 </button>
                 <button className="ghostDarkButton wide" onClick={() => navigatePage('login')}>
                   <ArrowLeft size={18} />

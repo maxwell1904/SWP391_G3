@@ -1,0 +1,87 @@
+textSize small
+title Customer Screen Flow - GoalZone Football Field Booking
+
+legend [position: bottom-left] {
+  [shape: rectangle, label: "Page / visible tab or panel"]
+  [shape: oval, label: "Modal / notice / outcome"]
+}
+
+LandingPage [shape: rectangle, label: "Landing Page"]
+CustomerAccountScreen [shape: rectangle, label: "Customer Account"]
+
+OnlineBookingJourney [label: "Online Booking and PayPal"] {
+  FieldListScreen [shape: rectangle, label: "Field List"]
+  FieldDetailModal [shape: oval, label: "Field Detail Modal"]
+  PromotionListScreen [shape: rectangle, label: "Promotion List"]
+  BookingAvailabilityState [shape: rectangle, label: "Booking Page - Availability"]
+  BookingServicesState [shape: rectangle, label: "Booking Page - Add-ons"]
+  CheckoutSummaryState [shape: rectangle, label: "Booking Page - Checkout Summary"]
+  VerificationRequiredNotice [shape: oval, label: "Email Verification Required"]
+  PayPalApprovalScreen [shape: rectangle, label: "PayPal Sandbox Approval"]
+  PaymentSuccessNotice [shape: oval, label: "Payment Completed"]
+  PaymentCancelledNotice [shape: oval, label: "Payment Cancelled / Failed"]
+}
+
+AccountWorkspaceJourney [label: "Account, Booking Changes and Support"] {
+  BookingsTab [shape: rectangle, label: "Bookings Tab"]
+  BookingDetailPanel [shape: rectangle, label: "Selected Booking Detail"]
+  RescheduleState [shape: rectangle, label: "Reschedule Booking"]
+  CancellationTermsState [shape: oval, label: "Cancellation Terms"]
+  CancellationResultNotice [shape: oval, label: "Booking Cancelled"]
+  RefundRequestState [shape: rectangle, label: "Refund Request Form"]
+  RefundStatusState [shape: oval, label: "Refund Request Status"]
+  AddOnEditorState [shape: rectangle, label: "Edit Booking Add-ons"]
+  PaymentsTab [shape: rectangle, label: "Payment History Tab"]
+  MembershipTab [shape: rectangle, label: "Membership Progress Tab"]
+  ProfileTab [shape: rectangle, label: "Profile and Password Tab"]
+  ProfileSavedNotice [shape: oval, label: "Profile / Password Updated"]
+  MessagesTab [shape: rectangle, label: "Messages and Issues Tab"]
+  IssueReportState [shape: rectangle, label: "Issue Report Form"]
+  IssueSubmittedNotice [shape: oval, label: "Issue Reported"]
+}
+
+LandingPage > FieldListScreen: Click "Fields" or "View fields"
+FieldListScreen > FieldDetailModal: Select a field
+FieldDetailModal > FieldListScreen: Close details
+FieldDetailModal > BookingAvailabilityState: Click "Check availability"
+LandingPage > BookingAvailabilityState: Click "Book a field" or "Show live slots"
+LandingPage > PromotionListScreen: Click "Offers"
+PromotionListScreen > BookingAvailabilityState: Click "Use this code"
+
+BookingAvailabilityState > BookingServicesState: Select an available slot
+BookingServicesState > CheckoutSummaryState: Choose add-ons and review recalculated price
+CheckoutSummaryState > BookingServicesState: Change slot, add-ons, or promotion code
+CheckoutSummaryState > CustomerAccountScreen: Email is not verified; open Account
+CustomerAccountScreen > VerificationRequiredNotice: Display account verification panel
+CheckoutSummaryState > PayPalApprovalScreen: Choose deposit or full payment and approve checkout
+PayPalApprovalScreen > PaymentSuccessNotice: PayPal capture is completed
+PaymentSuccessNotice > CustomerAccountScreen: Open confirmed booking and invoice
+PayPalApprovalScreen > PaymentCancelledNotice: Cancel approval or provider call fails
+PaymentCancelledNotice > BookingAvailabilityState: Slot is released and Customer may retry
+
+CustomerAccountScreen > BookingsTab: Select "Bookings"
+BookingsTab > BookingDetailPanel: Select a booking
+BookingsTab > BookingAvailabilityState: Click "New booking" or "Book a field"
+BookingDetailPanel > RescheduleState: Choose a new date and available slot
+RescheduleState > BookingDetailPanel: Confirm eligible reschedule and refresh amounts
+BookingDetailPanel > CancellationTermsState: Click "Review cancellation terms"
+CancellationTermsState > BookingDetailPanel: Leave without cancelling
+CancellationTermsState > CancellationResultNotice: Confirm cancellation
+CancellationResultNotice > BookingDetailPanel: Refresh cancelled status and refundable amount
+BookingDetailPanel > RefundRequestState: Open refund request when refundable value exists
+RefundRequestState > BookingDetailPanel: Cancel request entry
+RefundRequestState > RefundStatusState: Submit valid amount and reason
+RefundStatusState > BookingDetailPanel: View the latest refund lifecycle state
+BookingDetailPanel > AddOnEditorState: Expand "Edit booking add-ons"
+AddOnEditorState > BookingDetailPanel: Save quantities and recalculate invoice
+
+CustomerAccountScreen > PaymentsTab: Select "Payments"
+CustomerAccountScreen > MembershipTab: Select "Membership"
+CustomerAccountScreen > ProfileTab: Select "Profile"
+ProfileTab > ProfileSavedNotice: Save profile or change password successfully
+ProfileSavedNotice > ProfileTab: Continue account management
+CustomerAccountScreen > MessagesTab: Select "Messages"
+MessagesTab > IssueReportState: Enter optional booking or field context and description
+IssueReportState > IssueSubmittedNotice: Submit a valid issue report
+IssueSubmittedNotice > MessagesTab: View the issue and its latest status
+CustomerAccountScreen > LandingPage: Log out

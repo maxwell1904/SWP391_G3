@@ -37,6 +37,7 @@ export function AccountPage({
   onStartBooking
 }) {
   const [profileForm, setProfileForm] = useState(() => profileFromUser(currentUser))
+  const [profileSaving, setProfileSaving] = useState(false)
   const [activePanel, setActivePanel] = useWorkspaceTab('bookings', accountTabs)
 
   useEffect(() => {
@@ -45,6 +46,15 @@ export function AccountPage({
 
   const updateProfileField = (field, value) => {
     setProfileForm({ ...profileForm, [field]: value })
+  }
+
+  async function saveProfile() {
+    setProfileSaving(true)
+    try {
+      await onSaveProfile(profileForm)
+    } finally {
+      setProfileSaving(false)
+    }
   }
 
   const accountPayments = payments
@@ -143,7 +153,7 @@ export function AccountPage({
                     onChange={event => updateProfileField('address', event.target.value)}
                   />
                 </FieldControl>
-                <button className="primaryButton" onClick={() => onSaveProfile(profileForm)}>Save profile</button>
+                <button className="primaryButton" disabled={profileSaving} onClick={saveProfile}>{profileSaving ? 'Saving...' : 'Save profile'}</button>
               </div>
               <ChangePasswordForm onChangePassword={onChangePassword} />
             </InfoPanel>
@@ -223,7 +233,7 @@ export function AccountPage({
             }}
             metrics={[]}
           />
-          <div className="roleGrid accountGrid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
+          <div className="roleGrid accountGrid">
             <InfoPanel title="Personal profile">
               <div className="profileForm">
                 <FieldControl label="Full name">
@@ -245,7 +255,7 @@ export function AccountPage({
                     onChange={event => updateProfileField('address', event.target.value)}
                   />
                 </FieldControl>
-                <button className="primaryButton" onClick={() => onSaveProfile(profileForm)}>Save profile</button>
+                <button className="primaryButton" disabled={profileSaving} onClick={saveProfile}>{profileSaving ? 'Saving...' : 'Save profile'}</button>
               </div>
               <ChangePasswordForm onChangePassword={onChangePassword} />
             </InfoPanel>
@@ -282,16 +292,22 @@ export function AccountPage({
 
 function CustomerIssueForm({ bookings = [], fields = [], onSubmit }) {
   const [form, setForm] = useState({ bookingId: '', fieldId: '', title: '', description: '' })
+  const [submitting, setSubmitting] = useState(false)
   async function submit() {
     if (!form.title.trim() || !form.description.trim()) return
-    const saved = await onSubmit({
-      bookingId: form.bookingId ? Number(form.bookingId) : null,
-      fieldId: !form.bookingId && form.fieldId ? Number(form.fieldId) : null,
-      title: form.title.trim(),
-      description: form.description.trim()
-    })
-    if (!saved) return
-    setForm({ bookingId: '', fieldId: '', title: '', description: '' })
+    setSubmitting(true)
+    try {
+      const saved = await onSubmit({
+        bookingId: form.bookingId ? Number(form.bookingId) : null,
+        fieldId: !form.bookingId && form.fieldId ? Number(form.fieldId) : null,
+        title: form.title.trim(),
+        description: form.description.trim()
+      })
+      if (!saved) return
+      setForm({ bookingId: '', fieldId: '', title: '', description: '' })
+    } finally {
+      setSubmitting(false)
+    }
   }
   return (
     <div className="changePasswordSection">
@@ -312,7 +328,7 @@ function CustomerIssueForm({ bookings = [], fields = [], onSubmit }) {
         </FieldControl>}
         <FieldControl label="Issue title"><input value={form.title} onChange={event => setForm({ ...form, title: event.target.value })} /></FieldControl>
         <FieldControl label="What happened?"><textarea value={form.description} onChange={event => setForm({ ...form, description: event.target.value })} /></FieldControl>
-        <button className="primaryButton" disabled={!form.title.trim() || !form.description.trim()} onClick={submit}>Send issue report</button>
+        <button className="primaryButton" disabled={submitting || !form.title.trim() || !form.description.trim()} onClick={submit}>{submitting ? 'Sending...' : 'Send issue report'}</button>
       </div>
     </div>
   )
@@ -324,6 +340,14 @@ function ChangePasswordForm({ onChangePassword }) {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPasswords, setShowPasswords] = useState(false)
   const [errors, setErrors] = useState({})
+  const [saving, setSaving] = useState(false)
+
+  function updatePasswordField(field, value) {
+    if (field === 'currentPassword') setCurrentPassword(value)
+    if (field === 'newPassword') setNewPassword(value)
+    if (field === 'confirmPassword') setConfirmPassword(value)
+    setErrors(({ [field]: _ignored, ...rest }) => rest)
+  }
 
   const handleSubmit = async () => {
     const issues = {}
@@ -335,12 +359,17 @@ function ChangePasswordForm({ onChangePassword }) {
       setErrors(issues)
       return
     }
-    const result = await onChangePassword(currentPassword, newPassword, confirmPassword)
-    if (!result) return
-    setCurrentPassword('')
-    setNewPassword('')
-    setConfirmPassword('')
-    setErrors({})
+    setSaving(true)
+    try {
+      const result = await onChangePassword(currentPassword, newPassword, confirmPassword)
+      if (!result) return
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      setErrors({})
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -355,7 +384,7 @@ function ChangePasswordForm({ onChangePassword }) {
           error={errors.currentPassword}
           autoComplete="current-password"
           onToggle={() => setShowPasswords(!showPasswords)}
-          onChange={setCurrentPassword}
+          onChange={value => updatePasswordField('currentPassword', value)}
         />
         <PasswordField
           label="New password"
@@ -365,7 +394,7 @@ function ChangePasswordForm({ onChangePassword }) {
           autoComplete="new-password"
           hint="At least 8 characters with uppercase, lowercase, number, and special character."
           onToggle={() => setShowPasswords(!showPasswords)}
-          onChange={setNewPassword}
+          onChange={value => updatePasswordField('newPassword', value)}
         />
         <PasswordField
           label="Confirm new password"
@@ -374,9 +403,9 @@ function ChangePasswordForm({ onChangePassword }) {
           error={errors.confirmPassword}
           autoComplete="new-password"
           onToggle={() => setShowPasswords(!showPasswords)}
-          onChange={setConfirmPassword}
+          onChange={value => updatePasswordField('confirmPassword', value)}
         />
-        <button className="primaryButton" onClick={handleSubmit}>Change password</button>
+        <button className="primaryButton" disabled={saving} onClick={handleSubmit}>{saving ? 'Changing...' : 'Change password'}</button>
       </div>
     </div>
   )

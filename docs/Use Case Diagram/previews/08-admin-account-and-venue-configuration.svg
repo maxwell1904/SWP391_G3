@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="980" viewBox="0 0 1800 980">
+<rect width="100%" height="100%" fill="white"/>
+<defs><marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0,0 L12,6 L0,12 Z" fill="black"/></marker><marker id="open-triangle" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto"><path d="M0,0 L14,7 L0,14 Z" fill="white" stroke="black" stroke-width="1.8"/></marker></defs>
+<rect x="340" y="55" width="1400" height="870" fill="white" stroke="black" stroke-width="3"/>
+<text x="1040" y="112" text-anchor="middle" font-family="Arial" font-size="30">Admin Account and Venue Configuration Use Case Diagram</text>
+<line x1="189.0" y1="437.8" x2="512.9" y2="292.0" stroke="black" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="189.0" y1="437.8" x2="470.0" y2="427.3" stroke="black" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="189.0" y1="437.8" x2="930.0" y2="424.1" stroke="black" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="189.0" y1="437.8" x2="1390.0" y2="423.0" stroke="black" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="189.0" y1="437.8" x2="488.5" y2="550.0" stroke="black" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="189.0" y1="437.8" x2="930.0" y2="575.2" stroke="black" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="930.0" y1="236.0" x2="800.0" y2="236.0" stroke="black" stroke-width="2.5" stroke-dasharray="10 8" marker-end="url(#arrow)"/>
+<rect x="795.0" y="204.0" width="140" height="30" fill="white"/>
+<text x="865.0" y="226.0" text-anchor="middle" font-family="Arial" font-size="20">&lt;&lt;extend&gt;&gt;</text>
+<line x1="1390.0" y1="236.0" x2="800.0" y2="236.0" stroke="black" stroke-width="2.5" stroke-dasharray="10 8" marker-end="url(#arrow)"/>
+<rect x="1025.0" y="204.0" width="140" height="30" fill="white"/>
+<text x="1095.0" y="226.0" text-anchor="middle" font-family="Arial" font-size="20">&lt;&lt;extend&gt;&gt;</text>
+<circle cx="155.0" cy="407.8" r="20" fill="white" stroke="black" stroke-width="3"/>
+<line x1="155.0" y1="427.8" x2="155.0" y2="479.8" stroke="black" stroke-width="3"/>
+<line x1="120.0" y1="447.8" x2="190.0" y2="447.8" stroke="black" stroke-width="3"/>
+<line x1="155.0" y1="479.8" x2="121.0" y2="521.8" stroke="black" stroke-width="3"/>
+<line x1="155.0" y1="479.8" x2="189.0" y2="521.8" stroke="black" stroke-width="3"/>
+<text x="155.0" y="553.8" text-anchor="middle" font-family="Arial" font-size="23">Admin</text>
+<ellipse cx="635.0" cy="236.0" rx="165.0" ry="56.0" fill="white" stroke="black" stroke-width="3"/>
+<text x="635.0" y="244.0" text-anchor="middle" font-family="Arial" font-size="21">View customer accounts</text>
+<rect x="436.0" y="154.0" width="108" height="46" fill="white" stroke="black" stroke-width="3"/>
+<text x="490.0" y="185.0" text-anchor="middle" font-family="Arial" font-size="21">UC-07</text>
+<ellipse cx="1095.0" cy="236.0" rx="165.0" ry="56.0" fill="white" stroke="black" stroke-width="3"/>
+<text x="1095.0" y="232.0" text-anchor="middle" font-family="Arial" font-size="21">Lock/unlock customer</text>
+<text x="1095.0" y="256.0" text-anchor="middle" font-family="Arial" font-size="21">account</text>
+<rect x="896.0" y="154.0" width="108" height="46" fill="white" stroke="black" stroke-width="3"/>
+<text x="950.0" y="185.0" text-anchor="middle" font-family="Arial" font-size="21">UC-08</text>
+<ellipse cx="1555.0" cy="236.0" rx="165.0" ry="56.0" fill="white" stroke="black" stroke-width="3"/>
+<text x="1555.0" y="244.0" text-anchor="middle" font-family="Arial" font-size="21">View customer activity</text>
+<rect x="1356.0" y="154.0" width="108" height="46" fill="white" stroke="black" stroke-width="3"/>
+<text x="1410.0" y="185.0" text-anchor="middle" font-family="Arial" font-size="21">UC-10</text>
+<ellipse cx="635.0" cy="421.0" rx="165.0" ry="56.0" fill="white" stroke="black" stroke-width="3"/>
+<text x="635.0" y="429.0" text-anchor="middle" font-family="Arial" font-size="21">Manage staff accounts</text>
+<rect x="436.0" y="339.0" width="108" height="46" fill="white" stroke="black" stroke-width="3"/>
+<text x="490.0" y="370.0" text-anchor="middle" font-family="Arial" font-size="21">UC-09</text>
+<ellipse cx="1095.0" cy="421.0" rx="165.0" ry="56.0" fill="white" stroke="black" stroke-width="3"/>
+<text x="1095.0" y="429.0" text-anchor="middle" font-family="Arial" font-size="21">Manage football fields</text>
+<rect x="896.0" y="339.0" width="108" height="46" fill="white" stroke="black" stroke-width="3"/>
+<text x="950.0" y="370.0" text-anchor="middle" font-family="Arial" font-size="21">UC-14</text>
+<ellipse cx="1555.0" cy="421.0" rx="165.0" ry="56.0" fill="white" stroke="black" stroke-width="3"/>
+<text x="1555.0" y="417.0" text-anchor="middle" font-family="Arial" font-size="21">Manage field pricing by</text>
+<text x="1555.0" y="441.0" text-anchor="middle" font-family="Arial" font-size="21">time range</text>
+<rect x="1356.0" y="339.0" width="108" height="46" fill="white" stroke="black" stroke-width="3"/>
+<text x="1410.0" y="370.0" text-anchor="middle" font-family="Arial" font-size="21">UC-15</text>
+<ellipse cx="635.0" cy="606.0" rx="165.0" ry="56.0" fill="white" stroke="black" stroke-width="3"/>
+<text x="635.0" y="602.0" text-anchor="middle" font-family="Arial" font-size="21">Configure slot generation</text>
+<text x="635.0" y="626.0" text-anchor="middle" font-family="Arial" font-size="21">rules</text>
+<rect x="436.0" y="524.0" width="108" height="46" fill="white" stroke="black" stroke-width="3"/>
+<text x="490.0" y="555.0" text-anchor="middle" font-family="Arial" font-size="21">UC-16</text>
+<ellipse cx="1095.0" cy="606.0" rx="165.0" ry="56.0" fill="white" stroke="black" stroke-width="3"/>
+<text x="1095.0" y="614.0" text-anchor="middle" font-family="Arial" font-size="21">Manage extra services</text>
+<rect x="896.0" y="524.0" width="108" height="46" fill="white" stroke="black" stroke-width="3"/>
+<text x="950.0" y="555.0" text-anchor="middle" font-family="Arial" font-size="21">UC-19</text>
+</svg>

@@ -1,0 +1,133 @@
+textSize small
+title Admin Screen Flow - GoalZone Football Field Booking
+
+legend [position: bottom-left] {
+  [shape: rectangle, label: "Page / visible tab or panel"]
+  [shape: oval, label: "Modal / notice / outcome"]
+}
+
+LoginScreen [shape: rectangle, label: "Login"]
+AdminConsole [shape: rectangle, label: "Admin Console"]
+AdminAccountScreen [shape: rectangle, label: "Admin Profile and Password"]
+NotificationDropdown [shape: oval, label: "Notification List"]
+LandingPage [shape: rectangle, label: "Landing Page"]
+
+CatalogueJourney [label: "Fields, Pricing and Extra Services"] {
+  FieldsPricingTab [shape: rectangle, label: "Fields and Pricing Tab"]
+  FieldListPanel [shape: rectangle, label: "Football Field List"]
+  FieldEditorState [shape: rectangle, label: "Field Editor"]
+  FieldPricingPanel [shape: rectangle, label: "Field Pricing Rules"]
+  PriceRuleEditorState [shape: rectangle, label: "Price Rule Editor"]
+  ServicesTab [shape: rectangle, label: "Services Tab"]
+  ServiceListPanel [shape: rectangle, label: "Extra Service List"]
+  ServiceEditorState [shape: rectangle, label: "Extra Service Editor"]
+  DeactivateConfirmationModal [shape: oval, label: "Deactivate Confirmation"]
+  ConflictNotice [shape: oval, label: "Validation / Overlap Conflict"]
+  CatalogueSavedNotice [shape: oval, label: "Catalogue Change Saved"]
+}
+
+AccessJourney [label: "Customer and Staff Access"] {
+  PeopleAccessTab [shape: rectangle, label: "People and Access Tab"]
+  CustomerAccountsPanel [shape: rectangle, label: "Customer Accounts"]
+  CustomerActivityModal [shape: oval, label: "Customer Activity Modal"]
+  LockCustomerModal [shape: oval, label: "Lock Customer Modal"]
+  CustomerAccessUpdatedNotice [shape: oval, label: "Customer Access Updated"]
+  StaffAccountsPanel [shape: rectangle, label: "Staff Accounts"]
+  NewStaffForm [shape: rectangle, label: "New Staff Invitation Form"]
+  EditStaffForm [shape: rectangle, label: "Edit Staff Account"]
+  StaffSavedNotice [shape: oval, label: "Staff Account Saved"]
+}
+
+ReportingCommercialJourney [label: "Reports, Audit, Policies and Commercial Rules"] {
+  OverviewTab [shape: rectangle, label: "Overview Tab"]
+  ReportRangeState [shape: rectangle, label: "Report Date Range"]
+  RevenueReportState [shape: rectangle, label: "Revenue Report"]
+  BookingReportState [shape: rectangle, label: "Booking Trends and Utilization"]
+  CustomerReportState [shape: rectangle, label: "Customer Activity Report"]
+  OperationsTab [shape: rectangle, label: "Bookings and Billing Tab"]
+  BookingInvoiceRegister [shape: rectangle, label: "Booking and Invoice Register"]
+  SelectedInvoiceState [shape: rectangle, label: "Selected Invoice and Transactions"]
+  RefundAuditState [shape: rectangle, label: "Payment and Refund Audit"]
+  SupportAuditTab [shape: rectangle, label: "Issue Audit Tab"]
+  PoliciesTab [shape: rectangle, label: "Policies Tab"]
+  BookingPolicyEditor [shape: rectangle, label: "Booking and Refund Policies"]
+  SlotRuleEditor [shape: rectangle, label: "Automatic Slot Generation Rules"]
+  PolicySavedNotice [shape: oval, label: "Policy Saved"]
+  PromotionManagementScreen [shape: rectangle, label: "Promotion Management"]
+  PromotionEditorState [shape: rectangle, label: "Promotion Editor"]
+  MembershipRuleScreen [shape: rectangle, label: "Membership Rule Management"]
+  MembershipEditorState [shape: rectangle, label: "Membership Rule Editor"]
+}
+
+LoginScreen > AdminConsole: Submit valid Admin credentials
+AdminConsole > FieldsPricingTab: Select "Fields and pricing"
+FieldsPricingTab > FieldListPanel: Load managed football fields
+FieldListPanel > FieldEditorState: Select an existing field
+FieldListPanel > FieldEditorState: Click "New football field"
+FieldEditorState > CatalogueSavedNotice: Create or save valid field information
+FieldEditorState > DeactivateConfirmationModal: Deactivate an active field
+DeactivateConfirmationModal > CatalogueSavedNotice: Confirm deactivation
+DeactivateConfirmationModal > FieldEditorState: Keep field active
+FieldEditorState > FieldPricingPanel: Select a saved field
+FieldPricingPanel > PriceRuleEditorState: Select or add a pricing rule
+PriceRuleEditorState > CatalogueSavedNotice: Save a valid non-overlapping rule
+PriceRuleEditorState > ConflictNotice: Rule overlaps or contains invalid values
+ConflictNotice > PriceRuleEditorState: Correct the pricing rule
+AdminConsole > ServicesTab: Select "Services"
+ServicesTab > ServiceListPanel: Load extra services
+ServiceListPanel > ServiceEditorState: Select an existing service
+ServiceListPanel > ServiceEditorState: Click "New extra service"
+ServiceEditorState > CatalogueSavedNotice: Create or save valid service information
+ServiceEditorState > DeactivateConfirmationModal: Deactivate an active service
+CatalogueSavedNotice > FieldsPricingTab: Continue field and pricing management
+CatalogueSavedNotice > ServicesTab: Continue service management
+
+AdminConsole > PeopleAccessTab: Select "People and access"
+PeopleAccessTab > CustomerAccountsPanel: View Customer directory
+CustomerAccountsPanel > CustomerActivityModal: Click "View"
+CustomerActivityModal > CustomerAccountsPanel: Close read-only activity details
+CustomerAccountsPanel > LockCustomerModal: Lock an active Customer
+LockCustomerModal > CustomerAccountsPanel: Cancel without changing access
+LockCustomerModal > CustomerAccessUpdatedNotice: Enter reason and confirm lock
+CustomerAccountsPanel > CustomerAccessUpdatedNotice: Unlock a locked Customer
+CustomerAccessUpdatedNotice > CustomerAccountsPanel: Refresh access status
+PeopleAccessTab > StaffAccountsPanel: View Staff accounts
+StaffAccountsPanel > NewStaffForm: Select "New staff account"
+NewStaffForm > StaffSavedNotice: Create account and send password setup invitation
+StaffAccountsPanel > EditStaffForm: Select an existing Staff account
+EditStaffForm > StaffSavedNotice: Update name, phone, or status
+StaffSavedNotice > StaffAccountsPanel: Refresh Staff account list
+
+AdminConsole > OverviewTab: Select "Overview"
+OverviewTab > ReportRangeState: Choose From and To dates
+ReportRangeState > RevenueReportState: Apply range or choose all time
+ReportRangeState > BookingReportState: Apply range or choose all time
+ReportRangeState > CustomerReportState: Apply range or choose all time
+RevenueReportState > OverviewTab: Review gross, fees, refunds, discounts, and net revenue
+BookingReportState > OverviewTab: Review lifecycle counts, peak times, and field utilization
+CustomerReportState > OverviewTab: Review returning, top-customer, and membership activity
+AdminConsole > OperationsTab: Select "Bookings and billing"
+OperationsTab > BookingInvoiceRegister: Load booking register
+BookingInvoiceRegister > SelectedInvoiceState: Select a booking
+SelectedInvoiceState > BookingInvoiceRegister: Select another booking
+OperationsTab > RefundAuditState: Review read-only payment and refund records
+AdminConsole > SupportAuditTab: Select "Issue audit"
+SupportAuditTab > AdminConsole: Review issue history without Staff processing actions
+AdminConsole > PoliciesTab: Select "Policies"
+PoliciesTab > BookingPolicyEditor: Edit deposit, reminder, timeout, or refund value
+PoliciesTab > SlotRuleEditor: Edit opening, closing, duration, or generation horizon
+BookingPolicyEditor > PolicySavedNotice: Save a valid policy value
+SlotRuleEditor > PolicySavedNotice: Save valid slot generation rules
+PolicySavedNotice > PoliciesTab: Reload the active configuration
+AdminConsole > PromotionManagementScreen: Click "Manage promotions"
+PromotionManagementScreen > PromotionEditorState: Add or edit a campaign
+PromotionEditorState > PromotionManagementScreen: Save, activate, or deactivate campaign
+AdminConsole > MembershipRuleScreen: Click "Manage membership tiers"
+MembershipRuleScreen > MembershipEditorState: Add or edit a membership level
+MembershipEditorState > MembershipRuleScreen: Save rule, benefits, order, and status
+
+AdminConsole > AdminAccountScreen: Open account profile
+AdminAccountScreen > AdminConsole: Return to Admin console
+AdminConsole > NotificationDropdown: Click notification bell
+NotificationDropdown > AdminConsole: Close notification list
+AdminConsole > LandingPage: Log out

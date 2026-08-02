@@ -7,6 +7,7 @@ import { IssueCaseList, RefundCaseList } from '../features/support/components'
 import { today, tomorrow } from '../utils/format'
 import api from '../services/api'
 import { useWorkspaceTab } from '../hooks/useWorkspaceTab'
+import { useAutoDismiss } from '../hooks/useAutoDismiss'
 
 const staffTabs = ['bookings', 'schedule', 'support']
 
@@ -51,6 +52,8 @@ export function StaffPage({
   const [activePanel, setActivePanel] = useWorkspaceTab('bookings', staffTabs)
   const pendingBookings = bookings.filter(booking => booking.status === 'pending').length
   const activeIssues = issues.filter(issue => issue.status === 'open' || issue.status === 'in_progress').length
+
+  useAutoDismiss(operationNotice, () => setOperationNotice(''), 6000)
 
   useEffect(() => {
     let cancelled = false

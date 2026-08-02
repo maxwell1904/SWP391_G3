@@ -23,8 +23,11 @@ The canonical design set contains 56 class diagrams and 56 sequence diagrams, on
 
 All other source filenames use the final UC number in `docs/Sequence/` and a matching behavior name in `docs/Class Diagram/`.
 
-## Deferred external diagrams
+## External editable diagrams
 
-Use Case Diagram and Screen Flow are intentionally not embedded in the retake RDS/SDS yet. The final versions will be created only after the team supplies its draw.io and eraser.io templates. Earlier provisional sources are retained under `docs/archive/` and are not canonical.
+- Use Case Diagram: `Use Case Diagram/GoalZone_Use_Case_Diagrams.drawio`.
+- Screen Flow: four actor-based sources under `Screen Flow/`: Guest, Customer, Venue Staff, and Admin.
+
+These sources reflect the current 56-use-case scope and implemented UI journeys. They remain external editable artifacts so the team can finish diagram placement before embedding exported images in RDS/SDS. Earlier provisional sources under `docs/archive/` are not canonical.
 
 Retired standalone diagrams for included/internal or removed items are preserved under `docs/archive/retired-uc-diagrams-2026-08-01/` for audit history only.

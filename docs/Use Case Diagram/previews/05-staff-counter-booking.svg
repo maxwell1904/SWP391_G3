@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="980" viewBox="0 0 1800 980">
+<rect width="100%" height="100%" fill="white"/>
+<defs><marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0,0 L12,6 L0,12 Z" fill="black"/></marker><marker id="open-triangle" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto"><path d="M0,0 L14,7 L0,14 Z" fill="white" stroke="black" stroke-width="1.8"/></marker></defs>
+<rect x="340" y="55" width="1400" height="870" fill="white" stroke="black" stroke-width="3"/>
+<text x="1040" y="112" text-anchor="middle" font-family="Arial" font-size="30">Staff Availability and Counter Booking Use Case Diagram</text>
+<line x1="189.0" y1="283.7" x2="470.0" y2="253.9" stroke="black" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="189.0" y1="283.7" x2="930.0" y2="244.7" stroke="black" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="189.0" y1="283.7" x2="470.0" y2="369.5" stroke="black" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="1390.0" y1="269.2" x2="800.0" y2="387.8" stroke="black" stroke-width="2.5" stroke-dasharray="10 8" marker-end="url(#arrow)"/>
+<rect x="1025.0" y="296.5" width="140" height="30" fill="white"/>
+<text x="1095.0" y="318.5" text-anchor="middle" font-family="Arial" font-size="20">&lt;&lt;extend&gt;&gt;</text>
+<line x1="800.0" y1="421.0" x2="930.0" y2="421.0" stroke="black" stroke-width="2.5" stroke-dasharray="10 8" marker-end="url(#arrow)"/>
+<rect x="795.0" y="389.0" width="140" height="30" fill="white"/>
+<text x="865.0" y="411.0" text-anchor="middle" font-family="Arial" font-size="20">&lt;&lt;include&gt;&gt;</text>
+<line x1="1260.0" y1="421.0" x2="1390.0" y2="421.0" stroke="black" stroke-width="2.5" stroke-dasharray="10 8" marker-end="url(#arrow)"/>
+<rect x="1255.0" y="389.0" width="140" height="30" fill="white"/>
+<text x="1325.0" y="411.0" text-anchor="middle" font-family="Arial" font-size="20">&lt;&lt;include&gt;&gt;</text>
+<circle cx="155.0" cy="253.7" r="20" fill="white" stroke="black" stroke-width="3"/>
+<line x1="155.0" y1="273.7" x2="155.0" y2="325.7" stroke="black" stroke-width="3"/>
+<line x1="120.0" y1="293.7" x2="190.0" y2="293.7" stroke="black" stroke-width="3"/>
+<line x1="155.0" y1="325.7" x2="121.0" y2="367.7" stroke="black" stroke-width="3"/>
+<line x1="155.0" y1="325.7" x2="189.0" y2="367.7" stroke="black" stroke-width="3"/>
+<text x="155.0" y="399.7" text-anchor="middle" font-family="Arial" font-size="23">Venue Staff</text>
+<ellipse cx="635.0" cy="236.0" rx="165.0" ry="56.0" fill="white" stroke="black" stroke-width="3"/>
+<text x="635.0" y="244.0" text-anchor="middle" font-family="Arial" font-size="21">Block/unblock field slots</text>
+<rect x="436.0" y="154.0" width="108" height="46" fill="white" stroke="black" stroke-width="3"/>
+<text x="490.0" y="185.0" text-anchor="middle" font-family="Arial" font-size="21">UC-17</text>
+<ellipse cx="1095.0" cy="236.0" rx="165.0" ry="56.0" fill="white" stroke="black" stroke-width="3"/>
+<text x="1095.0" y="232.0" text-anchor="middle" font-family="Arial" font-size="21">View field operation</text>
+<text x="1095.0" y="256.0" text-anchor="middle" font-family="Arial" font-size="21">calendar</text>
+<rect x="896.0" y="154.0" width="108" height="46" fill="white" stroke="black" stroke-width="3"/>
+<text x="950.0" y="185.0" text-anchor="middle" font-family="Arial" font-size="21">UC-18</text>
+<ellipse cx="1555.0" cy="236.0" rx="165.0" ry="56.0" fill="white" stroke="black" stroke-width="3"/>
+<text x="1555.0" y="232.0" text-anchor="middle" font-family="Arial" font-size="21">Add extra services to</text>
+<text x="1555.0" y="256.0" text-anchor="middle" font-family="Arial" font-size="21">booking</text>
+<rect x="1356.0" y="154.0" width="108" height="46" fill="white" stroke="black" stroke-width="3"/>
+<text x="1410.0" y="185.0" text-anchor="middle" font-family="Arial" font-size="21">UC-20</text>
+<ellipse cx="635.0" cy="421.0" rx="165.0" ry="56.0" fill="white" stroke="black" stroke-width="3"/>
+<text x="635.0" y="429.0" text-anchor="middle" font-family="Arial" font-size="21">Create walk-in booking</text>
+<rect x="436.0" y="339.0" width="108" height="46" fill="white" stroke="black" stroke-width="3"/>
+<text x="490.0" y="370.0" text-anchor="middle" font-family="Arial" font-size="21">UC-25</text>
+<ellipse cx="1095.0" cy="421.0" rx="165.0" ry="56.0" fill="white" stroke="black" stroke-width="3"/>
+<text x="1095.0" y="429.0" text-anchor="middle" font-family="Arial" font-size="21">View checkout summary</text>
+<rect x="896.0" y="339.0" width="108" height="46" fill="white" stroke="black" stroke-width="3"/>
+<text x="950.0" y="370.0" text-anchor="middle" font-family="Arial" font-size="21">UC-34</text>
+<ellipse cx="1555.0" cy="421.0" rx="165.0" ry="56.0" fill="white" stroke="black" stroke-width="3"/>
+<text x="1555.0" y="429.0" text-anchor="middle" font-family="Arial" font-size="21">Choose payment option</text>
+<rect x="1356.0" y="339.0" width="108" height="46" fill="white" stroke="black" stroke-width="3"/>
+<text x="1410.0" y="370.0" text-anchor="middle" font-family="Arial" font-size="21">UC-35</text>
+</svg>

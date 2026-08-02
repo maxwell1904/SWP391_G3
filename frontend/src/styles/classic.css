@@ -998,6 +998,14 @@ main.pageMain .section {
 }
 
 @media (max-width: 480px) {
+  .brandButton > span:last-child {
+    display: none;
+  }
+
+  .promoCardGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .availabilityStrip,
   .metricGrid,
   .adminOverviewPrimary .metricGrid {

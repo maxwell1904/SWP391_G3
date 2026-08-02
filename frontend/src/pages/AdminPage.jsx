@@ -8,6 +8,7 @@ import { IssueCaseList } from '../features/support/components'
 import api from '../services/api'
 import { formatMoney, formatTimeRange, humanizeStatus } from '../utils/format'
 import { useWorkspaceTab } from '../hooks/useWorkspaceTab'
+import { useAutoDismiss } from '../hooks/useAutoDismiss'
 
 const adminTabs = ['overview', 'venues', 'services', 'access', 'operations', 'support', 'policies']
 
@@ -114,6 +115,8 @@ export function AdminPage({
   const [auditBookingLoading, setAuditBookingLoading] = useState(false)
   const [auditBookingError, setAuditBookingError] = useState('')
 
+  useAutoDismiss(fieldNotice, () => setFieldNotice(''), 6000)
+
   const panelClass = panel => activePanel === panel ? '' : 'workspacePanelHidden'
 
   useEffect(() => {
@@ -138,9 +141,17 @@ export function AdminPage({
   ), [adminServices, selectedServiceId])
 
   useEffect(() => {
-    loadAdminFields()
-    loadAdminServices()
-    loadStaff()
+    let active = true
+    Promise.all([loadAdminFields(), loadAdminServices(), loadStaff()])
+      .catch(error => {
+        if (!active) return
+        openFeedbackPanel(
+          'Admin data unavailable',
+          error.response?.data?.error || 'Could not load fields, services, or staff accounts.',
+          'error'
+        )
+      })
+    return () => { active = false }
   }, [])
 
   useEffect(() => {
@@ -202,7 +213,14 @@ export function AdminPage({
       surfaceType: selectedField.surfaceType || '',
       status: selectedField.status || 'active'
     })
-    loadFieldPrices(selectedField.fieldId)
+    loadFieldPrices(selectedField.fieldId).catch(error => {
+      setFieldPrices([])
+      openFeedbackPanel(
+        'Pricing data unavailable',
+        error.response?.data?.error || 'Could not load pricing rules for this field.',
+        'error'
+      )
+    })
     setEditingPriceId(null)
     setPriceForm(emptyPriceForm)
   }, [selectedField?.fieldId])
@@ -346,14 +364,22 @@ export function AdminPage({
 
   async function toggleFieldStatus(field) {
     const nextStatus = field.status === 'active' ? 'inactive' : 'active'
-    await api.put(`/admin/fields/${field.fieldId}`, {
-      ...field,
-      status: nextStatus
-    })
-    setFieldNotice(nextStatus === 'active' ? 'Field activated.' : 'Field deactivated.')
-    openFeedbackPanel(nextStatus === 'active' ? 'Field activated' : 'Field deactivated', `${field.fieldName} is now ${nextStatus}.`)
-    await loadAdminFields()
-    await refreshAll?.()
+    try {
+      await api.put(`/admin/fields/${field.fieldId}`, {
+        ...field,
+        status: nextStatus
+      })
+      setFieldNotice(nextStatus === 'active' ? 'Field activated.' : 'Field deactivated.')
+      openFeedbackPanel(nextStatus === 'active' ? 'Field activated' : 'Field deactivated', `${field.fieldName} is now ${nextStatus}.`)
+      await loadAdminFields()
+      await refreshAll?.()
+      return true
+    } catch (error) {
+      const message = error.response?.data?.error || 'Could not update the field status.'
+      setFieldNotice(message)
+      openFeedbackPanel('Field status unchanged', message, 'error')
+      return false
+    }
   }
 
   function editPrice(price) {
@@ -462,14 +488,22 @@ export function AdminPage({
 
   async function toggleServiceStatus(service) {
     const nextStatus = service.status === 'active' ? 'inactive' : 'active'
-    await api.put(`/admin/services/${service.extraServiceId}`, {
-      ...service,
-      status: nextStatus
-    })
-    setFieldNotice(nextStatus === 'active' ? 'Extra service activated.' : 'Extra service deactivated.')
-    openFeedbackPanel(nextStatus === 'active' ? 'Service activated' : 'Service deactivated', `${service.serviceName} is now ${nextStatus}.`)
-    await loadAdminServices()
-    await refreshAll?.()
+    try {
+      await api.put(`/admin/services/${service.extraServiceId}`, {
+        ...service,
+        status: nextStatus
+      })
+      setFieldNotice(nextStatus === 'active' ? 'Extra service activated.' : 'Extra service deactivated.')
+      openFeedbackPanel(nextStatus === 'active' ? 'Service activated' : 'Service deactivated', `${service.serviceName} is now ${nextStatus}.`)
+      await loadAdminServices()
+      await refreshAll?.()
+      return true
+    } catch (error) {
+      const message = error.response?.data?.error || 'Could not update the service status.'
+      setFieldNotice(message)
+      openFeedbackPanel('Service status unchanged', message, 'error')
+      return false
+    }
   }
 
   async function saveStaff() {
@@ -531,9 +565,10 @@ export function AdminPage({
   async function confirmStatusChange() {
     const { kind, item } = statusConfirmation
     if (!item) return
-    if (kind === 'field') await toggleFieldStatus(item)
-    else await toggleServiceStatus(item)
-    setStatusConfirmation({ opened: false, kind: '', item: null })
+    const updated = kind === 'field'
+      ? await toggleFieldStatus(item)
+      : await toggleServiceStatus(item)
+    if (updated) setStatusConfirmation({ opened: false, kind: '', item: null })
   }
 
   return (

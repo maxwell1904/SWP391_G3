@@ -1,13 +1,21 @@
 import { useState } from 'react'
 import { MailCheck } from 'lucide-react'
+import { useAutoDismiss } from '../../../hooks/useAutoDismiss'
 
 export function EmailVerificationPanel({ email, onResend }) {
   const [sentNotice, setSentNotice] = useState(false)
+  const [sending, setSending] = useState(false)
+
+  useAutoDismiss(sentNotice, () => setSentNotice(false), 5000)
 
   const handleResend = async () => {
-    await onResend()
-    setSentNotice(true)
-    setTimeout(() => setSentNotice(false), 5000)
+    setSending(true)
+    try {
+      const result = await onResend()
+      if (result) setSentNotice(true)
+    } finally {
+      setSending(false)
+    }
   }
 
   return (
@@ -21,8 +29,8 @@ export function EmailVerificationPanel({ email, onResend }) {
         Please check your inbox (and spam folder) to activate your account and enable online booking.
       </p>
       <div className="buttonRow noMargin">
-        <button className="secondaryButton" onClick={handleResend}>
-          {sentNotice ? 'Verification email sent' : 'Resend verification email'}
+        <button type="button" className="secondaryButton" disabled={sending} onClick={handleResend}>
+          {sending ? 'Sending…' : sentNotice ? 'Verification email sent' : 'Resend verification email'}
         </button>
       </div>
     </div>
