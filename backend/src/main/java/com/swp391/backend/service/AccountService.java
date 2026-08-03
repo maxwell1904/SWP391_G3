@@ -357,11 +357,11 @@ public class AccountService {
     public Map<String, Object> activity(Long userId) {
         requireAdmin();
         AppUser user = support.getUser(userId);
-        var bookings = support.bookingRepository.findByCustomer_UserIdOrderByBookingIdDesc(userId).stream()
+        var bookings = support.bookingRepository.findByCustomer_UserIdOrderByCreatedAtDesc(userId).stream()
                 .limit(20)
                 .map(support::bookingSummary)
                 .toList();
-        var issues = support.issueRepository.findAllByOrderByIssueIdDesc().stream()
+        var issues = support.issueRepository.findAllByOrderByCreatedAtDesc().stream()
                 .filter(issue -> Objects.equals(issue.getReporter().getUserId(), userId))
                 .limit(20)
                 .map(support::issueSummary)
