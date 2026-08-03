@@ -12,44 +12,94 @@ participant "AccountController" as Controller
 participant "AccountService" as Service
 participant "DomainSupportService" as Support
 participant "VerificationEmailService" as Email
-database "PostgreSQL" as DB
+database "Database" as DB
 
 == UC-08: Lock/unlock customer account ==
 
-Admin -> UI : Select customer and choose Lock
-UI -> UI : Require lock reason
-UI -> Controller : PUT /api/account/users/{id}/lock\n{accountLocked: true, lockReason}
-Controller -> Service : updateAccountLock(userId, request)
-Service -> Support : getUser(userId)
-Support -> DB : SELECT app_user
-DB --> Support : customer
-Support --> Service : AppUser
-Service -> Service : Validate Customer role and reason
-Service -> Service : status = locked\nlockReason = reason\nauthVersion++
-Service -> Email : sendAccountLockEmail(customer, reason)
-Email --> Service : delivery status
-Service -> DB : COMMIT account lock
-Service --> Controller : locked customer summary
-Controller --> UI : HTTP 200
-UI --> Admin : Show account locked
+Admin -> UI : 1. Select customer and choose Lock
+activate UI
+
+UI -> UI : 2. Require lock reason
+activate UI
+deactivate UI
+
+UI -> Controller : 3. PUT /api/account/users/{id}/lock\n{accountLocked: true, lockReason}
+activate Controller
+
+Controller -> Service : 4. updateAccountLock(userId, request)
+activate Service
+
+Service -> Support : 5. getUser(userId)
+activate Support
+
+Support -> DB : 6. SELECT app_user
+activate DB
+DB --> Support : 7. customer
+deactivate DB
+
+Support --> Service : 8. AppUser
+deactivate Support
+
+Service -> Service : 9. Validate Customer role and reason
+activate Service
+deactivate Service
+
+Service -> Service : 10. status = locked\nlockReason = reason\nauthVersion++
+activate Service
+deactivate Service
+
+Service -> Email : 11. sendAccountLockEmail(customer, reason)
+activate Email
+Email --> Service : 12. delivery status
+deactivate Email
+
+Service -> DB : 13. COMMIT account lock
+activate DB
+DB --> Service : 14. commit confirmed
+deactivate DB
+
+Service --> Controller : 15. locked customer summary
+deactivate Service
+
+Controller --> UI : 16. HTTP 200
+deactivate Controller
+
+UI --> Admin : 17. Show account locked
 
 group Locked customer attempts login
-  UI -> Controller : POST /api/account/login
-  Controller -> Service : login(credentials)
-  Service -> DB : Find account
-  DB --> Service : status = locked
-  Service --> Controller : HTTP 403\nCheck email for details
-  Controller --> UI : Login blocked
+  UI -> Controller : 18. POST /api/account/login
+  activate Controller
+  Controller -> Service : 19. login(credentials)
+  activate Service
+  Service -> DB : 20. Find account
+  activate DB
+  DB --> Service : 21. status = locked
+  deactivate DB
+  Service --> Controller : 22. HTTP 403\nCheck email for details
+  deactivate Service
+  Controller --> UI : 23. Login blocked
+  deactivate Controller
 end
 
 group Admin unlocks customer
-  Admin -> UI : Choose Unlock
-  UI -> Controller : PUT /api/account/users/{id}/lock\n{accountLocked: false}
-  Controller -> Service : updateAccountLock(userId, request)
-  Service -> Service : status = active\nlockReason = null\nauthVersion++
-  Service -> DB : COMMIT account unlock
-  Service --> Controller : active customer summary
-  Controller --> UI : HTTP 200
+  Admin -> UI : 24. Choose Unlock
+  UI -> Controller : 25. PUT /api/account/users/{id}/lock\n{accountLocked: false}
+  activate Controller
+  Controller -> Service : 26. updateAccountLock(userId, request)
+  activate Service
+  Service -> Service : 27. status = active\nlockReason = null\nauthVersion++
+  activate Service
+  deactivate Service
+  Service -> DB : 28. COMMIT account unlock
+  activate DB
+  DB --> Service : 29. commit confirmed
+  deactivate DB
+  Service --> Controller : 30. active customer summary
+  deactivate Service
+  Controller --> UI : 31. HTTP 200
+  deactivate Controller
+  UI --> Admin : 32. Show account active
+  deactivate UI
 end
 
 @enduml
