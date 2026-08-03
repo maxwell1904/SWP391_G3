@@ -6,6 +6,7 @@ import api from '../services/api'
 import { formatMoney, formatTimeRange, resolveAssetUrl } from '../utils/format'
 
 const labelize = value => String(value || '').replace(/_/g, ' ').toLowerCase()
+const PAGE_SIZE = 6
 
 export function FieldsPage({
   fields,
@@ -20,6 +21,12 @@ export function FieldsPage({
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
   const [detailOpen, setDetailOpen] = useState(false)
+  const [page, setPage] = useState(1)
+
+  const totalPages = Math.max(1, Math.ceil(fields.length / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages)
+  const pageStart = (safePage - 1) * PAGE_SIZE
+  const pagedFields = fields.slice(pageStart, pageStart + PAGE_SIZE)
 
   useEffect(() => {
     if (!fields.length || !fields.some(field => Number(field.fieldId) === Number(selectedFieldId))) {
@@ -83,6 +90,11 @@ export function FieldsPage({
     setDetailOpen(true)
   }
 
+  function goToPage(nextPage) {
+    setPage(Math.max(1, Math.min(totalPages, nextPage)))
+    document.getElementById('fields')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   return (
     <section id="fields" className="section fieldSection">
       <SectionIntro
@@ -95,8 +107,11 @@ export function FieldsPage({
         <p className="emptyText">No active fields are available right now.</p>
       ) : (
         <>
+          <div className="fieldListMeta" aria-live="polite">
+            Showing {pageStart + 1}-{Math.min(pageStart + PAGE_SIZE, fields.length)} of {fields.length} fields
+          </div>
           <div className="fieldGrid fieldGridCards" aria-label="Active football fields">
-            {fields.map(field => {
+            {pagedFields.map(field => {
               const isSelected = detailOpen && Number(field.fieldId) === Number(selectedField?.fieldId)
               return (
                 <button
@@ -129,6 +144,41 @@ export function FieldsPage({
               )
             })}
           </div>
+
+          {totalPages > 1 && (
+            <nav className="fieldPagination" aria-label="Field list pages">
+              <button
+                type="button"
+                className="fieldPaginationButton"
+                onClick={() => goToPage(safePage - 1)}
+                disabled={safePage === 1}
+                aria-label="Previous field page"
+              >
+                ‹
+              </button>
+              {Array.from({ length: totalPages }, (_, index) => index + 1).map(pageNumber => (
+                <button
+                  type="button"
+                  key={pageNumber}
+                  className={pageNumber === safePage ? 'fieldPaginationButton active' : 'fieldPaginationButton'}
+                  onClick={() => goToPage(pageNumber)}
+                  aria-label={`Field page ${pageNumber}`}
+                  aria-current={pageNumber === safePage ? 'page' : undefined}
+                >
+                  {pageNumber}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="fieldPaginationButton"
+                onClick={() => goToPage(safePage + 1)}
+                disabled={safePage === totalPages}
+                aria-label="Next field page"
+              >
+                ›
+              </button>
+            </nav>
+          )}
 
           <Modal
             opened={detailOpen && Boolean(displayDetail)}

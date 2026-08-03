@@ -364,6 +364,10 @@ main.pageMain .section {
   background: #edf3ef;
 }
 
+.fieldPaginationButton {
+  border-radius: 2px;
+}
+
 .fieldControl {
   gap: 5px;
   align-self: start;

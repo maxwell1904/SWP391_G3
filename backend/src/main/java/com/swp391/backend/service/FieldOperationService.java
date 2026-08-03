@@ -24,6 +24,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 
 @Service
 @Transactional
@@ -64,9 +66,6 @@ public class FieldOperationService {
     }
 
     public Map<String, Object> fieldDetail(Long fieldId) {
-        for (int offset = 0; offset <= 7; offset++) {
-            slotGenerationService.ensureDate(LocalDate.now().plusDays(offset));
-        }
         FootballField field = support.getField(fieldId);
         if (field.getStatus() != CommonStatus.active) throw support.notFound("Field not found");
         List<FieldPrice> activePrices = support.fieldPriceRepository.findByField_FieldId(fieldId).stream()
@@ -483,24 +482,51 @@ public class FieldOperationService {
 
     private List<Map<String, Object>> nextAvailableSlots(Long fieldId) {
         LocalDate today = LocalDate.now();
-        return java.util.stream.IntStream.rangeClosed(0, 7)
-                .mapToObj(today::plusDays)
-                .flatMap(date -> support.slotRepository.findBySlotDate(date).stream())
-                .filter(slot -> Objects.equals(slot.getField().getFieldId(), fieldId))
-                .filter(slot -> slot.getField().getStatus() == CommonStatus.active)
+        List<Slot> candidates = support.slotRepository
+                .findByField_FieldIdAndSlotDateBetweenOrderBySlotDateAscStartTimeAsc(
+                        fieldId, today, today.plusDays(7));
+        if (candidates.isEmpty()) {
+            return List.of();
+        }
+        Set<Long> reservedSlotIds = support.bookingRepository
+                .findBySlot_SlotIdInAndStatusIn(
+                        candidates.stream().map(Slot::getSlotId).toList(),
+                        DomainSupportService.ACTIVE_BOOKING_STATUSES)
+                .stream()
+                .map(booking -> booking.getSlot().getSlotId())
+                .collect(java.util.stream.Collectors.toSet());
+        List<FieldPrice> activePrices = support.fieldPriceRepository.findByField_FieldId(fieldId).stream()
+                .filter(price -> price.getStatus() == CommonStatus.active)
+                .toList();
+
+        return candidates.stream()
                 .filter(support::isSlotStartInFuture)
                 .filter(slot -> slot.getStatus() == SlotStatus.available)
-                .filter(slot -> !support.bookingRepository.existsBySlotAndStatusIn(slot, DomainSupportService.ACTIVE_BOOKING_STATUSES))
-                .filter(slot -> support.findFieldPrice(slot).isPresent())
-                .sorted(Comparator.comparing(Slot::getSlotDate).thenComparing(Slot::getStartTime))
+                .filter(slot -> !reservedSlotIds.contains(slot.getSlotId()))
+                .flatMap(slot -> priceForSlot(activePrices, slot)
+                        .map(price -> Map.<String, Object>ofEntries(
+                                Map.entry("slotId", slot.getSlotId()),
+                                Map.entry("slotDate", slot.getSlotDate().toString()),
+                                Map.entry("startTime", slot.getStartTime().toString()),
+                                Map.entry("endTime", slot.getEndTime().toString()),
+                                Map.entry("price", price)
+                        )).stream())
                 .limit(5)
-                .map(slot -> Map.<String, Object>ofEntries(
-                        Map.entry("slotId", slot.getSlotId()),
-                        Map.entry("slotDate", slot.getSlotDate().toString()),
-                        Map.entry("startTime", slot.getStartTime().toString()),
-                        Map.entry("endTime", slot.getEndTime().toString()),
-                        Map.entry("price", support.calculateFieldPrice(slot))
-                ))
                 .toList();
+    }
+
+    private Optional<BigDecimal> priceForSlot(List<FieldPrice> prices, Slot slot) {
+        String dayType = slot.getSlotDate().getDayOfWeek() == DayOfWeek.SATURDAY
+                || slot.getSlotDate().getDayOfWeek() == DayOfWeek.SUNDAY
+                ? "weekend"
+                : "weekday";
+        return prices.stream()
+                .filter(price -> price.getEffectiveFrom() == null || !slot.getSlotDate().isBefore(price.getEffectiveFrom()))
+                .filter(price -> price.getEffectiveTo() == null || !slot.getSlotDate().isAfter(price.getEffectiveTo()))
+                .filter(price -> price.getDayType().equalsIgnoreCase(dayType) || price.getDayType().equalsIgnoreCase("all"))
+                .filter(price -> !slot.getStartTime().isBefore(price.getStartTime())
+                        && !slot.getEndTime().isAfter(price.getEndTime()))
+                .findFirst()
+                .map(FieldPrice::getPrice);
     }
 }

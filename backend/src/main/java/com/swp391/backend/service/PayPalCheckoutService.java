@@ -84,13 +84,35 @@ public class PayPalCheckoutService {
         return response;
     }
 
-    // Backlog owner: AnNP - UC-36 Pay online via PayPal Sandbox.
     public Map<String, Object> createOrder(Long bookingId, ApiRequests.PayPalOrderCreate request) {
-        Booking booking = onlineBookingOwnedByCustomer(bookingId);
+        onlineBookingOwnedByCustomer(bookingId);
+        Booking booking = support.bookingRepository.findByIdForUpdate(bookingId)
+                .orElseThrow(() -> support.notFound("Booking not found"));
         PaymentOption option = support.parseEnum(PaymentOption.class, request.paymentOption(), PaymentOption.deposit);
         BigDecimal bookingAmount = payableAmount(booking, option);
         BigDecimal settlementAmount = toSettlementAmount(bookingAmount);
-        String idempotencyKey = "GZ-" + booking.getBookingCode() + "-" + option.name() + "-" + UUID.randomUUID();
+
+        Payment reusableOrder = support.paymentRepository
+                .findFirstByBooking_BookingIdAndPaymentMethodAndPaymentOptionAndStatusOrderByPaymentIdDesc(
+                        bookingId,
+                        PaymentMethod.paypal_sandbox,
+                        option,
+                        PaymentStatus.pending
+                )
+                .filter(payment -> !support.isBlank(payment.getProviderOrderId()))
+                .filter(payment -> payment.getAmount().compareTo(bookingAmount) == 0)
+                .filter(payment -> normalizedCurrency().equalsIgnoreCase(payment.getCurrency()))
+                .orElse(null);
+        if (reusableOrder != null) {
+            return orderResponse(reusableOrder, settlementAmount, reusableOrder.getProviderStatus());
+        }
+
+        long attemptNumber = support.paymentRepository.countByBooking_BookingIdAndPaymentMethodAndPaymentOption(
+                bookingId,
+                PaymentMethod.paypal_sandbox,
+                option
+        ) + 1;
+        String idempotencyKey = "GZ-" + booking.getBookingCode() + "-" + option.name() + "-" + attemptNumber;
 
         if (isMockMode()) {
             Payment payment = createPendingPayment(

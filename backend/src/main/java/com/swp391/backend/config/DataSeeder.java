@@ -72,21 +72,45 @@ public class DataSeeder {
 
             FieldType fiveSide = fieldType("5-a-side", 10, "Fast small-sided matches");
             FieldType sevenSide = fieldType("7-a-side", 14, "Most popular team size");
-            fieldTypeRepository.saveAll(List.of(fiveSide, sevenSide));
+            FieldType elevenSide = fieldType("11-a-side", 22, "Full-size competition matches");
+            fieldTypeRepository.saveAll(List.of(fiveSide, sevenSide, elevenSide));
 
             FootballField fieldA = field("Field 5A", fiveSide, "Artificial turf field near the entrance", "Zone A - near reception", "Artificial grass", "https://images.unsplash.com/photo-1759210720456-c9814f721479?auto=format&fit=crop&w=1600&q=85");
-            FootballField fieldB = field("Field 7A", sevenSide, "Wider field for evening leagues", "Zone B", "Hybrid grass", "https://images.unsplash.com/photo-1712168539418-0aa66404ee0d?auto=format&fit=crop&w=1600&q=85");
-            FootballField fieldC = field("Covered Field 5B", fiveSide, "Covered training field for rainy sessions", "Zone B - inner row", "Artificial grass", "https://images.unsplash.com/photo-1690892738385-515d0c045ec0?auto=format&fit=crop&w=1600&q=85");
-            fieldRepository.saveAll(List.of(fieldA, fieldB, fieldC));
+            FootballField field5B = field("Field 5B", fiveSide, "Compact field beside the parking area", "Zone A - parking side", "Artificial grass", "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&w=1600&q=85");
+            FootballField field5C = field("Field 5C", fiveSide, "Covered field for rainy-day and late-evening sessions", "Zone B - covered block", "Artificial grass", "https://images.unsplash.com/photo-1690892738385-515d0c045ec0?auto=format&fit=crop&w=1600&q=85");
+            FootballField field7A = field("Field 7A", sevenSide, "Wider field for evening leagues", "Zone B - riverside", "Hybrid grass", "https://images.unsplash.com/photo-1712168539418-0aa66404ee0d?auto=format&fit=crop&w=1600&q=85");
+            FootballField field7B = field("Field 7B", sevenSide, "Competition field with team benches and floodlights", "Zone C - league block", "Artificial grass", "https://images.unsplash.com/photo-1553778263-73a83bab9b0c?auto=format&fit=crop&w=1600&q=85");
+            FootballField field7C = field("Field 7C", sevenSide, "Community field suited to company and school matches", "Zone C - community block", "Artificial grass", "https://images.unsplash.com/photo-1526232761682-d26e03ac148e?auto=format&fit=crop&w=1600&q=85");
+            FootballField field11A = field("Field 11A", elevenSide, "Full-size natural-grass field with covered benches", "Zone D - grandstand", "Natural grass", "https://images.unsplash.com/photo-1758227231013-8cff978f1dae?auto=format&fit=crop&w=1600&q=85");
+            FootballField field11B = field("Field 11B", elevenSide, "Second full-size field for tournaments and training", "Zone D - east stand", "Hybrid grass", "https://images.unsplash.com/photo-1459865264687-595d652de67e?auto=format&fit=crop&w=1600&q=85");
+            FootballField field5D = field("Field 5D", fiveSide, "Secondary field retained for administration practice", "Zone E - training block", "Artificial grass", "https://images.unsplash.com/photo-1529900748604-07564a03e7a6?auto=format&fit=crop&w=1600&q=85");
+            field5D.setStatus(CommonStatus.inactive);
+            fieldRepository.saveAll(List.of(fieldA, field5B, field5C, field7A, field7B, field7C, field11A, field11B, field5D));
 
             fieldPriceRepository.saveAll(List.of(
                     price(fieldA, "weekday", "06:00", "17:00", "11.20"),
                     price(fieldA, "weekday", "17:00", "22:00", "16.80"),
                     price(fieldA, "weekend", "06:00", "22:00", "18.00"),
-                    price(fieldB, "weekday", "06:00", "17:00", "16.80"),
-                    price(fieldB, "weekday", "17:00", "22:00", "24.80"),
-                    price(fieldB, "weekend", "06:00", "22:00", "27.20"),
-                    price(fieldC, "all", "06:00", "22:00", "14.40")
+                    price(field5B, "weekday", "06:00", "17:00", "10.40"),
+                    price(field5B, "weekday", "17:00", "22:00", "16.00"),
+                    price(field5B, "weekend", "06:00", "22:00", "17.20"),
+                    price(field5C, "all", "06:00", "22:00", "14.40"),
+                    price(field7A, "weekday", "06:00", "17:00", "16.80"),
+                    price(field7A, "weekday", "17:00", "22:00", "24.80"),
+                    price(field7A, "weekend", "06:00", "22:00", "27.20"),
+                    price(field7B, "weekday", "06:00", "17:00", "18.40"),
+                    price(field7B, "weekday", "17:00", "22:00", "26.40"),
+                    price(field7B, "weekend", "06:00", "22:00", "28.80"),
+                    price(field7C, "weekday", "06:00", "17:00", "17.60"),
+                    price(field7C, "weekday", "17:00", "22:00", "25.60"),
+                    price(field7C, "weekend", "06:00", "22:00", "28.00"),
+                    price(field11A, "weekday", "06:00", "17:00", "38.00"),
+                    price(field11A, "weekday", "17:00", "22:00", "48.00"),
+                    price(field11A, "weekend", "06:00", "22:00", "54.00"),
+                    price(field11B, "weekday", "06:00", "17:00", "35.00"),
+                    price(field11B, "weekday", "17:00", "22:00", "45.00"),
+                    price(field11B, "weekend", "06:00", "22:00", "50.00"),
+                    price(field5D, "all", "06:00", "22:00", "10.00")
             ));
 
             ExtraService ball = extraService("Ball rental", ServiceType.rental, "ball", "2.00", 30, 2);

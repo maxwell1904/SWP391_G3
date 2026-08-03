@@ -617,6 +617,47 @@ main.pageMain .section {
   min-height: 190px;
 }
 
+.fieldListMeta {
+  margin-bottom: 12px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.fieldPagination {
+  margin-top: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.fieldPaginationButton {
+  min-width: 38px;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--white);
+  color: var(--ink);
+  font-weight: 760;
+}
+
+.fieldPaginationButton:hover:not(:disabled) {
+  border-color: var(--green-dark);
+  color: var(--green-dark);
+}
+
+.fieldPaginationButton.active {
+  border-color: var(--green-dark);
+  background: var(--green-dark);
+  color: var(--white);
+}
+
+.fieldPaginationButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .fieldCard {
   min-width: 0;
   overflow: hidden;

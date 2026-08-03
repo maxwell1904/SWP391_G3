@@ -6,7 +6,7 @@ import { DataList, MetricGrid } from '../components/data'
 import { BillingDetails } from '../features/payments/components'
 import { IssueCaseList } from '../features/support/components'
 import api from '../services/api'
-import { formatMoney, formatTimeRange, humanizeStatus } from '../utils/format'
+import { formatDateTime, formatMoney, formatTimeRange, humanizeStatus } from '../utils/format'
 import { useWorkspaceTab } from '../hooks/useWorkspaceTab'
 import { useAutoDismiss } from '../hooks/useAutoDismiss'
 
@@ -1044,7 +1044,7 @@ export function AdminPage({
         {customerActivity && (
           <Stack gap="md">
             <MetricGrid metrics={[
-              ['Recent bookings', customerActivity.bookingCount || 0],
+              ['Total bookings', customerActivity.bookingCount || 0],
               ['Completed', customerActivity.completedBookingCount || 0],
               ['Reported issues', customerActivity.issues?.length || 0]
             ]} />
@@ -1062,7 +1062,7 @@ export function AdminPage({
               {customerActivity.bookings.length ? (
                 <DataList items={customerActivity.bookings.map(booking => ({
                   title: `${booking.bookingCode} - ${booking.fieldName}`,
-                  meta: `${booking.slotDate} - ${String(booking.startTime).slice(0, 5)}`,
+                  meta: `Booked ${formatDateTime(booking.createdAt)} · Match ${booking.slotDate} - ${String(booking.startTime).slice(0, 5)}`,
                   value: booking.status
                 }))} />
               ) : <Text size="sm" c="dimmed">No bookings recorded.</Text>}

@@ -94,10 +94,25 @@ from (values
     ('7-a-side', 'Field 7A', 'Spacious hybrid-grass field suited to evening leagues and company matches.',
      'https://images.unsplash.com/photo-1712168539418-0aa66404ee0d?auto=format&fit=crop&w=1600&q=85',
      'Zone B · Riverside', 'Hybrid grass', 'active'),
-    ('11-a-side', 'Main Field 11A', 'Full-size natural-grass field with covered benches and spectator seating.',
+    ('11-a-side', 'Field 11A', 'Full-size natural-grass field with covered benches and spectator seating.',
      'https://images.unsplash.com/photo-1758227231013-8cff978f1dae?auto=format&fit=crop&w=1600&q=85',
      'Zone C · Grandstand', 'Natural grass', 'active'),
-    ('5-a-side', 'Training Field', 'Secondary training field retained as an inactive record for the administration flow.',
+    ('5-a-side', 'Field 5B', 'Compact artificial-turf field beside the parking and motorbike area.',
+     'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&w=1600&q=85',
+     'Zone A · Parking side', 'Artificial turf', 'active'),
+    ('5-a-side', 'Field 5C', 'Covered five-a-side field for rainy-day and late-evening sessions.',
+     'https://images.unsplash.com/photo-1690892738385-515d0c045ec0?auto=format&fit=crop&w=1600&q=85',
+     'Zone B · Covered block', 'Artificial turf', 'active'),
+    ('7-a-side', 'Field 7B', 'Competition field with team benches and floodlights for local leagues.',
+     'https://images.unsplash.com/photo-1553778263-73a83bab9b0c?auto=format&fit=crop&w=1600&q=85',
+     'Zone C · League block', 'Artificial turf', 'active'),
+    ('7-a-side', 'Field 7C', 'Community field suited to company, school, and weekend matches.',
+     'https://images.unsplash.com/photo-1526232761682-d26e03ac148e?auto=format&fit=crop&w=1600&q=85',
+     'Zone C · Community block', 'Artificial turf', 'active'),
+    ('11-a-side', 'Field 11B', 'Second full-size field for tournaments and structured training sessions.',
+     'https://images.unsplash.com/photo-1459865264687-595d652de67e?auto=format&fit=crop&w=1600&q=85',
+     'Zone D · East stand', 'Hybrid grass', 'active'),
+    ('5-a-side', 'Field 5D', 'Secondary training field retained as an inactive record for the administration flow.',
      'https://images.unsplash.com/photo-1690892738385-515d0c045ec0?auto=format&fit=crop&w=1600&q=85',
      'Zone D · Training block', 'Artificial turf', 'inactive')
 ) as seed(type_name, field_name, description, image_url, location, surface_type, status)
@@ -116,10 +131,23 @@ from (values
     ('Field 7A', 'weekday', '06:00', '17:00', 20.00::numeric),
     ('Field 7A', 'weekday', '17:00', '22:00', 28.00::numeric),
     ('Field 7A', 'weekend', '06:00', '22:00', 30.00::numeric),
-    ('Main Field 11A', 'weekday', '06:00', '17:00', 38.00::numeric),
-    ('Main Field 11A', 'weekday', '17:00', '22:00', 48.00::numeric),
-    ('Main Field 11A', 'weekend', '06:00', '22:00', 54.00::numeric),
-    ('Training Field', 'all', '06:00', '22:00', 14.00::numeric)
+    ('Field 11A', 'weekday', '06:00', '17:00', 38.00::numeric),
+    ('Field 11A', 'weekday', '17:00', '22:00', 48.00::numeric),
+    ('Field 11A', 'weekend', '06:00', '22:00', 54.00::numeric),
+    ('Field 5B', 'weekday', '06:00', '17:00', 15.00::numeric),
+    ('Field 5B', 'weekday', '17:00', '22:00', 21.00::numeric),
+    ('Field 5B', 'weekend', '06:00', '22:00', 23.00::numeric),
+    ('Field 5C', 'all', '06:00', '22:00', 20.00::numeric),
+    ('Field 7B', 'weekday', '06:00', '17:00', 22.00::numeric),
+    ('Field 7B', 'weekday', '17:00', '22:00', 30.00::numeric),
+    ('Field 7B', 'weekend', '06:00', '22:00', 32.00::numeric),
+    ('Field 7C', 'weekday', '06:00', '17:00', 21.00::numeric),
+    ('Field 7C', 'weekday', '17:00', '22:00', 29.00::numeric),
+    ('Field 7C', 'weekend', '06:00', '22:00', 31.00::numeric),
+    ('Field 11B', 'weekday', '06:00', '17:00', 35.00::numeric),
+    ('Field 11B', 'weekday', '17:00', '22:00', 45.00::numeric),
+    ('Field 11B', 'weekend', '06:00', '22:00', 50.00::numeric),
+    ('Field 5D', 'all', '06:00', '22:00', 14.00::numeric)
 ) as seed(field_name, day_type, start_time, end_time, price)
 join field f on f.field_name = seed.field_name
 cross join demo_context dc;
@@ -252,7 +280,7 @@ from generate_series(1, 4) n;
 
 insert into seed_booking
 select 'BK-GOLD-' || to_char(n, 'FM00'), 'gold@goalzone.local', 'staff@goalzone.local',
-       'Main Field 11A', -(n * 7), '08:00', 'completed', 'walk_in',
+       'Field 11A', -(n * 7), '08:00', 'completed', 'walk_in',
        38.00, 0.00, 0.00, 0.00, 38.00, 11.40, 38.00, 0.00, 0.00, 0.00,
        'Completed booking contributing to Gold membership'
 from generate_series(1, 8) n;
@@ -265,7 +293,7 @@ insert into seed_booking values
     ('BK-GZ-2702', 'member@goalzone.local', 'staff@goalzone.local', 'Field 7A', 0, '10:00',
      'confirmed', 'walk_in', 20.00, 6.00, 0.00, 0.00, 26.00, 7.80, 7.80, 18.20, 0.00, 7.80,
      'Deposit collected at the counter; remaining balance due at check-in'),
-    ('BK-GZ-2703', 'gold@goalzone.local', 'staff@goalzone.local', 'Main Field 11A', 0, '14:00',
+    ('BK-GZ-2703', 'gold@goalzone.local', 'staff@goalzone.local', 'Field 11A', 0, '14:00',
      'confirmed', 'walk_in', 38.00, 15.00, 0.00, 0.00, 53.00, 15.90, 53.00, 0.00, 0.00, 53.00,
      'Full-size match with venue referee'),
     ('BK-RF-2901', 'customer@goalzone.local', 'staff@goalzone.local', 'Field 5A', 2, '12:00',

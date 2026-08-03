@@ -357,21 +357,22 @@ public class AccountService {
     public Map<String, Object> activity(Long userId) {
         requireAdmin();
         AppUser user = support.getUser(userId);
-        var bookings = support.bookingRepository.findByCustomer_UserIdOrderByBookingIdDesc(userId).stream()
+        var customerBookings = support.bookingRepository
+                .findByCustomer_UserIdOrderByCreatedAtDescBookingIdDesc(userId);
+        var bookings = customerBookings.stream()
                 .limit(20)
                 .map(support::bookingSummary)
                 .toList();
-        var issues = support.issueRepository.findAllByOrderByIssueIdDesc().stream()
-                .filter(issue -> Objects.equals(issue.getReporter().getUserId(), userId))
+        var issues = support.issueRepository.findByReporter_UserIdOrderByCreatedAtDescIssueIdDesc(userId).stream()
                 .limit(20)
                 .map(support::issueSummary)
                 .toList();
-        long completedBookings = support.bookingRepository.findByCustomer_UserIdOrderByBookingIdDesc(userId).stream()
+        long completedBookings = customerBookings.stream()
                 .filter(booking -> booking.getStatus() == com.swp391.backend.enums.BookingStatus.completed)
                 .count();
         return Map.of(
                 "user", support.userSummary(user),
-                "bookingCount", bookings.size(),
+                "bookingCount", customerBookings.size(),
                 "completedBookingCount", completedBookings,
                 "bookings", bookings,
                 "issues", issues

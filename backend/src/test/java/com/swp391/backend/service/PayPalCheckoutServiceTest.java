@@ -87,6 +87,26 @@ class PayPalCheckoutServiceTest {
     }
 
     @Test
+    void reusesPendingOrderWhenCreateIsSubmittedTwice() {
+        Map<String, Object> booking = createBooking(customer);
+        Long bookingId = ((Number) booking.get("bookingId")).longValue();
+
+        Map<String, Object> first = payPalCheckoutService.createOrder(
+                bookingId,
+                new ApiRequests.PayPalOrderCreate("deposit")
+        );
+        Map<String, Object> repeated = payPalCheckoutService.createOrder(
+                bookingId,
+                new ApiRequests.PayPalOrderCreate("deposit")
+        );
+
+        assertThat(repeated.get("orderId")).isEqualTo(first.get("orderId"));
+        assertThat(paymentRepository.findByBooking_BookingIdOrderByPaymentIdDesc(bookingId)).hasSize(1);
+        Payment payment = paymentRepository.findByProviderOrderId((String) first.get("orderId")).orElseThrow();
+        assertThat(payment.getIdempotencyKey()).endsWith("-deposit-1");
+    }
+
+    @Test
     void cancellingPayPalOrderExpiresPendingBookingAndReleasesSlot() {
         Map<String, Object> booking = createBooking(customer);
         Long bookingId = ((Number) booking.get("bookingId")).longValue();

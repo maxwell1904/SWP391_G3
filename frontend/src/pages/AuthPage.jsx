@@ -24,13 +24,19 @@ export function AuthPage({
   navigatePage,
   resendVerification
 }) {
+  const signedInDestination = currentUser?.role === 'Admin'
+    ? { page: 'admin', title: 'Admin account ready', text: 'Manage fields, users, policies, promotions, reports, and system configuration.', action: 'Open admin console' }
+    : currentUser?.role === 'Staff'
+      ? { page: 'staff', title: 'Staff account ready', text: 'Continue to daily operations, walk-in bookings, payments, issues, and refunds.', action: 'Open staff workspace' }
+      : { page: 'booking', title: 'Customer account ready', text: 'Reserve selected slots and track booking, payment, membership, and support updates from your account.', action: 'Continue booking' }
+
   return (
     <section id="login" className="section authSection">
       <SectionIntro
         kicker="Account"
-        title={currentUser ? 'Account ready for checkout' : 'Sign in before checkout'}
+        title={currentUser ? signedInDestination.title : 'Sign in before checkout'}
         text={currentUser
-          ? 'Reserve selected slots and track booking, payment, membership, and support updates from your account.'
+          ? signedInDestination.text
           : 'Customers need an account to hold a field and receive payment, cancellation, and refund updates.'}
       />
       <div className="authGrid">
@@ -47,7 +53,7 @@ export function AuthPage({
                 />
               )}
               <div className="buttonRow noMargin">
-                <button className="primaryButton wide" onClick={() => navigatePage('booking')}>Continue booking</button>
+                <button className="primaryButton wide" onClick={() => navigatePage(signedInDestination.page)}>{signedInDestination.action}</button>
                 <button className="ghostDarkButton wide" onClick={logout}>
                   <LogOut size={18} />
                   <span>Log out</span>

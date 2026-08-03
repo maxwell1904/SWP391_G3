@@ -715,14 +715,30 @@ function App() {
       return
     }
     setLoginLoading(true)
+    setNotice('')
+    setActionPanel(null)
     try {
-      const response = await runAction(async () => api.post('/account/login', {
+      const response = await api.post('/account/login', {
         emailOrPhone: emailOrPhone.trim(),
         password: loginForm.password
-      }), 'Signed in')
+      })
       if (response?.data?.user) {
+        setNotice(response.data.message || 'Signed in')
+        setActionPanel({
+          kind: 'success',
+          title: 'Signed in',
+          message: 'Your role-specific workspace is ready.'
+        })
         await completeSignIn(response.data)
       }
+    } catch (error) {
+      const message = error.response?.data?.error || 'Could not sign in'
+      setNotice(message)
+      setActionPanel({
+        kind: 'error',
+        title: 'Login failed',
+        message
+      })
     } finally {
       setLoginLoading(false)
     }
@@ -735,8 +751,9 @@ function App() {
     setLoginForm({ emailOrPhone: '', password: '' })
     setLoginErrors({})
     setAuthMode('login')
+    const destination = user.role === 'Admin' ? 'admin' : user.role === 'Staff' ? 'staff' : 'account'
+    navigatePage(destination)
     await refreshAll(user)
-    navigatePage(user.role === 'Admin' ? 'admin' : user.role === 'Staff' ? 'staff' : 'account')
   }
 
   async function register() {

@@ -594,6 +594,7 @@ public class DomainSupportService {
         map.put("cancellationFeeAmount", booking.getCancellationFeeAmount());
         map.put("refundableAmount", booking.getRefundableAmount());
         map.put("note", booking.getNote());
+        map.put("createdAt", booking.getCreatedAt());
         return map;
     }
 
